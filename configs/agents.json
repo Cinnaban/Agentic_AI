@@ -1,0 +1,18 @@
+{
+  "hermes": {
+    "role": "orchestrator",
+    "enabled": true
+  },
+  "qwen": {
+    "role": "quality_manager",
+    "enabled": true
+  },
+  "research": {
+    "role": "research_agent",
+    "enabled": true
+  },
+  "sentiment": {
+    "role": "sentiment_agent",
+    "enabled": true
+  }
+}

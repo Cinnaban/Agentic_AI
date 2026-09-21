@@ -1,0 +1,3 @@
+2026-09-18 13:35:49,748 | INFO | Hermes | Hermes logger test
+2026-09-18 13:35:49,748 | WARNING | Hermes | Hermes warning test
+2026-09-18 13:35:49,748 | ERROR | Hermes | Hermes error test

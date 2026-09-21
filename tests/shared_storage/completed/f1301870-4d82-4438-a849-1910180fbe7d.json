@@ -1,0 +1,28 @@
+{
+  "job_id": "f1301870-4d82-4438-a849-1910180fbe7d",
+  "status": "completed",
+  "created_at": "2026-09-18T15:01:16.785237",
+  "updated_at": "2026-09-18T15:02:07.915577",
+  "data": {
+    "message": "Analyze Nvidia",
+    "source": "test",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

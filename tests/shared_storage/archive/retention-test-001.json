@@ -1,0 +1,10 @@
+{
+  "job_id": "retention-test-001",
+  "status": "archive",
+  "created_at": "2026-09-18T16:14:26.181452",
+  "updated_at": "2026-09-18T16:14:26.182575",
+  "data": {
+    "message": "Retention test",
+    "source": "test"
+  }
+}

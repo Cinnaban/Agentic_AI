@@ -1,0 +1,31 @@
+{
+  "job_id": "20d94717-711b-4a34-97a8-10cce5167e41",
+  "status": "failed",
+  "created_at": "2026-09-18T15:06:02.812362",
+  "updated_at": "2026-09-18T15:07:24.369274",
+  "data": {
+    "message": "Analyze Nvidia",
+    "source": "test",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Risk modeling status shows 'placeholder' with message 'Risk modeling not implemented'",
+        "Inconsistent quantitative analysis: 'recommendation' field states 'Bearish' while 180-day forecast shows 18.76% positive return"
+      ],
+      "confidence": 90
+    },
+    "final_status": "quality_rejected"
+  }
+}

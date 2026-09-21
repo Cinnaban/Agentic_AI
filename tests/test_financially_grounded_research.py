@@ -1,0 +1,89 @@
+import sys
+from pathlib import Path
+
+
+ROOT_DIR = (
+    Path(__file__)
+    .resolve()
+    .parent
+    .parent
+)
+
+
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(
+        str(ROOT_DIR)
+    )
+
+
+from orchestrator.hermes import Hermes
+
+from agents.quant_agent import (
+    QuantAgent
+)
+
+from agents.research_agent import (
+    ResearchAgent
+)
+
+from data.market_context_provider import (
+    MarketContextProvider
+)
+
+
+hermes = Hermes()
+
+quant_agent = QuantAgent()
+
+research_agent = ResearchAgent()
+
+provider = MarketContextProvider()
+
+
+work_package = hermes.build_workflow(
+    "Analyze Nvidia"
+)
+
+
+quant_result = quant_agent.analyze(
+    work_package
+)
+
+
+company = (
+    work_package.companies[0]
+)
+
+
+market_context = provider.get_context(
+    company=company,
+    quant_data=quant_result
+)
+
+
+print()
+print("=" * 60)
+print("MARKET CONTEXT STATUS")
+print("=" * 60)
+
+print(
+    market_context[
+        "source_status"
+    ]
+)
+
+
+result = research_agent.analyze(
+    company=company,
+    market_context=market_context
+)
+
+
+print()
+print("=" * 60)
+print("FINANCIALLY GROUNDED RESEARCH")
+print("=" * 60)
+
+print(result)
+
+print("=" * 60)

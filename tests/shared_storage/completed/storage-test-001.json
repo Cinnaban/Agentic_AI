@@ -1,0 +1,22 @@
+{
+  "job_id": "storage-test-001",
+  "status": "completed",
+  "created_at": "2026-09-18T14:48:00.798478",
+  "updated_at": "2026-09-18T14:48:00.799080",
+  "data": {
+    "message": "Analyze Nvidia",
+    "source": "test",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": false
+    }
+  }
+}
