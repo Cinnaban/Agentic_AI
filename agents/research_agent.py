@@ -161,7 +161,8 @@ class ResearchAgent:
                     market_context.get(
                             "macro_facts",
                             {}
-                        ),
+                        ),  
+                
                 "live_market_context":
                     market_context
                     .get(
@@ -251,7 +252,63 @@ Macroeconomic Facts
      measured in percentage points.
    - Do not infer a direct company-specific effect from macroeconomic
      data unless supported by other supplied evidence.
-     
+
+LIVE MARKET CONTEXT:
+
+- Live Market Context contains recently retrieved
+  public web evidence.
+- Each result may contain:
+  title,
+  publication date,
+  publisher/source,
+  search summary,
+  URL,
+  and Firecrawl-extracted page content.
+- When "content" is present, prefer the supplied
+  extracted page content over the shorter search
+  result summary.
+- The publisher/source remains the evidence source.
+- Firecrawl is only the retrieval mechanism and
+  must not be described as the publisher.
+- Preserve publication dates and publisher
+  attribution when discussing current events.
+- Public reporting is not automatically an
+  independently verified fact.
+- When multiple independent supplied sources report
+  the same development, you may describe the event
+  as supported by multiple supplied sources.
+- Do not invent current developments that are not
+  represented in the supplied evidence.
+
+CURRENT INFORMATION RULES:
+
+- Do not use general model knowledge as evidence
+  for current events.
+- Do not invent a current date.
+- If the user asks for "current", "today", "latest",
+  "recent", "recently", "now", "this week",
+  "this month", or another time-sensitive request,
+  current-event claims must be grounded in supplied
+  timestamped evidence.
+- For current company developments, prefer supplied
+  Live Market Context over model memory.
+- SEC remains authoritative for supplied
+  company-reported financial facts.
+- FRED remains authoritative for supplied
+  macroeconomic observations.
+- Gaming PC quantitative fields remain model-derived
+  quantitative evidence.
+- Live Market Context represents externally retrieved
+  public reporting.
+- Do not use a web article to override an
+  SEC-reported financial fact.
+- Do not use general web reporting to replace
+  supplied FRED macroeconomic observations.
+- If current information was requested but
+  source_status.live_market_context is unavailable,
+  explicitly state that current external verification
+  is unavailable.
+
 Financial Data
    - Financial Data contains analytical and model-derived
      market evidence from the quantitative system.
@@ -335,6 +392,12 @@ LIVE MARKET RULES:
 GROUNDING RULES:
 - Use Market Context as the authoritative source for
   current or time-sensitive information.
+
+- For current/latest/recent claims, use only live results
+  that survived the supplied recency policy.
+
+- Never use the model training cutoff as a substitute
+  for a current-information date.
 
 - If a source_status value is "unavailable", do not claim
   to have current information from that source.

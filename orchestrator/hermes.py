@@ -10,6 +10,17 @@ from agents.company_detection_agent import (CompanyDetectionAgent)
 from agents.research_assignment_agent import (ResearchAssignmentAgent)
 from agents.qwen_manager import (QwenManager)
 from agents.general_response_agent import (GeneralResponseAgent)
+from agents.current_topic_agent import (
+    CurrentTopicAgent
+)
+
+from orchestrator.freshness_detector import (
+    FreshnessDetector
+)
+
+from data.providers.live_market_providers import (
+    LiveMarketProvider
+)
 from job_queue.job_factory import JobFactory
 from workers.agent_executor import AgentExecutor
 from orchestrator.result_aggregator import (ResultAggregator)
@@ -21,6 +32,7 @@ from memory.workflow_state import (
     WorkflowState,
     WorkflowStatus
 )
+
 
 
 class Hermes:
@@ -38,6 +50,17 @@ class Hermes:
         self.workflow_state = (WorkflowState())
         self.storage_manager = (StorageManager())
         self.quality_context_builder = (QualityContextBuilder())
+        self.freshness_detector = (
+            FreshnessDetector()
+        )
+
+        self.live_market_provider = (
+            LiveMarketProvider()
+        )
+
+        self.current_topic_agent = (
+            CurrentTopicAgent()
+        )
 
     def build_workflow(
         self,
@@ -100,17 +123,58 @@ class Hermes:
                 "job_id"
             ):
 
-                general_result = (
-                    self.general_response_agent.analyze(
+                requires_live_data = (
+                    self.freshness_detector
+                    .requires_live_data(
                         message
                     )
                 )
+
+
+                if requires_live_data:
+
+                    live_context = (
+                        self.live_market_provider
+                        .get_context(
+                            company={},
+                            query=message
+                        )
+                    )
+
+
+                    current_result = (
+                        self.current_topic_agent
+                        .analyze(
+                            message=message,
+                            live_context=live_context
+                        )
+                    )
+
+
+                    safe_response = (
+                        self.outbound_gate.prepare(
+                            current_result
+                        )
+                    )
+
+
+                    return safe_response
+
+
+                general_result = (
+                    self.general_response_agent
+                    .analyze(
+                        message
+                    )
+                )
+
 
                 safe_response = (
                     self.outbound_gate.prepare(
                         general_result
                     )
                 )
+
 
                 return safe_response
 
