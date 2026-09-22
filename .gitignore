@@ -22,3 +22,13 @@ venv/
 # Test/cache files
 .pytest_cache/
 .coverage
+
+# Runtime logs
+logs/
+*.log
+
+# Personal Files
+GOOGLE_Credentials.json
+run_etf_update.sh
+etf_update_launchd_error.log
+etf_update_launchd.log
