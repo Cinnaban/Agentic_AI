@@ -30,5 +30,7 @@ logs/
 # Personal Files
 GOOGLE_Credentials.json
 run_etf_update.sh
+run_discord_bot.sh
+run_telegram_bot.sh
 etf_update_launchd_error.log
 etf_update_launchd.log
