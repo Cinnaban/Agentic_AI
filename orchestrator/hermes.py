@@ -38,7 +38,6 @@ class Hermes:
         self.workflow_state = (WorkflowState())
         self.storage_manager = (StorageManager())
         self.quality_context_builder = (QualityContextBuilder())
-        self.quality_manager = QwenManager()
 
     def build_workflow(
         self,
@@ -226,6 +225,21 @@ class Hermes:
                     "Quality review and final response "
                     "approval states do not match"
                 )
+            
+            if quality_approved:
+
+                response_text = (
+                    self._build_company_response(
+                        execution_results,
+                        quality_review
+                    )
+                )
+
+                if response_text.strip():
+
+                    final_response[
+                        "response"
+                    ] = response_text
                        
             self.storage_manager.update_job_record(
                 job_id=work_package.job_id,
@@ -349,3 +363,115 @@ class Hermes:
             return self.outbound_gate.prepare(
                 error_response
             )
+       
+    def _build_company_response(
+        self,
+        execution_results,
+        quality_review
+    ):
+
+        research = (
+            execution_results.get(
+                "research"
+            )
+        )
+
+        risk = (
+            execution_results.get(
+                "risk",
+                {}
+            )
+        )
+
+        if not isinstance(
+            research,
+            str
+        ):
+
+            research = ""
+
+
+        sections = []
+
+
+        if research.strip():
+
+            sections.append(
+                research.strip()
+            )
+
+
+        if isinstance(
+            risk,
+            dict
+        ):
+
+            overall_risk = risk.get(
+                "overall_risk"
+            )
+
+            risk_score = risk.get(
+                "risk_score"
+            )
+
+            signal_uncertainty = risk.get(
+                "signal_uncertainty"
+            )
+
+            risk_lines = []
+
+
+            if overall_risk:
+
+                risk_lines.append(
+                    f"Overall Risk: {overall_risk}"
+                )
+
+
+            if risk_score is not None:
+
+                risk_lines.append(
+                    f"Risk Score: {risk_score}"
+                )
+
+
+            if signal_uncertainty:
+
+                risk_lines.append(
+                    "Signal Uncertainty: "
+                    f"{signal_uncertainty}"
+                )
+
+
+            if risk_lines:
+
+                sections.append(
+                    "Risk Summary:\n"
+                    + "\n".join(
+                        risk_lines
+                    )
+                )
+
+
+        if isinstance(
+            quality_review,
+            dict
+        ):
+
+            confidence = (
+                quality_review.get(
+                    "confidence"
+                )
+            )
+
+            if confidence is not None:
+
+                sections.append(
+                    "Quality Confidence: "
+                    f"{confidence}"
+                )
+
+
+        return "\n\n".join(
+            sections
+        )   

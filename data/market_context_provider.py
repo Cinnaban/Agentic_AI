@@ -21,6 +21,9 @@ from data.providers.macro_provider import (
 from data.providers.macro_fact_builder import (
     MacroFactBuilder
 )
+from data.providers.live_market_providers import (
+    LiveMarketProvider
+)
 class MarketContextProvider:
     
     def __init__(self):
@@ -38,6 +41,9 @@ class MarketContextProvider:
         )
         self.macro_fact_builder = (
             MacroFactBuilder()
+        )
+        self.live_market_provider = (
+            LiveMarketProvider()
         )
 
     def _build_financial_context(
@@ -134,10 +140,56 @@ class MarketContextProvider:
     def get_context(
         self,
         company,
-        quant_data=None
+        quant_data=None,
+        original_message=None,
+        requires_live_data=False
     ):
+        
 # Variables
         financial_data = {}
+        live_market_context = {
+            "available":
+                False,
+
+            "query":
+                original_message,
+
+            "company":
+                company,
+
+            "results":
+                [],
+
+            "sources":
+                []
+        }
+        if (
+            requires_live_data
+            and isinstance(
+                original_message,
+                str
+            )
+        ):
+
+            live_market_context = (
+                self.live_market_provider
+                .get_context(
+                    company=company,
+                    query=original_message
+                )
+            )
+        has_live_market_context = bool(
+            isinstance(
+                live_market_context,
+                dict
+            )
+            and live_market_context.get(
+                "available"
+            )
+            and live_market_context.get(
+                "results"
+            )
+        )   
         sec_filings = []
         sec_facts = {}
         sec_fact_values = {}
@@ -245,6 +297,8 @@ class MarketContextProvider:
                 macro,
             "macro_facts":
                 macro_facts,
+            "live_market_context":
+                live_market_context,
             "news": 
                 news,
             "sentiment_sources": [],
@@ -269,6 +323,11 @@ class MarketContextProvider:
                     if has_macro
                     else "unavailable"
                 ),
+                "live_market_context": (
+                    "available"
+                    if has_live_market_context
+                    else "unavailable"
+                ),
                 "news": (
                     "available"
                     if news
@@ -279,7 +338,8 @@ class MarketContextProvider:
                     "financial_data": [],
                     "news": [],
                     "filings": [],
-                    "macro": []
+                    "macro": [],
+                    "live_market_context": []
                 }
             }
         }

@@ -115,6 +115,12 @@ class ResearchAgent:
 
             "sec_filings":
                 research_sec_filings,
+            
+            "live_market_context":
+                market_context.get(
+                    "live_market_context",
+                    {}
+                ),
 
             "news":
                 market_context.get(
@@ -156,6 +162,15 @@ class ResearchAgent:
                             "macro_facts",
                             {}
                         ),
+                "live_market_context":
+                    market_context
+                    .get(
+                        "source_status",
+                        {}
+                    )
+                    .get(
+                        "live_market_context"
+                    ),
                 "macro":
                     market_context.get(
                         "source_status",
@@ -293,6 +308,30 @@ MACRO INTERPRETATION RULES:
 - Clearly identify FRED-derived observations as macroeconomic
   context rather than company-specific evidence.
 
+LIVE MARKET RULES:
+- Live Market Context contains externally retrieved
+  current web/news evidence.
+- Use publication dates and source attribution when
+  discussing recent or current developments.
+- Do not describe general model knowledge as current
+  information.
+- If the user asks for current, latest, recent, today,
+  this week, or similar time-sensitive information,
+  current-event claims must be grounded in supplied
+  Live Market Context or another supplied timestamped source.
+- Retrieved search results represent public reporting.
+  They are not automatically independently verified facts.
+- When multiple sources describe the same development,
+  distinguish corroboration from single-source reporting.
+- SEC remains authoritative for supplied company-reported
+  financial facts.
+- FRED remains authoritative for supplied macroeconomic facts.
+- Gaming PC data remains quantitative model evidence.
+- Do not replace SEC or FRED evidence with web claims.
+- If live data was requested but Live Market Context is
+  unavailable, explicitly state that current external
+  verification is unavailable.
+  
 GROUNDING RULES:
 - Use Market Context as the authoritative source for
   current or time-sensitive information.

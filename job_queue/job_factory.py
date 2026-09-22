@@ -1,6 +1,8 @@
 import uuid
 
-from job_queue.work_package import WorkPackage
+from job_queue.work_package import (
+    WorkPackage
+)
 
 
 class JobFactory:
@@ -10,13 +12,16 @@ class JobFactory:
         companies,
         required_agents,
         original_message,
-        source="discord"
+        source="discord",
+        priority=100
     ):
-
         return WorkPackage(
-            job_id=str(uuid.uuid4()),
+            job_id=str(
+                uuid.uuid4()
+            ),
             companies=companies,
             required_agents=required_agents,
             original_message=original_message,
-            source=source
+            source=source,
+            priority=priority
         )

@@ -12,6 +12,7 @@ from agents.risk_agent import RiskAgent
 from agents.quant_agent import QuantAgent
 from agents.signal_reconciliation_agent import SignalReconciliationAgent
 from data.market_context_provider import (MarketContextProvider)
+from orchestrator.freshness_detector import (FreshnessDetector)
 
 class AgentExecutor:
 
@@ -22,6 +23,8 @@ class AgentExecutor:
         self.risk_agent = RiskAgent()
         self.signal_reconciliation_agent = (SignalReconciliationAgent())
         self.market_context_provider = (MarketContextProvider())
+        self.freshness_detector = (FreshnessDetector())
+        
         
     def execute(
         self,
@@ -45,6 +48,14 @@ class AgentExecutor:
         company = ( 
             work_package.companies[0]
         )
+        
+        requires_live_data = (
+            self.freshness_detector
+            .requires_live_data(
+                work_package.original_message
+            )
+        )
+        
         market_context = (
             self.market_context_provider.get_context(
                 company
@@ -64,16 +75,33 @@ class AgentExecutor:
             market_context = (
                 self.market_context_provider.get_context(
                     company=company,
+
                     quant_data=results.get(
                         "quant"
+                    ),
+
+                    original_message=(
+                        work_package.original_message
+                    ),
+
+                    requires_live_data=(
+                        requires_live_data
                     )
                 )
             )
+            
             if market_context is None:
-
                 market_context = (
                     self.market_context_provider.get_context(
-                        company=company
+                        company=company,
+
+                        original_message=(
+                            work_package.original_message
+                        ),
+
+                        requires_live_data=(
+                            requires_live_data
+                        )
                     )
                 )
 # RESEARCH
