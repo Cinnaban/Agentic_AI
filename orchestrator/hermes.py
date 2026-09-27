@@ -1,4 +1,5 @@
 import sys
+import traceback 
 
 from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -32,8 +33,6 @@ from memory.workflow_state import (
     WorkflowState,
     WorkflowStatus
 )
-
-
 
 class Hermes:
 

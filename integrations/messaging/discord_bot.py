@@ -186,6 +186,14 @@ class DiscordBot:
                     self.adapter.route,
                     normalized
                 )
+                
+                print(
+                    "DISCORD RESULT:"
+                )
+
+                print(
+                    result
+                )
         
                 response_text = (
                     self.formatter.format(

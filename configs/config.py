@@ -1,4 +1,14 @@
+import os
 
+from pathlib import Path
+
+
+ROOT_DIR = (
+    Path(__file__)
+    .resolve()
+    .parent
+    .parent
+)
 
 class Config:
 
@@ -87,6 +97,54 @@ class Config:
     ENABLE_MARKET_PREDICTIONS = True
 
     PREDICTION_HORIZON_DAYS = 7
+    
+    SHARED_STORAGE_DIRECTORY = (
+        ROOT_DIR
+        / "runtime"
+        / "hermes"
+    )
+
+
+    JOB_INCOMING_DIRECTORY = (
+        SHARED_STORAGE_DIRECTORY
+        / "incoming"
+    )
+
+
+    JOB_PROCESSING_DIRECTORY = (
+        SHARED_STORAGE_DIRECTORY
+        / "processing"
+    )
+
+
+    JOB_COMPLETED_DIRECTORY = (
+        SHARED_STORAGE_DIRECTORY
+        / "completed"
+    )
+
+
+    JOB_FAILED_DIRECTORY = (
+        SHARED_STORAGE_DIRECTORY
+        / "failed"
+    )
+
+
+    JOB_ARCHIVE_DIRECTORY = (
+        SHARED_STORAGE_DIRECTORY
+        / "archive"
+    )
+
+
+    JOB_TEMP_DIRECTORY = (
+        SHARED_STORAGE_DIRECTORY
+        / "temp"
+    )
+
+
+    LOG_DIRECTORY = (
+        ROOT_DIR
+        / "logs"
+    )
     # ==========================================
     # Model Settings
     # ==========================================
@@ -104,37 +162,6 @@ class Config:
 
     ENABLE_MEMORY = True
 
-    # ==========================================
-    # Shared Storage
-    # ==========================================
-
-    SHARED_STORAGE_DIRECTORY = (
-    "/Volumes/AIProjects/hermes"
-)
-
-    JOB_INCOMING_DIRECTORY = (
-        f"{SHARED_STORAGE_DIRECTORY}/incoming"
-    )
-
-    JOB_PROCESSING_DIRECTORY = (
-        f"{SHARED_STORAGE_DIRECTORY}/processing"
-    )
-
-    JOB_COMPLETED_DIRECTORY = (
-        f"{SHARED_STORAGE_DIRECTORY}/completed"
-    )
-
-    JOB_FAILED_DIRECTORY = (
-        f"{SHARED_STORAGE_DIRECTORY}/failed"
-    )
-
-    JOB_ARCHIVE_DIRECTORY = (
-        f"{SHARED_STORAGE_DIRECTORY}/archive"
-    )
-
-    JOB_TEMP_DIRECTORY = (
-        f"{SHARED_STORAGE_DIRECTORY}/temp"
-    )
     # ==========================================
     # Storage Retention
     # ==========================================
@@ -155,13 +182,6 @@ class Config:
     DATA_DIRECTORY = "./data"
     RESULTS_DIRECTORY = "./results"
     
-    # ==========================================
-    # Logging
-    # ==========================================
-
-    LOG_DIRECTORY = (
-        f"{SHARED_STORAGE_DIRECTORY}/completed"
-    )
     # ==========================================
     #  Agent Personas
     # ==========================================

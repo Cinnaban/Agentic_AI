@@ -1,0 +1,28 @@
+{
+  "job_id": "464ad6d1-be60-4345-9ae8-5f95bfd9f0fd",
+  "status": "completed",
+  "created_at": "2026-09-27T10:31:13.024521",
+  "updated_at": "2026-09-27T10:33:23.493028",
+  "data": {
+    "message": "Tell me about Amazon",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Amazon",
+        "ticker": "AMZN"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

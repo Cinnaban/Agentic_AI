@@ -142,6 +142,29 @@ class TelegramBot:
                 self.adapter.route,
                 normalized
             )
+            print()
+            print("=" * 60)
+            print("TELEGRAM LIVE RESULT")
+            print("=" * 60)
+
+            print(
+                "Message:",
+                text
+            )
+
+            print(
+                "Result:",
+                result
+            )
+
+            print("=" * 60)
+            print(
+                "TELEGRAM RESULT:"
+            )
+
+            print(
+                result
+            )
 
             print(
                 "Hermes result status:",
