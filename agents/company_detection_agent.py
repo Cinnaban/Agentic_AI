@@ -8,7 +8,7 @@ class CompanyDetectionAgent:
 
     def __init__(self):
         self.ollama = OllamaClient()
-        def _extract_explicit_tickers(
+    def _extract_explicit_tickers(
             self,
             message
         ):
