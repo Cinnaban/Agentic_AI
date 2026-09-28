@@ -136,7 +136,17 @@ class MessageRouter:
             result = (
                 self.hermes.process_request(
                     message=text,
-                    source=source
+                    source=source,
+                    channel_id=(
+                        message.get(
+                            "channel_id"
+                        )
+                    ),
+                    user_id=(
+                        message.get(
+                            "user_id"
+                        )
+                    )
                 )
             )
 

@@ -33,6 +33,18 @@ from memory.workflow_state import (
     WorkflowState,
     WorkflowStatus
 )
+from agents.comparison_agent import (
+    ComparisonAgent
+)
+from orchestrator.comparison_intent import (
+    ComparisonIntent
+)
+from memory.conversation_context import (
+    ConversationContext
+)
+from orchestrator.followup_resolver import (
+    FollowUpResolver
+)
 
 class Hermes:
 
@@ -60,7 +72,19 @@ class Hermes:
         self.current_topic_agent = (
             CurrentTopicAgent()
         )
-
+        self.comparison_agent = (
+            ComparisonAgent()
+        )
+        self.comparison_intent = (
+            ComparisonIntent()
+        )
+        self.conversation_context = (
+            ConversationContext()
+        )
+        self.followup_resolver = (
+            FollowUpResolver()
+        )
+        
     def build_workflow(
         self,
         message
@@ -104,10 +128,34 @@ class Hermes:
     def process_request(
         self,
         message,
-        source="unknown"
+        source="unknown",
+        channel_id=None,
+        user_id=None
     ):
 
         work_package = None
+
+        conversation_key = (
+            self.conversation_context
+            .make_key(
+                source=source,
+                channel_id=channel_id,
+                user_id=user_id
+            )
+        )
+        
+        conversation_state = (
+            self.conversation_context
+            .get(
+                conversation_key
+            )
+        )
+        
+        self.conversation_context.add_message(
+            conversation_key,
+            "user",
+            message
+        )
 
         try:
 
@@ -116,6 +164,49 @@ class Hermes:
                     message
                 )
             )
+            followup = (
+                self.followup_resolver
+                .resolve(
+                    message=message,
+                    context=conversation_state
+                )
+            )
+            if followup:
+                print(
+                    "FOLLOW-UP CONTEXT:"
+                )
+
+                print(
+                    followup
+                )
+
+            if hasattr(
+                work_package,
+                "job_id"
+            ):
+
+                is_comparison = (
+                    self.comparison_intent
+                    .is_comparison(
+                        message,
+                        work_package.companies
+                    )
+                )
+
+
+                context_intent = (
+                    "company_comparison"
+                    if is_comparison
+                    else "company_analysis"
+                )
+
+
+                self.conversation_context.set_active_entities(
+                    conversation_key,
+                    work_package.companies,
+                    intent=context_intent,
+                    request=message
+                )
 
             if not hasattr(
                 work_package,
@@ -156,9 +247,21 @@ class Hermes:
                         )
                     )
 
+                    response_text = (
+                        safe_response.get(
+                            "response"
+                        )
+                    )
+
+                    if response_text:
+
+                        self.conversation_context.add_message(
+                            conversation_key,
+                            "assistant",
+                            response_text
+                        )
 
                     return safe_response
-
 
                 general_result = (
                     self.general_response_agent
@@ -167,12 +270,25 @@ class Hermes:
                     )
                 )
 
-
                 safe_response = (
                     self.outbound_gate.prepare(
                         general_result
                     )
                 )
+
+                response_text = (
+                    safe_response.get(
+                        "response"
+                    )
+                )
+
+                if response_text:
+
+                    self.conversation_context.add_message(
+                        conversation_key,
+                        "assistant",
+                        response_text
+                    )
 
 
                 return safe_response
@@ -387,6 +503,21 @@ class Hermes:
                     work_package.job_id
                 )["status"]
             )
+            
+            response_text = (
+                safe_response.get(
+                    "response"
+                )
+            )
+
+
+            if response_text:
+
+                self.conversation_context.add_message(
+                    conversation_key,
+                    "assistant",
+                    response_text
+                )
             return safe_response
 
         except Exception as e:

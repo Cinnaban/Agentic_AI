@@ -1,0 +1,39 @@
+{
+  "job_id": "3c2acf1d-e87f-4c20-a8d1-9066af8eb905",
+  "status": "completed",
+  "created_at": "2026-09-28T00:55:54.390711",
+  "updated_at": "2026-09-28T00:57:46.511566",
+  "data": {
+    "message": "Compare Nvidia, Intel and AMD",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      },
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA",
+        "entity_type": "company"
+      },
+      {
+        "name": "Intel",
+        "ticker": "INTC",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

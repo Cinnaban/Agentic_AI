@@ -1,0 +1,29 @@
+{
+  "job_id": "c7aadd88-469d-4cfd-b453-62c8b2bd43db",
+  "status": "completed",
+  "created_at": "2026-09-27T11:04:09.453541",
+  "updated_at": "2026-09-27T11:06:20.233816",
+  "data": {
+    "message": "I need to compare Nvidia, Intel and AMD",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}
