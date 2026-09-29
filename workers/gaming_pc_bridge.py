@@ -17,6 +17,13 @@ class GamingPCBridge:
         self.worker_name = (
             Config.GAMING_PC_WORKER_NAME
         )
+        self.session = (
+            requests.Session()
+        )
+
+        self.session.trust_env = (
+            False
+        )
 
     def submit_job(
         self,
@@ -25,39 +32,274 @@ class GamingPCBridge:
 
         requested_tasks = [
             agent_name
+
             for agent_name, enabled
             in work_package.required_agents.items()
+
             if enabled
         ]
 
-        compute_request = ComputeRequest(
-            job_id=work_package.job_id,
-            companies=work_package.companies,
-            original_message=work_package.original_message,
-            requested_tasks=requested_tasks,
-            source=work_package.source
+
+        companies = (
+            work_package.companies
         )
 
-        payload = compute_request.to_dict()
 
-        try:
-            response = requests.post(
-                Config.GAMING_PC_COMPUTE_URL,
-                json=payload,
-                timeout=Config.GAMING_PC_TIMEOUT
-            )
-            response.raise_for_status()
+        if not isinstance(
+            companies,
+            list
+        ):
 
-            return response.json()
-
-        except requests.RequestException as e:
             return {
-                "job_id": work_package.job_id,
-                "worker": self.worker_name,
-                "status": "failed",
-                "error": str(e)
+                "job_id":
+                    work_package.job_id,
+
+                "worker":
+                    self.worker_name,
+
+                "status":
+                    "failed",
+
+                "results":
+                    [],
+
+                "failed_companies":
+                    [],
+
+                "error":
+                    "Invalid companies configuration"
             }
 
+
+        if not companies:
+
+            return {
+                "job_id":
+                    work_package.job_id,
+
+                "worker":
+                    self.worker_name,
+
+                "status":
+                    "failed",
+
+                "results":
+                    [],
+
+                "failed_companies":
+                    [],
+
+                "error":
+                    "No companies were supplied"
+            }
+
+
+        combined_results = []
+
+        failed_companies = []
+
+
+        for company in companies:
+
+            if not isinstance(
+                company,
+                dict
+            ):
+
+                continue
+
+
+            ticker = (
+                company.get(
+                    "ticker"
+                )
+            )
+
+
+            if not isinstance(
+                ticker,
+                str
+            ):
+
+                continue
+
+
+            ticker = (
+                ticker
+                .strip()
+                .upper()
+            )
+
+
+            if not ticker:
+
+                continue
+
+
+            print()
+            print("=" * 60)
+            print(
+                "GAMING PC QUANT REQUEST:",
+                ticker
+            )
+            print("=" * 60)
+
+
+            compute_request = (
+                ComputeRequest(
+                    job_id=(
+                        work_package.job_id
+                    ),
+
+                    companies=[
+                        company
+                    ],
+
+                    original_message=(
+                        work_package
+                        .original_message
+                    ),
+
+                    requested_tasks=(
+                        requested_tasks
+                    ),
+
+                    source=(
+                        work_package.source
+                    )
+                )
+            )
+
+
+            payload = (
+                compute_request.to_dict()
+            )
+
+
+            try:
+
+                response = self.session.post(
+                    Config.GAMING_PC_COMPUTE_URL,
+
+                    json=payload,
+
+                    timeout=(
+                        Config.GAMING_PC_TIMEOUT
+                    )
+                )
+
+
+                response.raise_for_status()
+
+
+                response_data = (
+                    response.json()
+                )
+
+
+                remote_results = (
+                    response_data.get(
+                        "results",
+                        []
+                    )
+                )
+
+
+                if isinstance(
+                    remote_results,
+                    list
+                ):
+
+                    combined_results.extend(
+                        remote_results
+                    )
+
+
+                print(
+                    "GAMING PC QUANT COMPLETE:",
+                    ticker
+                )
+
+
+            except (
+                requests.RequestException,
+                ValueError
+            ) as e:
+
+                print(
+                    "GAMING PC QUANT FAILED:",
+                    ticker,
+                    repr(
+                        e
+                    )
+                )
+
+
+                failed_companies.append(
+                    {
+                        "company":
+                            company,
+
+                        "ticker":
+                            ticker,
+
+                        "error":
+                            str(
+                                e
+                            )
+                    }
+                )
+
+
+        if (
+            not combined_results
+            and failed_companies
+        ):
+
+            return {
+                "job_id":
+                    work_package.job_id,
+
+                "worker":
+                    self.worker_name,
+
+                "status":
+                    "failed",
+
+                "results":
+                    [],
+
+                "failed_companies":
+                    failed_companies,
+
+                "error":
+                    (
+                        "All Gaming PC "
+                        "quant requests failed"
+                    )
+            }
+
+
+        return {
+            "job_id":
+                work_package.job_id,
+
+            "worker":
+                self.worker_name,
+
+            "status":
+                (
+                    "partial"
+                    if failed_companies
+                    else "completed"
+                ),
+
+            "results":
+                combined_results,
+
+            "failed_companies":
+                failed_companies
+        }
     def get_results(
         self,
         job_id
@@ -69,7 +311,7 @@ class GamingPCBridge:
         }
     def health_check(self):
         try:
-            response = requests.get(
+            response = self.session.get(
                 Config.GAMING_PC_HEALTH_URL,
                 timeout=10
             )

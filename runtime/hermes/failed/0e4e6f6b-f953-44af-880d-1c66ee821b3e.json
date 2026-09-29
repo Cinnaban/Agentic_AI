@@ -1,0 +1,31 @@
+{
+  "job_id": "0e4e6f6b-f953-44af-880d-1c66ee821b3e",
+  "status": "failed",
+  "created_at": "2026-09-29T00:59:55.911373",
+  "updated_at": "2026-09-29T01:01:39.372448",
+  "data": {
+    "message": "How does the irs determine RMD?",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "RMD",
+        "ticker": "RMD",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing required agent results to assess quality"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

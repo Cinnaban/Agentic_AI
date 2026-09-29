@@ -1,0 +1,39 @@
+{
+  "job_id": "18926a9c-e5b0-4876-917e-c7a5734b79fa",
+  "status": "completed",
+  "created_at": "2026-09-28T01:10:54.147187",
+  "updated_at": "2026-09-28T01:11:21.330147",
+  "data": {
+    "message": "What has the strongest financial statements? AMD, NVDA, INTC",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      },
+      {
+        "name": "NVDA",
+        "ticker": "NVDA",
+        "entity_type": "security"
+      },
+      {
+        "name": "INTC",
+        "ticker": "INTC",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": false,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

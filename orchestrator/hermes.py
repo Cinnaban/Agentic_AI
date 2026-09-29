@@ -85,6 +85,66 @@ class Hermes:
             FollowUpResolver()
         )
         
+    def _build_followup_workflow(
+            self,
+            message,
+            followup,
+            source="unknown"
+        ):
+
+            if not isinstance(
+                followup,
+                dict
+            ):
+
+                return None
+
+
+            entities = followup.get(
+                "entities",
+                []
+            )
+
+
+            if not isinstance(
+                entities,
+                list
+            ):
+
+                return None
+
+
+            if not entities:
+
+                return None
+
+
+            required_agents = {
+                "research":
+                    True,
+
+                "sentiment":
+                    False,
+
+                "quant":
+                    True,
+
+                "risk":
+                    True
+            }
+
+            return (
+               
+                self.job_factory
+                .create_work_package(
+                    companies=entities,
+                    required_agents=required_agents,
+                    original_message=message,
+                    source=source,
+                    priority=100
+                )
+            )
+        
     def build_workflow(
         self,
         message
@@ -135,6 +195,7 @@ class Hermes:
 
         work_package = None
 
+
         conversation_key = (
             self.conversation_context
             .make_key(
@@ -143,41 +204,60 @@ class Hermes:
                 user_id=user_id
             )
         )
-        
+
+
         conversation_state = (
             self.conversation_context
             .get(
                 conversation_key
             )
         )
-        
+
+
         self.conversation_context.add_message(
             conversation_key,
             "user",
             message
         )
 
+
+        followup = (
+            self.followup_resolver
+            .resolve(
+                message=message,
+                context=conversation_state
+            )
+        )
+
+
         try:
 
-            work_package = (
-                self.build_workflow(
-                    message
-                )
-            )
-            followup = (
-                self.followup_resolver
-                .resolve(
-                    message=message,
-                    context=conversation_state
-                )
-            )
             if followup:
-                print(
-                    "FOLLOW-UP CONTEXT:"
+
+                work_package = (
+                    self._build_followup_workflow(
+                        message=message,
+                        followup=followup,
+                        source=source
+                    )
                 )
 
-                print(
-                    followup
+
+                if work_package is None:
+
+                    work_package = (
+                        self.build_workflow(
+                            message
+                        )
+                    )
+
+
+            else:
+
+                work_package = (
+                    self.build_workflow(
+                        message
+                    )
                 )
 
             if hasattr(
@@ -186,12 +266,21 @@ class Hermes:
             ):
 
                 is_comparison = (
+                (
+                    followup is not None
+                    and followup.get(
+                        "intent"
+                    ) == "company_comparison"
+                )
+                or
+                (
                     self.comparison_intent
                     .is_comparison(
                         message,
                         work_package.companies
                     )
                 )
+            )
 
 
                 context_intent = (
@@ -359,6 +448,182 @@ class Hermes:
                 work_package.job_id,
                 WorkflowStatus.QUALITY_REVIEW
             )
+            if is_comparison:
+
+                company_results = (
+                    execution_results.get(
+                        "company_results",
+                        {}
+                    )
+                )
+
+
+                if not isinstance(
+                    company_results,
+                    dict
+                ):
+
+                    company_results = {}
+
+
+                if not company_results:
+
+                    raise RuntimeError(
+                        "Comparison execution "
+                        "returned no company results"
+                    )
+
+
+                comparison_result = (
+                    self.comparison_agent
+                    .analyze(
+                        message=message,
+
+                        companies=(
+                            work_package.companies
+                        ),
+
+                        company_results=(
+                            company_results
+                        )
+                    )
+                )
+
+
+                comparison_response = (
+                    comparison_result.get(
+                        "response",
+                        ""
+                    )
+                )
+
+
+                if not isinstance(
+                    comparison_response,
+                    str
+                ):
+
+                    comparison_response = ""
+
+
+                comparison_response = (
+                    comparison_response.strip()
+                )
+
+
+                if not comparison_response:
+
+                    raise RuntimeError(
+                        "ComparisonAgent returned "
+                        "no response"
+                    )
+
+
+                final_response = {
+                    "approved":
+                        True,
+
+                    "confidence":
+                        95,
+
+                    "status":
+                        "completed",
+
+                    "response":
+                        comparison_response,
+
+                    "results":
+                        execution_results
+                }
+
+
+                safe_response = (
+                    self.outbound_gate
+                    .prepare(
+                        final_response
+                    )
+                )
+
+
+                self.storage_manager.update_job_record(
+                    job_id=(
+                        work_package.job_id
+                    ),
+
+                    status="processing",
+
+                    updates={
+                        "comparison_result":
+                            comparison_result,
+
+                        "final_status":
+                            "completed"
+                    }
+                )
+
+
+                completed_path = (
+                    self.storage_manager
+                    .move_job(
+                        job_id=(
+                            work_package.job_id
+                        ),
+
+                        from_status=(
+                            "processing"
+                        ),
+
+                        to_status=(
+                            "completed"
+                        )
+                    )
+                )
+
+
+                if (
+                    completed_path is None
+                    or not completed_path.exists()
+                ):
+
+                    raise RuntimeError(
+                        "Completed comparison job "
+                        "record was not persisted"
+                    )
+
+
+                self.workflow_state.update_status(
+                    work_package.job_id,
+                    WorkflowStatus.COMPLETED
+                )
+
+
+                safe_response[
+                    "job_id"
+                ] = work_package.job_id
+
+
+                safe_response[
+                    "status"
+                ] = "completed"
+
+
+                response_text = (
+                    safe_response.get(
+                        "response"
+                    )
+                )
+
+
+                if response_text:
+
+                    self.conversation_context.add_message(
+                        conversation_key,
+                        "assistant",
+                        response_text
+                    )
+
+
+                return safe_response
 
             quality_context = (
                 self.quality_context_builder.build(

@@ -25,11 +25,332 @@ class AgentExecutor:
         self.market_context_provider = (MarketContextProvider())
         self.freshness_detector = (FreshnessDetector())
         
+    def _execute_multi_company(
+        self,
+        work_package
+    ):
+
+        company_results = {}
         
+        requires_live_data = (
+            self.freshness_detector
+            .requires_live_data(
+                work_package.original_message
+            )
+        )
+
+        quant_result = None
+
+
+        if work_package.required_agents.get(
+            "quant"
+        ):
+
+            quant_result = (
+                self.quant_agent.analyze(
+                    work_package
+                )
+            )
+
+
+        quant_by_ticker = {}
+
+
+        if isinstance(
+            quant_result,
+            dict
+        ):
+
+            for item in quant_result.get(
+                "results",
+                []
+            ):
+
+                if not isinstance(
+                    item,
+                    dict
+                ):
+
+                    continue
+
+
+                company = item.get(
+                    "company",
+                    {}
+                )
+
+
+                if not isinstance(
+                    company,
+                    dict
+                ):
+
+                    continue
+
+
+                ticker = company.get(
+                    "ticker"
+                )
+
+
+                if not isinstance(
+                    ticker,
+                    str
+                ):
+
+                    continue
+
+
+                ticker = (
+                    ticker
+                    .strip()
+                    .upper()
+                )
+
+
+                if not ticker:
+
+                    continue
+
+
+                quant_by_ticker[
+                    ticker
+                ] = item
+
+
+        for company in work_package.companies:
+
+            if not isinstance(
+                company,
+                dict
+            ):
+
+                continue
+
+
+            ticker = company.get(
+                "ticker"
+            )
+
+
+            if not isinstance(
+                ticker,
+                str
+            ):
+
+                continue
+
+
+            ticker = (
+                ticker
+                .strip()
+                .upper()
+            )
+
+
+            if not ticker:
+
+                continue
+
+
+            company_quant = (
+                quant_by_ticker.get(
+                    ticker
+                )
+            )
+            
+            print()
+            print(
+                "MULTI-COMPANY RESEARCH:",
+                ticker
+            )
+            
+            market_context = (
+                self.market_context_provider
+                .get_context(
+                    company=company,
+                    quant_data=company_quant,
+                    original_message=(
+                        work_package
+                        .original_message
+                    ),
+                    requires_live_data=(
+                        requires_live_data
+                    )
+                )
+            )
+
+            research_result = None  
+
+            if work_package.required_agents.get(
+                "research",
+                False
+            ):
+
+                research_result = (
+                    self.research_agent
+                    .analyze(
+                        company=company,
+                        market_context=(
+                            market_context
+                        )
+                    )
+                )
+            
+                reconciliation_result = None    
+
+
+            if (
+                work_package.required_agents.get(
+                    "quant",
+                    False
+                )
+                and company_quant
+            ):
+
+                reconciliation_result = (
+                    self.signal_reconciliation_agent
+                    .analyze(
+                        company_quant
+                    )
+                )
+
+
+                if (
+                    isinstance(
+                        reconciliation_result,
+                        dict
+                    )
+                    and reconciliation_result.get(
+                        "status"
+                    ) == "failed"
+                ):
+
+                    reconciliation_result = None
+
+
+            risk_result = None
+
+
+            if work_package.required_agents.get(
+                "risk",
+                False
+            ):
+
+                print(
+                    "MULTI-COMPANY RISK:",
+                    ticker
+                )
+
+
+                risk_result = (
+                    self.risk_agent
+                    .analyze(
+                        company=company,
+                        quant_data=company_quant,
+                        reconciliation_data=(
+                            reconciliation_result
+                        )
+                    )
+                )
+
+
+                print(
+                    "MULTI-COMPANY RISK COMPLETE:",
+                    ticker
+                )
+
+            
+            if market_context is None:
+
+                market_context = (
+                    self.market_context_provider
+                    .get_context(
+                        company=company,
+                        original_message=(
+                            work_package
+                            .original_message
+                        ),
+                        requires_live_data=(
+                            requires_live_data
+                        )
+                    )
+                )
+            
+            
+
+            company_results[
+                ticker
+            ] = {
+                "company":
+                    company,
+
+                "quant":
+                    company_quant,
+
+                "research":
+                    research_result,
+
+                "sentiment":
+                    None,
+                    
+                "signal_reconciliation":
+                    reconciliation_result,
+
+                "risk":
+                    risk_result
+            }
+
+
+        print()
+        print("=" * 60)
+        print("MULTI-COMPANY EXECUTOR RESULT")
+        print("=" * 60)
+
+        print(
+            "Quant tickers:",
+            list(
+                quant_by_ticker.keys()
+            )
+        )
+
+        print(
+            "Company result tickers:",
+            list(
+                company_results.keys()
+            )
+        )
+
+        print("=" * 60)
+
+
+        return {
+            "company_results":
+                company_results,
+
+            "quant":
+                quant_result
+        }   
+    
     def execute(
         self,
         work_package
     ):
+        if (
+            isinstance(
+                work_package.companies,
+                list
+            )
+            and len(
+                work_package.companies
+            ) > 1
+        ):
+
+            return (
+                self._execute_multi_company(
+                    work_package
+                )
+            )
 
         results = {}
 

@@ -1,0 +1,41 @@
+{
+  "job_id": "37cfccef-9cae-4a51-85b8-2f411872c3dc",
+  "status": "failed",
+  "created_at": "2026-09-29T03:16:50.457747",
+  "updated_at": "2026-09-29T03:18:17.932130",
+  "data": {
+    "message": "Compare Nvidia, Intel and AMD",
+    "source": "comparison_trace",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      },
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA",
+        "entity_type": "company"
+      },
+      {
+        "name": "Intel",
+        "ticker": "INTC",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "No agent results provided for analysis"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

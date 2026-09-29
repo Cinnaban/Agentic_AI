@@ -1,0 +1,28 @@
+{
+  "job_id": "5ed95741-7a62-4c32-931b-4f0974b4de95",
+  "status": "completed",
+  "created_at": "2026-09-29T06:27:32.438985",
+  "updated_at": "2026-09-29T06:29:39.536162",
+  "data": {
+    "message": "Does Taiwan Semiconductor have a chance in the chip manufacturing industry?",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "Taiwan Semiconductor",
+        "ticker": "TSM"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}
