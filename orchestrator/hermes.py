@@ -48,6 +48,17 @@ from orchestrator.followup_resolver import (
 from orchestrator.comparison_request_planner import (
     ComparisonRequestPlanner
 )
+from agents.financial_formula_designer import (
+    FinancialFormulaDesigner
+)
+
+from financial_engine.formula_metric_extractor import (
+    FormulaMetricExtractor
+)
+
+from financial_engine.formula_evaluator import (
+    FormulaEvaluator
+)
 
 class Hermes:
 
@@ -80,6 +91,15 @@ class Hermes:
         )
         self.comparison_agent = (
             ComparisonAgent()
+        )
+        self.financial_formula_designer = (
+            FinancialFormulaDesigner()
+        )
+        self.formula_metric_extractor = (
+            FormulaMetricExtractor()
+        )
+        self.formula_evaluator = (
+            FormulaEvaluator()
         )
         self.comparison_intent = (
             ComparisonIntent()
@@ -150,6 +170,94 @@ class Hermes:
                     priority=100
                 )
             )
+            
+    def _all_companies_have_public_tickers(
+        self,
+        company_result
+    ):
+
+        if not isinstance(
+            company_result,
+            dict
+        ):
+
+            return False
+
+
+        companies = company_result.get(
+            "companies",
+            []
+        )
+
+
+        if not isinstance(
+            companies,
+            list
+        ):
+
+            return False
+
+
+        if not companies:
+
+            return False
+
+
+        for company in companies:
+
+            if not isinstance(
+                company,
+                dict
+            ):
+
+                return False
+
+
+            ticker = company.get(
+                "ticker"
+            )
+
+
+            if not isinstance(
+                ticker,
+                str
+            ):
+
+                return False
+
+
+            ticker = (
+                ticker
+                .strip()
+                .upper()
+            )
+
+
+            if not ticker:
+
+                return False
+
+
+            entity_type = str(
+                company.get(
+                    "entity_type",
+                    ""
+                )
+                or ""
+            ).strip().lower()
+
+
+            if entity_type in {
+                "private",
+                "private_company",
+                "non_public"
+            }:
+
+                return False
+
+
+        return True
+
         
     def build_workflow(
         self,
@@ -169,6 +277,18 @@ class Hermes:
 
             return {
                 "route": "local_agents"
+            }
+            
+        if not self._all_companies_have_public_tickers(
+            company_result
+        ):
+
+            return {
+                "route":
+                    "local_agents",
+
+                "fallback_reason":
+                    "no_public_ticker"
             }
 
         assignment_result = (
@@ -496,6 +616,118 @@ class Hermes:
                     )
 
 
+                custom_formula = None
+
+
+                formula_opportunity = (
+                    comparison_plan.get(
+                        "formula_opportunity",
+                        "none"
+                    )
+                    if isinstance(
+                        comparison_plan,
+                        dict
+                    )
+                    else "none"
+                )
+
+
+                if formula_opportunity in {
+                    "helpful",
+                    "central"
+                }:
+
+                    metric_result = (
+                        self.formula_metric_extractor
+                        .extract(
+                            company_results
+                        )
+                    )
+
+
+                    available_metrics = (
+                        metric_result.get(
+                            "available_metrics",
+                            []
+                        )
+                    )
+
+
+                    company_metrics = (
+                        metric_result.get(
+                            "company_metrics",
+                            {}
+                        )
+                    )
+
+
+                    if (
+                        available_metrics
+                        and company_metrics
+                    ):
+
+                        formula_design = (
+                            self.financial_formula_designer
+                            .design(
+                                message=message,
+
+                                companies=(
+                                    work_package.companies
+                                ),
+
+                                available_metrics=(
+                                    available_metrics
+                                )
+                            )
+                        )
+
+
+                        if (
+                            isinstance(
+                                formula_design,
+                                dict
+                            )
+                            and formula_design.get(
+                                "components"
+                            )
+                        ):
+
+                            formula_evaluation = (
+                                self.formula_evaluator
+                                .evaluate(
+                                    formula=(
+                                        formula_design
+                                    ),
+
+                                    company_metrics=(
+                                        company_metrics
+                                    )
+                                )
+                            )
+
+
+                            if (
+                                isinstance(
+                                    formula_evaluation,
+                                    dict
+                                )
+                                and formula_evaluation.get(
+                                    "status"
+                                ) == "completed"
+                            ):
+
+                                custom_formula = {
+                                    "opportunity":
+                                        formula_opportunity,
+
+                                    "design":
+                                        formula_design,
+
+                                    "evaluation":
+                                        formula_evaluation
+                                }
+
+
                 comparison_result = (
                     self.comparison_agent
                     .analyze(
@@ -508,9 +740,13 @@ class Hermes:
                         company_results=(
                             company_results
                         ),
-                        
+
                         comparison_plan=(
                             comparison_plan
+                        ),
+
+                        custom_formula=(
+                            custom_formula
                         )
                     )
                 )
@@ -582,6 +818,12 @@ class Hermes:
                         "comparison_result":
                             comparison_result,
 
+                        "comparison_plan":
+                            comparison_plan,
+
+                        "custom_formula":
+                            custom_formula,
+
                         "final_status":
                             "completed"
                     }
@@ -595,13 +837,9 @@ class Hermes:
                             work_package.job_id
                         ),
 
-                        from_status=(
-                            "processing"
-                        ),
+                        from_status="processing",
 
-                        to_status=(
-                            "completed"
-                        )
+                        to_status="completed"
                     )
                 )
 

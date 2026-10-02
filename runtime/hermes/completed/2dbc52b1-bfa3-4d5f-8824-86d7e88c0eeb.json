@@ -1,0 +1,29 @@
+{
+  "job_id": "2dbc52b1-bfa3-4d5f-8824-86d7e88c0eeb",
+  "status": "completed",
+  "created_at": "2026-10-02T11:50:52.270604",
+  "updated_at": "2026-10-02T11:53:06.938565",
+  "data": {
+    "message": "Compare NVIDIA and Yrefy",
+    "source": "mixed_test",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

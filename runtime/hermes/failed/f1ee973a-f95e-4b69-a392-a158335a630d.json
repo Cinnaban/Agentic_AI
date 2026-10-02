@@ -1,0 +1,30 @@
+{
+  "job_id": "f1ee973a-f95e-4b69-a392-a158335a630d",
+  "status": "failed",
+  "created_at": "2026-10-02T11:24:20.903872",
+  "updated_at": "2026-10-02T11:26:00.361558",
+  "data": {
+    "message": "What can you tell me about Yrefy and how it works and why they're important?",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Yrefy",
+        "ticker": null
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing required information"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

@@ -15,6 +15,20 @@ cases = {
     "Which has the strongest balance sheet?": {"dimensions": ["financial_strength"], "needs_quant": True},
     "Which is the least risky?": {"dimensions": ["risk"], "needs_quant": True, "needs_risk": True},
     "What is the latest outlook?": {"needs_live": True},
+    "Which has the strongest profitability?": {
+        "formula_opportunity":
+            "none"
+    },
+
+    "Compare growth, profitability and risk.": {
+        "formula_opportunity":
+            "helpful"
+    },
+
+    "Which company is strongest overall?": {
+        "formula_opportunity":
+            "central"
+    },
 }
 
 for message, expected in cases.items():

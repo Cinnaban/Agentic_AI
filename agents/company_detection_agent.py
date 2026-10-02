@@ -114,6 +114,25 @@ class CompanyDetectionAgent:
 
         Return ONLY valid JSON.
 
+        IMPORTANT PRIVATE COMPANY OR NO TICKER GUIDELINES:
+
+        If an organization is privately held and does not
+        have a publicly traded security ticker:
+
+        - Do not invent a ticker.
+        - Return ticker as null.
+        - Use entity_type "private_company".
+
+        If the organization cannot be confidently resolved
+        to a public ticker:
+
+        - Do not guess.
+        - Return ticker as null.
+
+        A company name by itself is not sufficient evidence
+        that the company is publicly traded.
+
+
         Example:
 
         {{

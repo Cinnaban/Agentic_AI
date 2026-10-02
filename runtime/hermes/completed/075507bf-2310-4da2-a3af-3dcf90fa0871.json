@@ -1,0 +1,29 @@
+{
+  "job_id": "075507bf-2310-4da2-a3af-3dcf90fa0871",
+  "status": "completed",
+  "created_at": "2026-10-02T11:49:01.763043",
+  "updated_at": "2026-10-02T11:50:57.184444",
+  "data": {
+    "message": "AMZN",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "AMZN",
+        "ticker": "AMZN",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

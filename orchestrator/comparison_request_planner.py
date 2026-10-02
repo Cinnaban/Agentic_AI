@@ -29,6 +29,29 @@ class ComparisonRequestPlanner:
         needs_risk = False
 
         needs_live = False
+        
+        formula_opportunity = (
+            "none"
+        )
+        
+        if any(
+            phrase in normalized
+
+            for phrase
+            in (
+                "rank",
+                "score",
+                "best overall",
+                "strongest overall",
+                "overall financial",
+                "combine",
+                "formula"
+            )
+        ):
+
+            formula_opportunity = (
+                "central"
+            )
 
 
         dimension_rules = {
@@ -89,6 +112,34 @@ class ComparisonRequestPlanner:
                     dimension
                 )
 
+        formula_dimensions = {
+                    "growth",
+                    "profitability",
+                    "financial_strength",
+                    "valuation",
+                    "risk",
+                    "momentum"
+                }
+        
+        
+        matched_formula_dimensions = [
+            dimension
+
+            for dimension
+            in dimensions
+
+            if dimension
+            in formula_dimensions
+        ]
+
+
+        if len(
+            matched_formula_dimensions
+        ) >= 2:
+
+            formula_opportunity = (
+                "helpful"
+            )
 
         quantitative_dimensions = {
             "profitability",
@@ -153,6 +204,56 @@ class ComparisonRequestPlanner:
             needs_risk = True
 
 
+        formula_dimensions = {
+            "growth",
+            "profitability",
+            "financial_strength",
+            "valuation",
+            "risk",
+            "momentum"
+        }
+
+
+        matched_formula_dimensions = [
+            dimension
+
+            for dimension
+            in dimensions
+
+            if dimension
+            in formula_dimensions
+        ]
+
+
+        if len(
+            matched_formula_dimensions
+        ) >= 2:
+
+            formula_opportunity = (
+                "helpful"
+            )
+
+
+        if any(
+            phrase in normalized
+
+            for phrase
+            in (
+                "rank",
+                "score",
+                "best overall",
+                "strongest overall",
+                "overall financial",
+                "combine",
+                "formula"
+            )
+        ):
+
+            formula_opportunity = (
+                "central"
+            )
+
+
         return {
             "dimensions":
                 dimensions,
@@ -167,5 +268,8 @@ class ComparisonRequestPlanner:
                 needs_risk,
 
             "needs_live":
-                needs_live
+                needs_live,
+
+            "formula_opportunity":
+                formula_opportunity
         }

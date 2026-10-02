@@ -24,8 +24,9 @@ class ComparisonAgent:
         self,
         message,
         companies,
-        company_results, 
-        comparison_plan=None
+        company_results,
+        comparison_plan=None,
+        custom_formula=None
     ):
 
         if not isinstance(
@@ -34,6 +35,13 @@ class ComparisonAgent:
         ):
 
             comparison_plan = {}
+ 
+        if not isinstance(
+            custom_formula,
+            dict
+        ):
+
+            custom_formula = {}
  
         dimensions = comparison_plan.get(
             "dimensions",
@@ -75,15 +83,50 @@ COMPARISON PLAN:
     indent=2
 )}
 
+CUSTOM ANALYTICAL FORMULA:
+
+{json.dumps(
+    custom_formula,
+    indent=2,
+    default=str
+)}
+
+
 PRIMARY TASK:
 
-Answer the user's actual question first.
+Answer the user's exact question first.
+
+Use Company Evidence to support the answer.
+
+Use the Custom Analytical Formula only as an
+additional analytical lens when supplied.
+
+Do not let the formula replace the user's question.
+
+Do not produce a generic company profile when the
+user asks a focused comparison question.
 
 The Requested Comparison Dimensions identify the
 specific dimensions the user wants compared.
 
 Do not automatically generate a generic full company
 report.
+
+If formula opportunity is "helpful":
+
+- Answer using the broader evidence first.
+- Present the custom formula as a supporting lens.
+- Explain whether the formula supports or conflicts
+  with the broader evidence.
+
+If formula opportunity is "central":
+
+- The formula may be a primary analytical framework.
+- Still show the underlying evidence.
+- Explain why the formula was created.
+- Explain how the weights were chosen.
+- Explain why the formula is useful.
+- Explain important limitations.
 
 If one or more specific dimensions are requested:
 
@@ -124,18 +167,61 @@ Then provide supporting comparison details.
 Prefer concise side-by-side sections over three long
 independent company profiles.
 
-Provide:
+RESPONSE STRUCTURE:
 
-1. Comparison Snapshot
-2. Growth
-3. Profitability
-4. Financial Strength
-5. Valuation
-6. Momentum
-7. Risk
-8. Competitive Position
-9. Key Trade-offs
-10. Bottom Line
+If the user asks about one or a few specific
+dimensions:
+
+- Answer those requested dimensions first.
+- Do not include unrelated sections merely to fill
+  out a standard report format.
+- Include a short conclusion answering the exact
+  question.
+
+If the user requests a broad comparison:
+
+Use relevant sections such as:
+
+- Comparison Snapshot
+- Growth
+- Profitability
+- Financial Strength
+- Valuation
+- Momentum
+- Risk
+- Competitive Position
+- Key Trade-offs
+- Bottom Line
+
+Only include sections supported by the user's
+question and supplied evidence.
+CUSTOM FORMULA RULES:
+
+The Custom Analytical Formula is an additional
+analytical lens created specifically for this
+financial question.
+
+If a custom formula is supplied:
+
+- Explain why the formula was created.
+- Explain which supplied metrics were selected.
+- Explain why those metrics matter to the user's
+  question.
+- Explain the weighting rationale.
+- Explain what higher or lower scores mean.
+- Present the deterministic ranking.
+- Discuss whether the formula agrees or disagrees
+  with the broader supplied evidence.
+- Clearly state the formula's limitations.
+
+Do not describe the custom formula as an industry
+standard, academic model, established valuation
+method, or investment guarantee.
+
+Do not replace the underlying evidence with the
+formula.
+
+The formula supplements the evidence.
 """
 
 

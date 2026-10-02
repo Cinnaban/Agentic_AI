@@ -1,0 +1,30 @@
+{
+  "job_id": "376296a8-1383-494b-b01a-d7ea07664c40",
+  "status": "failed",
+  "created_at": "2026-10-02T11:26:23.316094",
+  "updated_at": "2026-10-02T11:28:04.549143",
+  "data": {
+    "message": "What is the company Yrefy",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Yrefy",
+        "ticker": null
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing required agent results to evaluate"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}
