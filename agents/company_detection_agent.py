@@ -92,6 +92,7 @@ class CompanyDetectionAgent:
         Explicit ticker symbols already detected:
 
         {explicit_ticker_context}
+        
 
         IMPORTANT:
 
@@ -109,8 +110,32 @@ class CompanyDetectionAgent:
 
         - Return all detected entities.
         
+        
+        OUTPUT REQUIREMENT:
+
+        Always return valid JSON.
+
+        Even when the message is not about a company,
+        organization, security, ETF, or private company,
+        return exactly this structure:
+
+        {{
+            "is_company_request": false,
+            "companies": []
+        }}
+
+        Never return explanatory prose outside the JSON.
         Determine whether the user's message is asking
-        about one or more publicly traded companies.
+        about one or more companies, organizations,
+        publicly traded securities, ETFs, or private
+        companies.
+        
+        A private company is still a company request.
+
+        For a private company:
+        - preserve the company entity,
+        - return ticker as null,
+        - use entity_type "private_company".
 
         Return ONLY valid JSON.
 
@@ -133,7 +158,7 @@ class CompanyDetectionAgent:
         that the company is publicly traded.
 
 
-        Example:
+        Public company Example:
 
         {{
         "is_company_request": true,
@@ -143,6 +168,18 @@ class CompanyDetectionAgent:
             "ticker": "NVDA"
             }}
         ]
+        }}
+        
+        Private company example:
+        {{
+            "is_company_request": true,
+            "companies": [
+                {{
+                    "name": "Example Private Company",
+                    "ticker": null,
+                    "entity_type": "private_company"
+                }}
+            ]
         }}
 
         User Message:
@@ -197,6 +234,106 @@ class CompanyDetectionAgent:
                     "ticker"
                 )
 
+                if isinstance(
+                    ticker,
+                    str
+                ):
+
+                    ticker = (
+                        ticker
+                        .strip()
+                        .upper()
+                    )
+
+
+                    if not ticker:
+
+                        ticker = None
+
+                else:
+
+                    ticker = None
+
+                entity_type = str(
+                    company.get(
+                        "entity_type",
+                        "company"
+                    )
+                    or "company"
+                ).strip().lower()
+
+                name = company.get(
+                    "name"
+                )
+
+                if isinstance(
+                    name,
+                    str
+                ):
+
+                    name = (
+                        name.strip()
+                    )
+
+                if not name:
+
+                    continue
+
+                normalized_companies.append(
+                    {
+                        "name":
+                            name,
+
+                        "ticker":
+                            ticker,
+
+                        "entity_type":
+                            entity_type
+                    }
+                )
+
+            merged_companies = []
+
+            seen_entities = set()
+
+
+            for company in (
+                explicit_entities
+                + normalized_companies
+            ):
+
+                if not isinstance(
+                    company,
+                    dict
+                ):
+
+                    continue
+
+
+                name = company.get(
+                    "name"
+                )
+
+
+                if isinstance(
+                    name,
+                    str
+                ):
+
+                    name = (
+                        name.strip()
+                    )
+
+
+                if not name:
+
+                    continue
+
+
+                ticker = company.get(
+                    "ticker"
+                )
+
 
                 if isinstance(
                     ticker,
@@ -210,84 +347,63 @@ class CompanyDetectionAgent:
                     )
 
 
-                if not ticker:
+                    if not ticker:
+
+                        ticker = None
+
+
+                else:
+
+                    ticker = None
+
+
+                entity_type = str(
+                    company.get(
+                        "entity_type",
+                        "company"
+                    )
+                    or "company"
+                ).strip().lower()
+
+
+                if ticker:
+
+                    identity = (
+                        "ticker",
+                        ticker
+                    )
+
+
+                else:
+
+                    identity = (
+                        "name",
+                        name.lower()
+                    )
+
+
+                if identity in seen_entities:
 
                     continue
 
 
-                normalized_companies.append(
+                seen_entities.add(
+                    identity
+                )
+
+
+                merged_companies.append(
                     {
                         "name":
-                            company.get(
-                                "name"
-                            ),
+                            name,
 
                         "ticker":
                             ticker,
 
                         "entity_type":
-                            company.get(
-                                "entity_type",
-                                "company"
-                            )
+                            entity_type
                     }
                 )
-
-
-            merged_companies = []
-
-            seen_tickers = set()
-
-
-            for company in (
-                explicit_entities
-                + normalized_companies
-            ):
-
-                ticker = company.get(
-                    "ticker"
-                )
-
-
-                if not isinstance(
-                    ticker,
-                    str
-                ):
-
-                    continue
-
-
-                ticker = (
-                    ticker
-                    .strip()
-                    .upper()
-                )
-
-
-                if not ticker:
-
-                    continue
-
-
-                if ticker in seen_tickers:
-
-                    continue
-
-
-                seen_tickers.add(
-                    ticker
-                )
-
-
-                company[
-                    "ticker"
-                ] = ticker
-
-
-                merged_companies.append(
-                    company
-                )
-
 
             return {
                 "is_company_request":

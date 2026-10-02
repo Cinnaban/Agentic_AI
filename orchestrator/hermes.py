@@ -51,15 +51,24 @@ from orchestrator.comparison_request_planner import (
 from agents.financial_formula_designer import (
     FinancialFormulaDesigner
 )
-
 from financial_engine.formula_metric_extractor import (
     FormulaMetricExtractor
 )
-
 from financial_engine.formula_evaluator import (
     FormulaEvaluator
 )
-
+from agents.generic_evidence_agent import (
+    GenericEvidenceAgent
+)
+from data.providers.generic_evidence_provider import (
+    GenericEvidenceProvider
+)
+from orchestrator.generic_research_planner import (
+    GenericResearchPlanner
+)
+from orchestrator.generic_research_intent import (
+    GenericResearchIntent
+)
 class Hermes:
 
     def __init__(self):
@@ -110,6 +119,19 @@ class Hermes:
         self.followup_resolver = (
             FollowUpResolver()
         )
+        self.generic_evidence_provider = (
+            GenericEvidenceProvider()
+        )
+        self.generic_evidence_agent = (
+            GenericEvidenceAgent()
+        )
+        self.generic_research_planner = (
+            GenericResearchPlanner()
+        )
+        self.generic_research_intent = (
+            GenericResearchIntent()
+        )
+       
         
     def _build_followup_workflow(
             self,
@@ -444,6 +466,64 @@ class Hermes:
                         message
                     )
                 )
+                
+                fallback_reason = None
+
+                print("=" * 70)
+
+                print(
+                    "MESSAGE:",
+                    message
+                )
+
+                print(
+                    "WORK PACKAGE:",
+                    work_package
+                )
+
+                print(
+                    "FALLBACK REASON:",
+                    fallback_reason
+                )
+
+                print(
+                    "REQUIRES LIVE:",
+                    requires_live_data
+                )
+
+                print("=" * 70)
+
+                if isinstance(
+                    work_package,
+                    dict
+                ):
+
+                    fallback_reason = (
+                        work_package.get(
+                            "fallback_reason"
+                        )
+                    )
+                    print()
+                    print("=" * 60)
+                    print("HERMES LOCAL ROUTE")
+                    print("=" * 60)
+
+                    print(
+                        "WORK PACKAGE:",
+                        work_package
+                    )
+
+                    print(
+                        "FALLBACK REASON:",
+                        fallback_reason
+                    )
+
+                    print(
+                        "REQUIRES LIVE DATA:",
+                        requires_live_data
+                    )
+
+                    print("=" * 60)
 
 
                 if requires_live_data:
@@ -477,6 +557,111 @@ class Hermes:
                             "response"
                         )
                     )
+
+                    if response_text:
+
+                        self.conversation_context.add_message(
+                            conversation_key,
+                            "assistant",
+                            response_text
+                        )
+
+                    return safe_response
+
+                should_use_generic_research = (
+                    fallback_reason
+                    == "no_public_ticker"
+                )
+
+
+                if should_use_generic_research:
+                    print()
+                    print("=" * 60)
+                    print("GENERIC RESEARCH ROUTE SELECTED")
+                    print("=" * 60)
+
+                    research_plan = (
+                        self.generic_research_planner
+                        .plan(
+                            message=message
+                        )
+                    )
+                    print(
+                        "RESEARCH PLAN:",
+                        research_plan
+                    )
+
+
+                    search_queries = (
+                        research_plan.get(
+                            "queries",
+                            []
+                        )
+                    )
+
+
+                    generic_evidence = (
+                        self.generic_evidence_provider
+                        .get_context(
+                            query=message,
+
+                            search_queries=(
+                                search_queries
+                            ),
+
+                            research_plan=(
+                                research_plan
+                            )
+                        )
+                    )
+                    
+                    print(
+                        "GENERIC EVIDENCE AVAILABLE:",
+                        generic_evidence.get(
+                            "available"
+                        )
+                    )
+
+                    print(
+                        "GENERIC RESULT COUNT:",
+                        len(
+                            generic_evidence.get(
+                                "results",
+                                []
+                            )
+                        )
+                    )
+
+                    generic_result = (
+                        self.generic_evidence_agent
+                        .analyze(
+                            message=message,
+
+                            evidence=(
+                                generic_evidence
+                            ),
+
+                            research_plan=(
+                                research_plan
+                            )
+                        )
+                    )
+
+
+                    safe_response = (
+                        self.outbound_gate
+                        .prepare(
+                            generic_result
+                        )
+                    )
+
+
+                    response_text = (
+                        safe_response.get(
+                            "response"
+                        )
+                    )
+
 
                     if response_text:
 

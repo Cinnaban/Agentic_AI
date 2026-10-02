@@ -1,0 +1,41 @@
+{
+  "job_id": "c568e76f-77ba-4d16-82d9-722ba331165e",
+  "status": "failed",
+  "created_at": "2026-10-02T14:37:02.483504",
+  "updated_at": "2026-10-02T14:41:09.003458",
+  "data": {
+    "message": "Who are Yrefy's competitors?",
+    "source": "route_debug",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA",
+        "entity_type": "company"
+      },
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "company"
+      },
+      {
+        "name": "Intel Corporation",
+        "ticker": "INTC",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing required agent results to assess"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}
