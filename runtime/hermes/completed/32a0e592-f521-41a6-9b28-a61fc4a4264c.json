@@ -1,0 +1,29 @@
+{
+  "job_id": "32a0e592-f521-41a6-9b28-a61fc4a4264c",
+  "status": "completed",
+  "created_at": "2026-09-29T10:02:26.558558",
+  "updated_at": "2026-09-29T10:05:04.356099",
+  "data": {
+    "message": "How is CMCSA",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "CMCSA",
+        "ticker": "CMCSA",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

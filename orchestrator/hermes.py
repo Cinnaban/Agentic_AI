@@ -45,6 +45,9 @@ from memory.conversation_context import (
 from orchestrator.followup_resolver import (
     FollowUpResolver
 )
+from orchestrator.comparison_request_planner import (
+    ComparisonRequestPlanner
+)
 
 class Hermes:
 
@@ -71,6 +74,9 @@ class Hermes:
 
         self.current_topic_agent = (
             CurrentTopicAgent()
+        )
+        self.comparison_request_planner = (
+            ComparisonRequestPlanner()
         )
         self.comparison_agent = (
             ComparisonAgent()
@@ -278,9 +284,19 @@ class Hermes:
                     .is_comparison(
                         message,
                         work_package.companies
+                        )
                     )
                 )
-            )
+                comparison_plan = None
+
+                if is_comparison:
+
+                    comparison_plan = (
+                        self.comparison_request_planner
+                        .plan(
+                            message
+                        )
+                    )
 
 
                 context_intent = (
@@ -424,6 +440,12 @@ class Hermes:
                 WorkflowStatus.EXECUTING
             )
 
+
+            if comparison_plan:
+                work_package.comparison_plan = (
+                    comparison_plan
+                )
+
             execution_results = (
                 self.executor.execute(
                     work_package
@@ -485,6 +507,10 @@ class Hermes:
 
                         company_results=(
                             company_results
+                        ),
+                        
+                        comparison_plan=(
+                            comparison_plan
                         )
                     )
                 )

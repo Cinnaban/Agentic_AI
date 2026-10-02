@@ -1,0 +1,31 @@
+{
+  "job_id": "03e8bcb6-8e04-49a7-bb70-9e302a97f4b5",
+  "status": "failed",
+  "created_at": "2026-09-29T09:53:20.025007",
+  "updated_at": "2026-09-29T09:55:12.026376",
+  "data": {
+    "message": "How old is INTC, and how has the business been compared to other companies of the same age?",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "INTC",
+        "ticker": "INTC",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing required agent results data"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

@@ -1,11 +1,11 @@
 {
-  "job_id": "ddf3c517-b27a-4bd1-bc97-85052e9e29c7",
+  "job_id": "079fbe03-5263-4f0e-a3e8-080ed1e94490",
   "status": "processing",
-  "created_at": "2026-09-29T09:39:20.927635",
-  "updated_at": "2026-09-29T09:39:20.929419",
+  "created_at": "2026-10-02T10:34:46.755246",
+  "updated_at": "2026-10-02T10:34:46.757310",
   "data": {
     "message": "Compare Nvidia, Intel and AMD",
-    "source": "comparison_trace",
+    "source": "telegram",
     "companies": [
       {
         "name": "AMD",

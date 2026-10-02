@@ -24,9 +24,21 @@ class ComparisonAgent:
         self,
         message,
         companies,
-        company_results
+        company_results, 
+        comparison_plan=None
     ):
 
+        if not isinstance(
+            comparison_plan,
+            dict
+        ):
+
+            comparison_plan = {}
+ 
+        dimensions = comparison_plan.get(
+            "dimensions",
+            []
+        )
         prompt = f"""
 You are a comparative market research analyst.
 
@@ -49,27 +61,68 @@ COMPANY EVIDENCE:
     default=str
 )}
 
-RULES:
+REQUESTED COMPARISON DIMENSIONS:
 
-- Compare the companies directly.
+{json.dumps(
+    dimensions,
+    indent=2
+)}
 
-- Organize the response around comparison
-  dimensions, not separate standalone reports.
+COMPARISON PLAN:
 
-- Only compare metrics supplied in the evidence.
+{json.dumps(
+    comparison_plan,
+    indent=2
+)}
 
-- Never invent a missing metric.
+PRIMARY TASK:
 
-- Preserve conflicting quantitative signals.
+Answer the user's actual question first.
 
-- Clearly distinguish model-derived quantitative
-  evidence from externally reported facts.
+The Requested Comparison Dimensions identify the
+specific dimensions the user wants compared.
 
-- Do not use general model knowledge as evidence
-  for current financial facts.
+Do not automatically generate a generic full company
+report.
 
-- If current live evidence is present, preserve
-  publisher attribution and publication dates.
+If one or more specific dimensions are requested:
+
+- Focus the response on those dimensions.
+- Compare every supplied company directly.
+- State which company appears strongest for each
+  requested dimension when the evidence allows it.
+- Explain why using supplied evidence.
+- If the evidence does not establish a winner, say so.
+- Do not fill missing values with model knowledge.
+
+If "overview" or multiple broad dimensions are
+requested:
+
+- Provide a broader side-by-side comparison.
+- Still organize the response comparatively rather
+  than producing separate standalone company reports.
+
+EVIDENCE RULES:
+
+- Only use evidence supplied in Company Evidence.
+- Keep each company's metrics attributed to that
+  company.
+- Quantitative model results are model-derived
+  evidence.
+- Public reporting remains attributed to its original
+  publisher.
+- Do not use model memory as evidence for current
+  financial facts.
+- Preserve disagreements between supplied signals.
+
+RESPONSE STYLE:
+
+Begin with a direct answer to the user's question.
+
+Then provide supporting comparison details.
+
+Prefer concise side-by-side sections over three long
+independent company profiles.
 
 Provide:
 

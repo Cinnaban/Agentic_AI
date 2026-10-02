@@ -1,0 +1,36 @@
+{
+  "job_id": "b96e2f4d-631b-4545-a6ac-9303defb45cf",
+  "status": "completed",
+  "created_at": "2026-09-29T16:03:06.293200",
+  "updated_at": "2026-09-29T16:06:15.854550",
+  "data": {
+    "message": "Can you compare Amazon, Walmart and Target?",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Amazon",
+        "ticker": "AMZN"
+      },
+      {
+        "name": "Walmart",
+        "ticker": "WMT"
+      },
+      {
+        "name": "Target",
+        "ticker": "TGT"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "job_id": "2392ad9e-69ed-4aa2-b2fb-e7d32800c2fe",
+  "status": "completed",
+  "created_at": "2026-09-29T10:37:45.110566",
+  "updated_at": "2026-09-29T10:40:03.186673",
+  "data": {
+    "message": "Can you tell me how strong Facebooks market share is on Social Media adoption",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Facebook",
+        "ticker": "META"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

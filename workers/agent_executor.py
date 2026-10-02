@@ -32,18 +32,67 @@ class AgentExecutor:
 
         company_results = {}
         
-        requires_live_data = (
-            self.freshness_detector
-            .requires_live_data(
-                work_package.original_message
-            )
+        comparison_plan = getattr(
+            work_package,
+            "comparison_plan",
+            {}
         )
+
+
+        if not isinstance(
+            comparison_plan,
+            dict
+        ):
+
+            comparison_plan = {}
+
+
+        needs_quant = comparison_plan.get(
+            "needs_quant",
+            True
+        )
+
+
+        needs_research = comparison_plan.get(
+            "needs_research",
+            True
+        )
+
+
+        needs_risk = comparison_plan.get(
+            "needs_risk",
+            True
+        )
+
+
+        needs_live = comparison_plan.get(
+            "needs_live",
+            False
+        )
+        if comparison_plan:
+
+            requires_live_data = (
+                needs_live
+            )
+
+
+        else:
+
+            requires_live_data = (
+                self.freshness_detector
+                .requires_live_data(
+                    work_package.original_message
+                )
+            )
 
         quant_result = None
 
 
-        if work_package.required_agents.get(
-            "quant"
+        if (
+            work_package.required_agents.get(
+                "quant"
+            )
+            and needs_quant
         ):
 
             quant_result = (
@@ -182,9 +231,12 @@ class AgentExecutor:
 
             research_result = None  
 
-            if work_package.required_agents.get(
-                "research",
-                False
+            if (
+                work_package.required_agents.get(
+                    "research",
+                    False
+                )
+                and needs_research
             ):
 
                 research_result = (
@@ -232,10 +284,36 @@ class AgentExecutor:
             risk_result = None
 
 
-            if work_package.required_agents.get(
-                "risk",
-                False
+            if (
+                work_package.required_agents.get(
+                    "risk",
+                    False
+                )
+                and needs_risk
             ):
+
+                print(
+                    "MULTI-COMPANY RISK:",
+                    ticker
+                )
+
+
+                risk_result = (
+                    self.risk_agent
+                    .analyze(
+                        company=company,
+                        quant_data=company_quant,
+                        reconciliation_data=(
+                            reconciliation_result
+                        )
+                    )
+                )
+
+
+                print(
+                    "MULTI-COMPANY RISK COMPLETE:",
+                    ticker
+                )
 
                 print(
                     "MULTI-COMPANY RISK:",
@@ -329,8 +407,11 @@ class AgentExecutor:
                 company_results,
 
             "quant":
-                quant_result
-        }   
+                quant_result,
+
+            "comparison_plan":
+                comparison_plan
+        }
     
     def execute(
         self,

@@ -1,0 +1,29 @@
+{
+  "job_id": "4ccf78db-1891-47ab-beaa-7488ddd16dc1",
+  "status": "completed",
+  "created_at": "2026-09-30T23:04:03.991295",
+  "updated_at": "2026-09-30T23:06:01.241569",
+  "data": {
+    "message": "Evaluate UCTT",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "UCTT",
+        "ticker": "UCTT",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

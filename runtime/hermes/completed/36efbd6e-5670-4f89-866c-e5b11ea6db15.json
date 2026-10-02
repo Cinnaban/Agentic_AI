@@ -1,0 +1,28 @@
+{
+  "job_id": "36efbd6e-5670-4f89-866c-e5b11ea6db15",
+  "status": "completed",
+  "created_at": "2026-09-29T10:13:39.466801",
+  "updated_at": "2026-09-29T10:15:52.085293",
+  "data": {
+    "message": "Is nke a buy or hold",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Nike",
+        "ticker": "NKE"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}
