@@ -202,6 +202,66 @@ Return ONLY valid JSON:
                 message
             ]
 
+                
+        evidence_depth = (
+            "standard"
+        )
+
+        normalized = (
+            message
+            .strip()
+            .lower()
+        )
+
+
+        deep_terms = (
+            "compare",
+            "competition",
+            "competitors",
+            "potential",
+            "opportunity",
+            "growth",
+            "market share",
+            "market size",
+            "why",
+            "evaluate",
+            "assess",
+            "analysis",
+            "research"
+        )
+
+
+        summary_terms = (
+            "brief",
+            "briefly",
+            "quick",
+            "quickly",
+            "summary",
+            "summarize",
+            "short version",
+            "in short",
+            "simple explanation"
+        )
+
+
+        if any(
+            term in normalized
+            for term in summary_terms
+        ):
+
+            evidence_depth = (
+                "summary"
+            )
+
+
+        elif any(
+            term in normalized
+            for term in deep_terms
+        ):
+
+            evidence_depth = (
+                "deep"
+            )
 
         return {
             "intent":

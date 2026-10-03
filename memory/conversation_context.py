@@ -71,8 +71,14 @@ class ConversationContext:
                     None,
 
                 "recent_messages":
-                    []
-            }
+                    [],
+                    
+                "pending_action":
+                    None,
+
+                "last_generic_research":
+                    None
+                }
 
 
         return self._contexts[
@@ -80,6 +86,55 @@ class ConversationContext:
         ]
 
 
+    def set_pending_action(
+        self,
+        key,
+        action
+    ):
+
+        context = (
+            self._ensure(
+                key
+            )
+        )
+
+        context[
+            "pending_action"
+        ] = action
+
+    def clear_pending_action(
+        self,
+        key
+    ):
+
+        context = (
+            self._ensure(
+                key
+            )
+        )
+
+
+        context[
+            "pending_action"
+        ] = None
+
+    def set_last_generic_research(
+        self,
+        key,
+        research
+    ):
+
+        context = (
+            self._ensure(
+                key
+            )
+        )
+
+
+        context[
+            "last_generic_research"
+        ] = research
+        
     def get(
         self,
         key

@@ -360,7 +360,178 @@ class Hermes:
                 conversation_key
             )
         )
+        
+        pending_action = (
+            conversation_state.get(
+                "pending_action"
+            )
+        )
 
+
+        last_generic_research = (
+            conversation_state.get(
+                "last_generic_research"
+            )
+        )
+
+
+        normalized_message = (
+            str(
+                message
+                or ""
+            )
+            .strip()
+            .lower()
+        )
+
+        positive_replies = {
+            "yes",
+            "yeah",
+            "yep",
+            "sure",
+            "please",
+            "do it",
+            "yes please"
+        }
+
+
+        negative_replies = {
+            "no",
+            "no thanks",
+            "not now",
+            "no thank you"
+        }
+
+
+        deep_requests = (
+            "deeper research",
+            "go deeper",
+            "research deeper",
+            "research this deeper",
+            "more detailed research",
+            "full research",
+            "deeper analysis"
+        )
+
+
+        summary_requests = (
+            "summarize that",
+            "summary version",
+            "summarized version",
+            "give me a summary",
+            "shorter version",
+            "brief version"
+        )
+
+
+        requested_research_depth = None
+
+        pending_original_message = None
+
+        if (
+            isinstance(
+                pending_action,
+                dict
+            )
+            and pending_action.get(
+                "type"
+            ) == "generic_research_depth"
+        ):
+
+            if normalized_message in (
+                positive_replies
+            ):
+
+                requested_research_depth = (
+                    pending_action.get(
+                        "suggested_depth"
+                    )
+                )
+
+
+                pending_original_message = (
+                    pending_action.get(
+                        "original_message"
+                    )
+                )
+
+
+                self.conversation_context.clear_pending_action(
+                    conversation_key
+                )
+
+
+            elif normalized_message in (
+                negative_replies
+            ):
+
+                self.conversation_context.clear_pending_action(
+                    conversation_key
+                )
+
+
+                response = {
+                    "status":
+                        "completed",
+
+                    "response":
+                        "Understood."
+                }
+
+
+                return (
+                    self.outbound_gate
+                    .prepare(
+                        response
+                    )
+                )
+            
+        if any(
+            phrase in normalized_message
+            for phrase in deep_requests
+        ):
+
+            requested_research_depth = (
+                "deep"
+            )
+
+            if isinstance(
+                last_generic_research,
+                dict
+            ):
+
+                pending_original_message = (
+                    last_generic_research.get(
+                        "question"
+                    )
+                )
+
+
+        elif any(
+            phrase in normalized_message
+            for phrase in summary_requests
+        ):
+
+            requested_research_depth = (
+                "summary"
+            )
+
+            if isinstance(
+                last_generic_research,
+                dict
+            ):
+
+                pending_original_message = (
+                    last_generic_research.get(
+                        "question"
+                    )
+                )
+                
+                   
+        effective_message = (
+            pending_original_message
+            or message
+        )
 
         self.conversation_context.add_message(
             conversation_key,
@@ -369,14 +540,28 @@ class Hermes:
         )
 
 
-        followup = (
-            self.followup_resolver
-            .resolve(
-                message=message,
-                context=conversation_state
-            )
-        )
+        if requested_research_depth:
+            followup = None
 
+        else:
+            followup = (
+                self.followup_resolver
+                .resolve(
+                    message=message,
+                    context=conversation_state
+                )
+            )
+
+            if isinstance(
+                last_generic_research,
+                dict
+            ):
+
+                pending_original_message = (
+                    last_generic_research.get(
+                        "question"
+                    )
+                )
 
         try:
 
@@ -395,7 +580,7 @@ class Hermes:
 
                     work_package = (
                         self.build_workflow(
-                            message
+                            effective_message
                         )
                     )
 
@@ -404,7 +589,7 @@ class Hermes:
 
                 work_package = (
                     self.build_workflow(
-                        message
+                        effective_message
                     )
                 )
 
@@ -463,35 +648,11 @@ class Hermes:
                 requires_live_data = (
                     self.freshness_detector
                     .requires_live_data(
-                        message
+                        effective_message,
                     )
                 )
                 
                 fallback_reason = None
-
-                print("=" * 70)
-
-                print(
-                    "MESSAGE:",
-                    message
-                )
-
-                print(
-                    "WORK PACKAGE:",
-                    work_package
-                )
-
-                print(
-                    "FALLBACK REASON:",
-                    fallback_reason
-                )
-
-                print(
-                    "REQUIRES LIVE:",
-                    requires_live_data
-                )
-
-                print("=" * 70)
 
                 if isinstance(
                     work_package,
@@ -532,7 +693,7 @@ class Hermes:
                         self.live_market_provider
                         .get_context(
                             company={},
-                            query=message
+                            query=effective_message
                         )
                     )
 
@@ -540,7 +701,7 @@ class Hermes:
                     current_result = (
                         self.current_topic_agent
                         .analyze(
-                            message=message,
+                            message=effective_message,
                             live_context=live_context
                         )
                     )
@@ -583,9 +744,25 @@ class Hermes:
                     research_plan = (
                         self.generic_research_planner
                         .plan(
-                            message=message
+                            message=(
+                                effective_message
+                            )
                         )
                     )
+                    
+                    if requested_research_depth:
+                        research_plan[
+                            "evidence_depth"
+                        ] = (
+                            requested_research_depth
+                        )
+                        research_plan[
+                            "require_source_retrieval"
+                        ] = (
+                            requested_research_depth
+                            != "summary"
+                        )
+                    
                     print(
                         "RESEARCH PLAN:",
                         research_plan
@@ -603,7 +780,7 @@ class Hermes:
                     generic_evidence = (
                         self.generic_evidence_provider
                         .get_context(
-                            query=message,
+                            query=effective_message,
 
                             search_queries=(
                                 search_queries
@@ -635,7 +812,7 @@ class Hermes:
                     generic_result = (
                         self.generic_evidence_agent
                         .analyze(
-                            message=message,
+                            message=effective_message,
 
                             evidence=(
                                 generic_evidence
@@ -646,6 +823,92 @@ class Hermes:
                             )
                         )
                     )
+                    research_depth = (
+                        research_plan.get(
+                            "evidence_depth",
+                            "standard"
+                        )
+                    )
+
+
+                    self.conversation_context.set_last_generic_research(
+                        conversation_key,
+
+                        {
+                            "question":
+                                effective_message,
+
+                            "depth":
+                                research_depth,
+
+                            "research_plan":
+                                research_plan,
+
+                            "evidence":
+                                generic_evidence
+                        }
+                    )
+
+                    response_text = (
+                        generic_result.get(
+                            "response",
+                            ""
+                        )
+                    )
+
+
+                    if research_depth == "deep":
+
+                        offer = (
+                            "Would you like a "
+                            "summarized version?"
+                        )
+
+                        suggested_depth = (
+                            "summary"
+                        )
+
+
+                    else:
+
+                        offer = (
+                            "Would you like a "
+                            "deeper research?"
+                        )
+
+                        suggested_depth = (
+                            "deep"
+                        )
+
+
+                    if response_text:
+
+                        generic_result[
+                            "response"
+                        ] = (
+                            response_text.rstrip()
+                            + "\n\n"
+                            + offer
+                        )
+                        
+                        self.conversation_context.set_pending_action(
+                        conversation_key,
+
+                        {
+                            "type":
+                                "generic_research_depth",
+
+                            "original_message":
+                                effective_message,
+
+                            "current_depth":
+                                research_depth,
+
+                            "suggested_depth":
+                                suggested_depth
+                        }
+                    )
+
 
 
                     safe_response = (

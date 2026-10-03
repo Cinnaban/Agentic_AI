@@ -71,6 +71,32 @@ USER QUESTION:
 
 {message}
 
+QUESTION INTERPRETATION:
+
+First determine whether the user's wording can be
+answered directly from the supplied evidence.
+
+If the user's wording is broad, ambiguous, comparative,
+or asks for judgment such as:
+
+- potential
+- large or small
+- important
+- competitive
+- better or worse
+- strong or weak
+- likely growth
+- market opportunity
+
+translate the user's wording into a more precise
+research question that can be evaluated from public
+evidence.
+
+Do not change the user's underlying intent.
+
+Do not make the rewritten question more certain or
+more specific than the evidence permits.
+
 RESEARCH PLAN:
 
 {json.dumps(
@@ -108,6 +134,16 @@ RESEARCH-PLAN RULES:
   or other values cannot be verified, state that
   limitation briefly.
   
+- The research plan describes what evidence was sought.
+
+- Use requested_dimensions to determine whether the
+retrieved evidence adequately covers the user's
+question.
+
+- If several requested dimensions lack meaningful
+evidence, lower the confidence of the Assessment
+rather than inventing conclusions.
+  
 RESEARCH COVERAGE RULES:
 
 - Review evidence from every planned search query
@@ -144,7 +180,67 @@ RESEARCH COVERAGE RULES:
   for a precise numerical conclusion, summarize the
   qualitative evidence and clearly state that the
   exact figure could not be verified.
-  
+
+LOW-CONFIDENCE RESPONSE RULES:
+
+If the evidence does not support a confident direct
+answer, do not fall back to phrases such as:
+
+- "I don't know"
+- "my knowledge is limited"
+- "you would need to research this"
+- "I cannot analyze this"
+
+when useful retrieved evidence exists.
+
+Instead:
+
+1. Briefly state how the user's question was
+   interpreted.
+
+2. Give a one-word Assessment based only on the
+   supplied evidence.
+
+3. Explain what the evidence supports.
+
+4. Explain what important evidence is missing.
+
+Allowed Assessment labels should be short and
+appropriate to the question, for example:
+
+- Strong
+- Moderate
+- Limited
+- Potential
+- Unclear
+- Unknown
+
+Use "Unknown" when the evidence genuinely cannot
+support even a qualitative assessment.
+
+Use "Unclear" when relevant evidence exists but points
+to an incomplete or inconclusive answer.
+
+Never manufacture certainty merely to produce an
+Assessment.
+
+RESPONSE FORMAT FOR AMBIGUOUS OR LOW-CONFIDENCE
+QUESTIONS:
+
+Interpreted question:
+"<brief descriptive rewording of the user's question>"
+
+Assessment: <one-word assessment>
+
+Then answer in 2-4 short sections using the retrieved
+evidence.
+
+Conclude with one brief limitation when important
+information could not be verified.
+
+For simple factual questions that are directly answered
+by the evidence, do not force this format.
+
 EVIDENCE INTERPRETATION RULES:
 
 - Inspect the supplied evidence before describing

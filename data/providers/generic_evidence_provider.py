@@ -89,6 +89,54 @@ class GenericEvidenceProvider:
         search_queries=None,
         research_plan=None
     ):
+
+        if not isinstance(
+            research_plan,
+            dict
+        ):
+
+            research_plan = {}
+
+
+        evidence_depth = (
+            research_plan.get(
+                "evidence_depth",
+                "standard"
+            )
+        )
+
+
+        if evidence_depth not in {
+            "summary",
+            "standard",
+            "deep"
+        }:
+
+            evidence_depth = (
+                "standard"
+            )
+
+
+        if evidence_depth == "summary":
+
+            page_limit = 2
+
+
+        elif evidence_depth == "deep":
+
+            page_limit = (
+                self.max_pages
+            )
+
+
+        else:
+
+            page_limit = min(
+                6,
+                self.max_pages
+            )
+
+
         if not isinstance(
             search_queries,
             list
@@ -96,7 +144,9 @@ class GenericEvidenceProvider:
 
             search_queries = []
 
+
         cleaned_queries = []
+
 
         for search_query in search_queries:
 
@@ -107,9 +157,11 @@ class GenericEvidenceProvider:
 
                 continue
 
+
             search_query = (
                 search_query.strip()
             )
+
 
             if (
                 search_query
@@ -121,13 +173,16 @@ class GenericEvidenceProvider:
                     search_query
                 )
 
+
         if not cleaned_queries:
 
             cleaned_queries = [
                 query
             ]
 
+
         results = []
+
 
         for search_query in (
             cleaned_queries
@@ -184,6 +239,7 @@ class GenericEvidenceProvider:
                 )
             )
 
+
             key = (
                 normalized_url
                 or result.get(
@@ -191,9 +247,11 @@ class GenericEvidenceProvider:
                 )
             )
 
+
             if not key:
 
                 continue
+
 
             if key in seen:
 
@@ -204,6 +262,7 @@ class GenericEvidenceProvider:
                 key
             )
 
+
             deduplicated.append(
                 result
             )
@@ -211,7 +270,8 @@ class GenericEvidenceProvider:
 
         enriched = (
             self._enrich(
-                deduplicated
+                deduplicated,
+                page_limit=page_limit
             )
         )
 
@@ -253,17 +313,37 @@ class GenericEvidenceProvider:
 
             "research_plan":
                 research_plan,
-            
+
+            "evidence_depth":
+                evidence_depth,
+
+            "page_limit":
+                page_limit,
+
             "sources":
                 sources
         }
 
-
     def _enrich(
         self,
-        results
+        results,
+        page_limit=None
     ):
 
+
+        if not isinstance(
+            page_limit,
+            int
+        ):
+
+            page_limit = (
+                self.max_pages
+            )
+
+        if page_limit < 0:
+
+            page_limit = 0
+            
         if not self.firecrawl.health_check():
 
             return results
@@ -303,7 +383,7 @@ class GenericEvidenceProvider:
 
         while (
             enriched_count
-            < self.max_pages
+            < page_limit
         ):
 
             found_candidate = False
@@ -374,7 +454,7 @@ class GenericEvidenceProvider:
 
 
                 if enriched_count >= (
-                    self.max_pages
+                    page_limit
                 ):
 
                     break
