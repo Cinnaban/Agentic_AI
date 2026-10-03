@@ -1,84 +1,81 @@
 # Agentic AI / Stock Agent
 
-A local-first agentic assistant running primarily on a Mac Mini, with a separate Gaming PC used for quantitative stock analysis. The project combines grounded financial research, current web/news retrieval, Telegram and Discord messaging, and scheduled ETF reporting.
+A local-first agentic assistant centered on a Mac Mini, with a separate Gaming PC providing quantitative stock analysis. The project combines grounded financial research, generic public-web research, current web/news retrieval, conversational context, Telegram and Discord messaging, custom comparison analysis, and scheduled ETF reporting.
 
-## Phase 1 Status
+## Current Project Status
 
-Phase 1 is complete and establishes the core orchestration, grounding, live-data, messaging, and automation layers.
+Phase 1 established the core orchestration, grounding, financial-analysis, messaging, and automation layers. The current build also includes a substantial Phase 2 conversational and multi-company research layer.
 
-Validated capabilities include:
+Validated or implemented capabilities include:
 
-- Company detection and request routing through Hermes
-- Gaming PC quantitative analysis for company/stock requests
+- Company/entity detection and request routing through Hermes
+- Public-security analysis through a separate Gaming PC Quant service
+- Sequential multi-company Quant requests, one security at a time
+- Multi-company Research and Risk evidence collection
+- Question-aware company comparisons
+- Conversation context keyed by source, channel, and user
+- Comparison follow-up resolution using remembered company scope
+- Custom financial formula design plus deterministic evaluation
 - SEC company facts and filing metadata
 - FRED macroeconomic context
 - Deterministic signal reconciliation
 - Risk analysis and quality validation
-- General-response handling for non-company questions
+- General-response handling for ordinary non-company questions
 - Current-topic detection through `FreshnessDetector`
-- DuckDuckGo News discovery through DDGS
+- DDGS current news discovery
+- Public web discovery for generic/private-company research
 - Local Firecrawl page extraction and Markdown enrichment
-- Recency filtering before Firecrawl enrichment
+- Generic research planning across multiple targeted search queries
+- Dynamic generic-research depth: `summary`, `standard`, and `deep`
+- Pending conversation actions for deeper-research / summarized-version follow-ups
 - Telegram messaging integration
-- Discord messaging adapter and Questions/Updates channel separation
+- Discord Questions/Updates channel separation
 - Daily ETF spreadsheet update and Discord Updates publishing
-- macOS `launchd` automation for the ETF job
+- macOS `launchd` automation
 
-A current-company integration test has completed successfully with an approved response and quality confidence of 95. The messaging pipeline has also validated Telegram priority `0` and Discord priority `10` in the routing layer.
+Single-company financial routing has been validated with approved responses and quality confidence of 95 in integration testing. Multi-company Quant, Research, and Risk coverage has also been exercised for comparison workflows.
 
 ## High-Level Architecture
 
 ```text
-                         User
-                          |
-              +-----------+-----------+
-              |                       |
-          Telegram                  Discord
-      interactive input        Questions channel
-              |                       |
-              +-----------+-----------+
-                          |
-                    MessageRouter
-                          |
-                        Hermes
-                          |
-        +-----------------+-----------------+
-        |                 |                 |
-    General          Current Topic      Company
-    Question             Question        Question
-        |                   |               |
- GeneralResponse       DDGS discovery    Gaming PC Quant
-     Agent                 |               |
-                           v               +-- SEC
-                       Recency Filter      +-- FRED
-                           |               +-- Market Context
-                           v               |
-                    Local Firecrawl        |
-                           |               |
-                           +-------+-------+
-                                   |
-                              Research / Summary
-                                   |
-                          Risk / Quality Validation
-                                   |
-                               User Response
-```
-
-Current company questions combine the company-analysis pipeline with the live retrieval layer:
-
-```text
-Current company question
-        |
-        +-- Gaming PC Quant
-        +-- SEC
-        +-- FRED
-        +-- DDGS
-              |
-         Recency filter
-              |
-         Firecrawl
-              |
-        Research / Risk / Quality
+                           User
+                            |
+                +-----------+-----------+
+                |                       |
+            Telegram                  Discord
+                |                       |
+                +-----------+-----------+
+                            |
+                      MessageRouter
+                            |
+                          Hermes
+                            |
+      +---------------------+----------------------+
+      |                     |                      |
+   General              Generic / Current       Financial
+   Question               Public Research        Question
+      |                     |                      |
+GeneralResponse      Freshness / Research       Company Detection
+   Agent                  Planning                  |
+                            |               public ticker available?
+                            |                  /             \
+                            |                yes             no
+                            |                 |               |
+                            |          Financial WorkPackage  Generic Research
+                            |                 |
+                            |        +--------+---------+
+                            |        |        |         |
+                            |      Quant     SEC/FRED  Research/Risk
+                            |        |        |         |
+                            |        +--------+---------+
+                            |                 |
+                            |      Comparison / Formula Layer
+                            |                 |
+                            +-----------------+
+                                      |
+                                Mac Mini synthesis
+                                      |
+                                  User response
 ```
 
 ## Systems
@@ -92,17 +89,23 @@ The Mac Mini is the primary orchestrator. It hosts or runs:
 - Telegram integration
 - Discord integration
 - SEC and FRED providers
-- DDGS topic/news discovery
+- DDGS web/news discovery
+- Generic research planning
+- Conversation context and follow-up state
+- Comparison planning and synthesis
+- Custom financial-formula design/evaluation orchestration
 - Docker Desktop
 - Self-hosted Firecrawl
 - ETF update automation
-- `launchd` scheduled jobs
+- `launchd` scheduled and resident jobs
 
 ### Gaming PC
 
-The Gaming PC handles the quantitative analysis workload used for company/stock requests.
+The Gaming PC handles quantitative analysis for public-company/security requests.
 
-The Mac Mini remains responsible for orchestration, grounding, reconciliation, risk evaluation, quality review, and message delivery.
+For multi-company work, the Mac Mini keeps one logical Hermes job but sends Quant requests sequentially, one security at a time. The Mac Mini then aggregates the returned evidence for per-company research, risk analysis, comparison, and final synthesis.
+
+The Gaming PC does not own conversational logic or final response synthesis.
 
 ## Request Routing
 
@@ -117,7 +120,9 @@ Explain compound interest
 Route:
 
 ```text
-Hermes -> GeneralResponseAgent -> response
+Hermes
+ -> GeneralResponseAgent
+ -> response
 ```
 
 ### Current General Topic
@@ -135,14 +140,89 @@ Route:
 ```text
 Hermes
  -> FreshnessDetector
- -> DDGS
+ -> DDGS news discovery
  -> recency filter
  -> Firecrawl enrichment
  -> CurrentTopicAgent
  -> response
 ```
 
-### Company Analysis
+Current/latest/recent questions remain strict: if sufficiently recent evidence cannot be retrieved, the system should not represent stale model memory as current information.
+
+### Generic / Private-Company Research
+
+Examples:
+
+```text
+What is Yrefy?
+What does Yrefy do?
+Who are Yrefy's competitors?
+Does Yrefy appear to have meaningful potential relative to competitors?
+```
+
+If an entity is identified as private or cannot be mapped safely to a public-market ticker, Hermes does not send the request to the Gaming PC financial pipeline.
+
+Route:
+
+```text
+Hermes
+ -> CompanyDetectionAgent
+ -> no usable public ticker
+ -> GenericResearchPlanner
+ -> 1..5 targeted public-web queries
+ -> PublicWebBackend
+ -> URL deduplication
+ -> GenericEvidenceProvider
+ -> Firecrawl selected pages
+ -> GenericEvidenceAgent
+ -> brief qualified response
+```
+
+Generic research is intended for descriptive, competitive, qualitative, and best-effort public-information questions. Precise financial claims still require stronger evidence.
+
+### Dynamic Generic Research Depth
+
+Generic research supports three evidence depths:
+
+```text
+summary
+ -> light discovery
+ -> up to 2 Firecrawl page enrichments
+
+standard
+ -> normal planned research
+ -> up to 6 Firecrawl page enrichments
+
+deep
+ -> broader planned research
+ -> up to configured max page enrichments
+```
+
+The planner can choose the depth from the question context, and explicit user wording can request a deeper or summarized treatment.
+
+After a generic research response, Hermes can maintain a pending conversational action such as:
+
+```text
+Would you like a deeper research?
+```
+
+or:
+
+```text
+Would you like a summarized version?
+```
+
+A follow-up such as `Yes`, `No`, `Go deeper`, or `Summarize that` is interpreted against the pending action rather than treated as an unrelated standalone query.
+
+`ConversationContext` stores:
+
+- recent messages
+- active financial entities
+- last intent/request
+- pending action
+- last generic research question, depth, plan, and evidence
+
+### Public Company Analysis
 
 Example:
 
@@ -154,10 +234,10 @@ Route:
 
 ```text
 Hermes
- -> company detection
+ -> CompanyDetectionAgent
+ -> public ticker
  -> Gaming PC Quant
- -> SEC
- -> FRED
+ -> SEC / FRED / Market Context
  -> Research
  -> deterministic signal reconciliation
  -> Risk
@@ -173,40 +253,180 @@ Example:
 What's the latest with Nvidia?
 ```
 
-Route:
+Route combines financial evidence with the live/current retrieval layer:
 
 ```text
 Hermes
  -> company detection
  -> FreshnessDetector
  -> Gaming PC Quant
- -> SEC
- -> FRED
- -> DDGS
+ -> SEC / FRED
+ -> DDGS current discovery
  -> recency filter
  -> Firecrawl
- -> Research
- -> Risk
- -> Quality
+ -> Research / Risk / Quality
  -> response
 ```
 
+### Multi-Company Comparison
+
+Example:
+
+```text
+Compare Nvidia, Intel and AMD
+```
+
+Hermes preserves all detected companies in one logical WorkPackage.
+
+```text
+Hermes
+ -> CompanyDetectionAgent
+ -> NVDA + INTC + AMD
+ -> ComparisonRequestPlanner
+ -> AgentExecutor
+      -> Quant AMD
+      -> Quant NVDA
+      -> Quant INTC
+      -> Research per company
+      -> Risk per company
+ -> ComparisonAgent
+ -> one comparative response
+```
+
+The Gaming PC Quant calls are sequential rather than one large multi-security remote batch.
+
+### Question-Aware Comparisons
+
+`ComparisonRequestPlanner` evaluates the user's actual question before evidence collection. It identifies requested dimensions such as:
+
+- growth
+- profitability
+- financial strength
+- valuation
+- momentum
+- risk
+
+The plan can selectively indicate whether the comparison needs Quant, Research, Risk, or live information.
+
+Examples:
+
+```text
+Which has the strongest profitability?
+ -> profitability-focused comparison
+
+Which has the strongest balance sheet?
+ -> financial-strength-focused comparison
+
+Compare growth, profitability and risk.
+ -> multi-dimensional comparison
+```
+
+The final comparison prompt is instructed to answer the user's question first rather than always producing a fixed full-company template.
+
+## Conversation Context
+
+Conversation context is shared through Hermes rather than implemented separately in Telegram and Discord.
+
+The conversation key is based on:
+
+```text
+source + channel_id + user_id
+```
+
+This allows the same user/session to carry scope across follow-up questions.
+
+Example:
+
+```text
+Turn 1:
+Compare Nvidia, Intel and AMD
+
+Turn 2:
+Which has the strongest balance sheet?
+```
+
+The second turn can recover `NVDA`, `INTC`, and `AMD` from conversation context while refreshing the relevant evidence for the new question.
+
+Conversation memory is used to remember *what the user is talking about*, not as authoritative storage for current financial values.
+
+## Custom Financial Formula Layer
+
+For suitable financial-analysis comparisons, Hermes can create a transparent custom analytical framework for the specific question.
+
+The formula architecture separates design from execution:
+
+```text
+Question
+ -> ComparisonRequestPlanner
+ -> company evidence
+ -> FormulaMetricExtractor
+ -> FinancialFormulaDesigner
+ -> validated formula specification
+ -> deterministic FormulaEvaluator
+ -> scores / ranking
+ -> ComparisonAgent synthesis
+```
+
+### Formula Opportunity
+
+The comparison planner can classify formula use as:
+
+```text
+none
+helpful
+central
+```
+
+Examples:
+
+```text
+Which has the strongest profitability?
+ -> none
+
+Compare growth, profitability and risk.
+ -> helpful
+
+Which company is strongest overall?
+ -> central
+```
+
+### Formula Safety Rules
+
+- The language model designs the analytical framework but does not execute arbitrary code.
+- Only metrics supplied by the evidence pipeline and allowed by the metric extractor may be used.
+- Formula components include metric, weight, direction, and rationale.
+- Deterministic application code performs normalization, weighting, scoring, and ranking.
+- The response explains how the formula was created, why the selected metrics matter, why the formula is useful, and important limitations.
+- A custom formula is an additional analytical lens, not an industry-standard model or investment guarantee.
+- If formula generation or evaluation fails, the ordinary comparison remains available.
+
 ## Evidence Hierarchy
 
-The project intentionally separates evidence by source and purpose.
+The project separates evidence by source and purpose.
 
 | Source | Purpose |
 |---|---|
 | SEC | Company-reported financial facts and filing metadata |
 | FRED | Macroeconomic observations |
-| Gaming PC | Quantitative/model-derived financial analysis |
-| DDGS | Current web/news discovery |
-| Firecrawl | Retrieval and extraction of selected web pages |
-| Model knowledge | Background context only, not authoritative current evidence |
+| Gaming PC | Model-derived quantitative financial analysis |
+| Public web search | Discovery of candidate public webpages |
+| DDGS news | Current/recent news discovery |
+| Firecrawl | Retrieval and extraction of selected webpages |
+| Direct organization pages | First-party descriptions of organization products/services |
+| Independent reporting/reference sources | External context for competition, scale, reputation and market position |
+| Model knowledge | Background context only; not authoritative current evidence |
 
-Firecrawl is a retrieval mechanism, not the publisher. The original article publisher remains the evidence source.
+Search engines are discovery mechanisms. Firecrawl is a retrieval mechanism. Neither replaces the original publisher or webpage as the evidence source.
 
-For current/latest/recent questions, retrieved results are filtered by publication date before Firecrawl enrichment. If sufficiently recent evidence cannot be retrieved, the system should fail closed rather than substituting stale model memory as current information.
+### Generic Evidence Standards
+
+For ordinary descriptive generic questions, direct organization pages and reputable public references can support best-effort responses.
+
+For competition, market position, scale, reputation, or growth potential, independent sources should receive greater weight than organization promotional claims.
+
+Search-result titles/snippets may support discovery-level observations, but precise financial, legal, regulatory, valuation, market-share, revenue, employee-count, or other quantitative claims require stronger underlying evidence.
+
+If relevant public evidence exists but does not support a precise numerical conclusion, the system should provide a qualified qualitative answer and state what could not be verified.
 
 ## Firecrawl
 
@@ -218,13 +438,27 @@ Current local configuration:
 FIRECRAWL_BASE_URL=http://localhost:3002
 ```
 
-The project uses Firecrawl for page extraction after DDGS has discovered candidate URLs.
+Two main retrieval patterns are used:
 
 ```text
-DDGS -> recent URLs -> Firecrawl -> Markdown/page content -> Hermes
+Current question
+ -> DDGS news discovery
+ -> recency filter
+ -> Firecrawl
+ -> CurrentTopicAgent
 ```
 
-Firecrawl health is checked through the local service before enrichment. Individual page content is capped before it is passed further into the reasoning pipeline.
+and:
+
+```text
+Generic/private-company research
+ -> GenericResearchPlanner
+ -> public web discovery
+ -> Firecrawl selected URLs
+ -> GenericEvidenceAgent
+```
+
+Firecrawl health is checked before enrichment. The original webpage/publisher remains the evidence source.
 
 ## Messaging
 
@@ -238,7 +472,7 @@ Configured environment variable:
 TELEGRAM_BOT_TOKEN=
 ```
 
-The Telegram listener:
+The listener:
 
 1. receives a message,
 2. normalizes it through `TelegramAdapter`,
@@ -247,18 +481,20 @@ The Telegram listener:
 5. formats/chunks the result,
 6. replies to the originating Telegram chat.
 
+Do not run a manual Telegram polling instance while the managed LaunchAgent instance is active; Telegram permits only one `getUpdates` consumer for the same bot token.
+
 ### Discord
 
-Discord uses two separate channels:
+Discord uses separate Questions and Updates channels:
 
 ```text
 DISCORD_QUESTIONS_CHANNEL_ID=
 DISCORD_UPDATES_CHANNEL_ID=
 ```
 
-**Questions** is for interactive Hermes requests.
+**Questions** routes interactive requests through Hermes.
 
-**Updates** is reserved for scheduled automated reports, including the ETF update.
+**Updates** is reserved for scheduled/automated reports such as the ETF update.
 
 The routing layer assigns:
 
@@ -267,7 +503,51 @@ Telegram priority = 0
 Discord priority  = 10
 ```
 
-Lower values represent higher priority. Phase 2 can enforce this policy through a shared processing queue when simultaneous requests are waiting.
+Lower numbers indicate higher routing priority.
+
+No financial, formula, generic-research, or comparison logic should live in either transport. Both transports delegate those decisions to Hermes.
+
+## Automated Bot Runtime
+
+The Mac Mini can run Telegram and Discord through `launchd` LaunchAgents. Production bot launchers should:
+
+- use the project root as the working directory,
+- use the intended virtual-environment Python,
+- expose the project through `PYTHONPATH`,
+- use unbuffered Python output for readable runtime logs,
+- run only one Telegram polling instance.
+
+Useful production checks include:
+
+```bash
+launchctl list | grep bunnyhouse
+```
+
+and:
+
+```bash
+ps aux \
+| grep -E 'telegram_bot|discord_bot' \
+| grep -v grep
+```
+
+## Runtime Storage
+
+Hermes job runtime state should use locally writable project storage rather than depending on an external `/Volumes/...` path for live requests.
+
+Conceptual structure:
+
+```text
+runtime/hermes/
+├── incoming/
+├── processing/
+├── completed/
+├── failed/
+├── archive/
+└── temp/
+```
+
+This avoids managed background-process permission problems on external volumes.
 
 ## Daily ETF Update
 
@@ -292,23 +572,21 @@ The job is scheduled on the Mac Mini through `launchd` for:
 06:30 local Mac time, daily
 ```
 
-The launcher is:
+Launcher:
 
 ```text
 ~/Agentic_AI/run_etf_update.sh
 ```
 
-The LaunchAgent is:
+LaunchAgent:
 
 ```text
 ~/Library/LaunchAgents/com.bunnyhouse.stockagent.etfupdate.plist
 ```
 
-Firecrawl enrichment can be added to the scheduled ETF evidence path by enriching a small number of recent DDGS URLs before the Hermes summary is generated.
-
 ## Environment Configuration
 
-Real secrets and machine-specific values belong in `.env`. Do not commit `.env` or credential JSON files.
+Real secrets and machine-specific values belong in `.env`. Do not commit `.env` or credential/service-account JSON files.
 
 Example `.env.example` structure:
 
@@ -334,7 +612,7 @@ GOOGLE_ASSET_TAB=
 FIRECRAWL_BASE_URL=
 ```
 
-Non-secret application settings such as model names, Ollama endpoints, logging paths, and system prompts can remain in `configs/config.py` as appropriate.
+Non-secret application settings such as model names, Ollama endpoints, local runtime/logging paths, and system prompts can remain in application configuration.
 
 ## Recommended `.gitignore`
 
@@ -347,7 +625,7 @@ At minimum:
 !.env.example
 
 # Credential files
-*.json
+credentials.json
 
 # Python
 __pycache__/
@@ -355,8 +633,9 @@ __pycache__/
 .venv/
 venv/
 
-# Logs and generated runtime data
+# Logs and runtime state
 logs/
+runtime/
 *.log
 
 # macOS
@@ -369,11 +648,9 @@ logs/
 .coverage
 ```
 
-If the repository contains non-secret JSON fixtures that must be tracked, replace the broad `*.json` rule with a rule targeting only the service-account credential file/path.
+Avoid ignoring every JSON file if the repository contains non-secret JSON fixtures that should remain versioned.
 
 ## Local Services
-
-Current service roles are conceptually:
 
 ```text
 Mac Mini
@@ -382,18 +659,21 @@ Mac Mini
 |    `-- local LLM generation
 |
 +-- Firecrawl / Docker
-|    `-- current-page extraction
+|    `-- webpage retrieval / Markdown extraction
 |
 +-- Agentic_AI
 |    +-- Hermes
+|    +-- ConversationContext
+|    +-- Comparison / Formula planning
+|    +-- Generic research planning
 |    +-- Telegram
 |    +-- Discord
-|    +-- SEC/FRED
-|    +-- DDGS
+|    +-- SEC / FRED
+|    +-- DDGS / Public web discovery
 |    `-- ETF scheduler
 |
-`-- network connection to Gaming PC
-     `-- Quant / compute
+`-- LAN connection to Gaming PC
+     `-- Quant / compute API
 ```
 
 ## Key Tests
@@ -404,16 +684,41 @@ Mac Mini
 python tests/test_stock_agent_smoke.py
 python tests/test_process_request.py
 python tests/test_general_request.py
+python tests/test_amzn_route_trace.py
 ```
 
-### Messaging
+### Company / Comparison
 
 ```bash
-python tests/test_message_router.py
-python tests/test_response_formatter.py
-python tests/test_messaging_pipeline.py
-python tests/test_telegram_bot.py
-python tests/test_discord_bot.py
+python tests/test_multi_company_detection.py
+python tests/test_multi_company_executor.py
+python tests/test_multi_company_research.py
+python tests/test_multi_company_risk.py
+python tests/test_comparison_first_turn_trace.py
+python tests/test_conversation_context.py
+python tests/test_followup_resolver.py
+python tests/test_comparison_followup_routing.py
+python tests/test_conversational_comparison.py
+python tests/test_comparison_request_planner.py
+python tests/test_question_aware_comparison.py
+```
+
+### Financial Formula
+
+```bash
+python tests/test_financial_formula_designer.py
+python tests/test_formula_evaluator.py
+python tests/test_formula_metric_extractor.py
+python tests/test_custom_financial_formula_pipeline.py
+```
+
+### Generic / Private-Company Research
+
+```bash
+python tests/test_generic_web_backend.py
+python tests/test_generic_research_planner.py
+python tests/test_generic_research_pipeline.py
+python tests/test_generic_research_answer.py
 ```
 
 ### Current Information
@@ -435,32 +740,35 @@ python tests/test_firecrawl_scrape.py
 python tests/test_ddgs_firecrawl_pipeline.py
 ```
 
+### Messaging
+
+```bash
+python tests/test_message_router.py
+python tests/test_response_formatter.py
+python tests/test_messaging_pipeline.py
+python tests/test_telegram_bot.py
+python tests/test_discord_bot.py
+```
+
 ### ETF Automation
 
 ```bash
 python tests/test_etf_update_config.py
 ```
 
-Manual launchd validation:
-
-```bash
-launchctl kickstart -k \
-  gui/$(id -u)/com.bunnyhouse.stockagent.etfupdate
-```
-
 ## Running Telegram
 
-With the environment loaded:
+For manual debugging only, make sure the managed Telegram LaunchAgent is stopped first, then run from the project root:
 
 ```bash
+cd ~/Agentic_AI
 python -m integrations.messaging.telegram_bot
 ```
 
 ## Running Discord Questions
 
-With the environment loaded:
-
 ```bash
+cd ~/Agentic_AI
 python -m integrations.messaging.discord_bot
 ```
 
@@ -468,45 +776,47 @@ python -m integrations.messaging.discord_bot
 
 Firecrawl infrastructure lives outside the Agentic_AI repository, for example under a dedicated Firecrawl directory on the Mac Mini.
 
-Typical operational checks from the Firecrawl repository directory include:
+Typical checks from the Firecrawl repository directory include:
 
 ```bash
 docker compose ps
 docker compose logs --tail=100 api
 ```
 
-Agentic_AI validates the local service through its Firecrawl health/scrape tests.
-
-## Phase 2 Backlog
-
-Recommended Phase 2 work:
-
-1. Shared Telegram-first priority queue for simultaneous interactive requests
-2. Automatic service lifecycle for Telegram, Discord, and Firecrawl after Mac Mini restart/login
-3. Enrich the 06:30 ETF report with a limited number of Firecrawl article extractions
-4. Improve source diversity and duplicate-story suppression
-5. Add conversation/follow-up context across Telegram and Discord
-6. Add provider/service health monitoring and request-duration metrics
-7. Tighten operational logging and alerting
-8. Upgrade the Python runtime to remove current Python 3.9 / LibreSSL compatibility warnings
+Agentic_AI validates the service through its Firecrawl health/scrape tests.
 
 ## Grounding Principles
 
-This project follows several strict design rules:
-
 - Never present general model memory as verified current information.
-- Current claims require supplied timestamped evidence.
-- SEC is preferred for supplied company-reported financial facts.
-- FRED is preferred for supplied macroeconomic observations.
+- Current claims require supplied recent/timestamped evidence.
+- SEC is preferred for company-reported financial facts.
+- FRED is preferred for macroeconomic observations.
 - Gaming PC outputs are explicitly model-derived quantitative evidence.
-- DDGS discovers current material but is not the publisher.
-- Firecrawl retrieves content but is not the publisher.
-- The original publisher remains the web evidence source.
-- If current evidence is unavailable, say so instead of inventing current events.
-- Transport integrations should not contain finance, search, or analysis logic. Telegram and Discord should route messages into Hermes.
+- Search engines discover material but are not the publishers of claims.
+- Firecrawl retrieves pages but is not the publisher.
+- The original publisher/page remains the web evidence source.
+- Private or unresolved companies must not be assigned invented public tickers.
+- No usable public ticker means no Gaming PC financial-model request.
+- Generic research can use best-effort public evidence, but precise financial claims remain strict.
+- Conversation memory stores scope and conversational state, not authoritative current financial values.
+- Custom financial formulas must be transparent, restricted to supplied metrics, and deterministically evaluated.
+- Transport integrations should contain no finance/search/research logic; Telegram and Discord should route messages into Hermes.
+
+## Current Engineering Focus
+
+The project has moved beyond the original Phase 1 routing architecture. Current engineering priorities are:
+
+1. Stabilize dynamic generic-research depth and pending conversational actions.
+2. Reuse deep generic evidence when the user asks only for a summarized version.
+3. Persist conversation context if cross-restart continuity becomes necessary.
+4. Add provider/service health monitoring and request-duration metrics.
+5. Continue source-quality weighting and duplicate-result suppression.
+6. Maintain always-on Telegram/Discord runtime reliability.
+7. Upgrade the Python runtime to remove the current Python 3.9 / LibreSSL compatibility warning.
+8. Incrementally harden comparison/formula quality scoring without weakening the proven single-company path.
 
 ## Project State
 
-Phase 1 establishes a local-first assistant capable of combining grounded financial analysis with best-effort current web retrieval while keeping the messaging, data, reasoning, and automation layers separated.
+Stock Agent is now a local-first, multi-route assistant with distinct handling for general knowledge, strict current-information requests, generic/private-company public research, public-company financial analysis, and multi-company comparisons.
 
-The next engineering phase should focus on reliability, always-on operation, shared priority orchestration, and incremental quality improvements rather than introducing new core routing architectures.
+Hermes remains the central orchestration boundary. The Mac Mini decides what the user is asking, what evidence is required, whether a request belongs in the financial pipeline, how much generic public research is appropriate, and how the final answer should be synthesized. The Gaming PC remains a quantitative compute provider rather than a conversational or final-response engine.
