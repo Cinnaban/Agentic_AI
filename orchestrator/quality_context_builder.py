@@ -13,6 +13,11 @@ class QualityContextBuilder:
 
             "failed_agents": [],
 
+            "research":
+                execution_results.get(
+                    "research"
+                ),
+
             "signal_reconciliation":
                 execution_results.get(
                     "signal_reconciliation"
@@ -21,6 +26,11 @@ class QualityContextBuilder:
             "risk":
                 execution_results.get(
                     "risk"
+                ),
+
+            "challenger":
+                execution_results.get(
+                    "challenger"
                 )
         }
 
@@ -150,8 +160,8 @@ class QualityContextBuilder:
                     }
 
 
-                context[
-                    "quant_summary"
-                ] = quant_summary
-                
-                return context
+        context[
+            "quant_summary"
+        ] = quant_summary
+
+        return context

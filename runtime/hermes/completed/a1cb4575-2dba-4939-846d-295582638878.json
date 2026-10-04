@@ -1,0 +1,29 @@
+{
+  "job_id": "a1cb4575-2dba-4939-846d-295582638878",
+  "status": "completed",
+  "created_at": "2026-10-03T16:07:27.228963",
+  "updated_at": "2026-10-03T16:09:20.075604",
+  "data": {
+    "message": "What is JEPQ the financial ticker",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "JEPQ",
+        "ticker": "JEPQ",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

@@ -26,7 +26,8 @@ class ComparisonAgent:
         companies,
         company_results,
         comparison_plan=None,
-        custom_formula=None
+        custom_formula=None,
+        financial_table=None
     ):
 
         if not isinstance(
@@ -222,6 +223,22 @@ Do not replace the underlying evidence with the
 formula.
 
 The formula supplements the evidence.
+
+FINANCIAL COMPARISON TABLE:
+{financial_table or "Not available"}
+
+TABLE RULES:
+- The Financial Comparison Table is
+  deterministically produced from supplied
+  company evidence.
+- Do not alter values from the table.
+- Do not recreate table values using model
+  memory.
+- Use the table as the preferred source for
+  direct metric comparisons.
+- Explain important differences in prose
+  only when supported by supplied evidence.
+- Missing table values must remain missing.
 """
 
 

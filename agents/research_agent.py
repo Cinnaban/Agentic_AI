@@ -424,13 +424,20 @@ GROUNDING RULES:
         
         response = self.ollama.generate(
             prompt,
+
             model=Config.RESEARCH_MODEL,
+
             options={
                 "num_predict":
                     Config.RESEARCH_NUM_PREDICT,
+
                 "num_ctx":
                     Config.RESEARCH_NUM_CTX
-            }
+            },
+
+            keep_alive=(
+                Config.OLLAMA_KEEP_ALIVE_REASONING
+            )
         )
 
         model_response = response.get(

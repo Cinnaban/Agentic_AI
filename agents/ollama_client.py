@@ -19,7 +19,8 @@ class OllamaClient:
         self,
         prompt,
         model=Config.HERMES_MODEL,
-        options=None
+        options=None,
+        keep_alive=None
     ):
 
         if model is None:
@@ -35,6 +36,11 @@ class OllamaClient:
             "stream":
                 False
         }
+        
+        if keep_alive is not None:
+            payload[
+                "keep_alive"
+            ] = keep_alive
 
 
         if isinstance(
@@ -46,15 +52,68 @@ class OllamaClient:
                 "options"
             ] = options
         
-        response = requests.post(
-            self.endpoint,
-            json=payload
-        )
+        try:
 
-        data = response.json()
+            response = requests.post(
+                self.endpoint,
+                json=payload,
+                timeout=Config.OLLAMA_TIMEOUT
+            )
 
-        return data
+            response.raise_for_status()
+
+            data = response.json()
+
+            if not isinstance(
+                data,
+                dict
+            ):
+                return {
+                    "status": "failed",
+                    "error": (
+                        "Ollama returned an "
+                        "invalid response"
+                    )
+                }
+
+            return data
+
+        except requests.Timeout:
+
+            return {
+                "status": "failed",
+                "error": (
+                    "Ollama request timed out"
+                )
+            }
+
+        except requests.RequestException as error:
+
+            return {
+                "status": "failed",
+                "error": (
+                    "Ollama request failed: "
+                    f"{error}"
+                )
+            }
+
+        except ValueError:
+
+            return {
+                "status": "failed",
+                "error": (
+                    "Ollama returned invalid JSON"
+                )
+            }
 
     def health_check(self):
+        try:
+            response = requests.get(
+                Config.OLLAMA_HEALTH_ENDPOINT,
+                timeout=5
+            )
 
-        return True
+            return response.ok
+
+        except requests.RequestException:
+            return False

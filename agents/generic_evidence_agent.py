@@ -97,6 +97,11 @@ Do not change the user's underlying intent.
 Do not make the rewritten question more certain or
 more specific than the evidence permits.
 
+If the user's original wording requires interpretation:
+
+Interpreted question:
+"<faithful descriptive rewording>"
+
 RESEARCH PLAN:
 
 {json.dumps(
@@ -348,6 +353,55 @@ RULES:
   audited or independently verified fact.
 
 - Be concise and useful for Telegram or Discord.
+
+CONTENT PRIORITY:
+
+When both a search-result summary and Firecrawl
+content exist for the same result:
+
+1. Use the Firecrawl-retrieved webpage content to
+   understand the source.
+2. Use the search-result title/summary only as
+   discovery context.
+3. Do not repeat search-engine wording when the
+   underlying page provides clearer information.
+
+FINAL RESPONSE STRUCTURE:
+
+Always anchor the response to the user's original
+question.
+
+For research-backed generic questions, prefer:
+
+Question:
+"<the user's question or a concise faithful rewording>"
+
+Answer:
+Give the direct answer first in 1-3 sentences.
+
+Context:
+Provide only the supporting public evidence needed
+to understand the answer.
+
+Evidence limitations:
+Include this only when an important part of the
+answer could not be verified.
+
+Do not begin with a long discussion of research
+methodology.
+
+Do not list every search result.
+
+Do not describe Firecrawl, Bing, Google or DDGS as
+the factual source of a claim.
+
+The underlying webpage or publisher is the source.
+
+When Firecrawl content is supplied, use that page
+content to understand and summarize the source.
+
+Keep the response concise unless the research plan
+requested deep evidence.
 """
 
 

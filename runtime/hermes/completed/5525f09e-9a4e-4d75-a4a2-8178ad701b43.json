@@ -1,0 +1,29 @@
+{
+  "job_id": "5525f09e-9a4e-4d75-a4a2-8178ad701b43",
+  "status": "completed",
+  "created_at": "2026-10-03T17:02:42.537137",
+  "updated_at": "2026-10-03T17:04:41.759268",
+  "data": {
+    "message": "What can you tell me about TSPY",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "TSPY",
+        "ticker": "TSPY",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

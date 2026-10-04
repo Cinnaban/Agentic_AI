@@ -1,0 +1,36 @@
+{
+  "job_id": "fc02573d-f273-41c9-ad05-a05406c8e315",
+  "status": "failed",
+  "created_at": "2026-10-03T21:05:39.445057",
+  "updated_at": "2026-10-03T21:09:14.473908",
+  "data": {
+    "message": "Explain Pewdiepies local AI model Odysseus with AJAX",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "AI",
+        "ticker": "AI",
+        "entity_type": "security"
+      },
+      {
+        "name": "AJAX",
+        "ticker": "AJAX",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing required agent results data"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

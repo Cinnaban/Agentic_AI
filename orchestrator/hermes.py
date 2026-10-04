@@ -7,6 +7,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
+from configs.config import Config
+
 from agents.company_detection_agent import (CompanyDetectionAgent)
 from agents.research_assignment_agent import (ResearchAssignmentAgent)
 from agents.qwen_manager import (QwenManager)
@@ -18,6 +20,7 @@ from agents.current_topic_agent import (
 from orchestrator.freshness_detector import (
     FreshnessDetector
 )
+from agents.challenger_agent import ChallengerAgent
 
 from data.providers.live_market_providers import (
     LiveMarketProvider
@@ -69,6 +72,13 @@ from orchestrator.generic_research_planner import (
 from orchestrator.generic_research_intent import (
     GenericResearchIntent
 )
+from orchestrator.financial_metric_builder import (
+    FinancialMetricBuilder
+)
+
+from orchestrator.financial_table_formatter import (
+    FinancialTableFormatter
+)
 class Hermes:
 
     def __init__(self):
@@ -84,6 +94,12 @@ class Hermes:
         self.workflow_state = (WorkflowState())
         self.storage_manager = (StorageManager())
         self.quality_context_builder = (QualityContextBuilder())
+        self.financial_metric_builder = (
+            FinancialMetricBuilder()
+        )
+        self.financial_table_formatter = (
+            FinancialTableFormatter()
+        )
         self.freshness_detector = (
             FreshnessDetector()
         )
@@ -95,6 +111,9 @@ class Hermes:
         self.current_topic_agent = (
             CurrentTopicAgent()
         )
+        
+        self.challenger_agent = ChallengerAgent()
+        
         self.comparison_request_planner = (
             ComparisonRequestPlanner()
         )
@@ -1034,6 +1053,88 @@ class Hermes:
                         "Agent execution failed"
                     )
                 )
+                
+            # ==========================================
+            # Challenger Review
+            # ==========================================
+
+            challenger_result = None
+
+            if (
+                Config.ENABLE_CHALLENGER
+                and not is_comparison
+            ):
+
+                research_result = (
+                    execution_results.get(
+                        "research"
+                    )
+                )
+
+                risk_result = (
+                    execution_results.get(
+                        "risk"
+                    )
+                )
+
+                should_challenge = (
+                    (
+                        Config.CHALLENGER_ON_RESEARCH
+                        and bool(research_result)
+                    )
+                    or
+                    (
+                        Config.CHALLENGER_ON_RISK
+                        and bool(risk_result)
+                    )
+                )
+
+                if should_challenge:
+
+                    try:
+
+                        company = (
+                            work_package.companies[0]
+                            if work_package.companies
+                            else {}
+                        )
+
+                        challenger_result = (
+                            self.challenger_agent.analyze(
+                                company=company,
+                                research=research_result,
+                                risk=risk_result,
+                                quant=(
+                                    execution_results.get(
+                                        "quant"
+                                    )
+                                ),
+                                signal_reconciliation=(
+                                    execution_results.get(
+                                        "signal_reconciliation"
+                                    )
+                                ),
+                                market_context=(
+                                    execution_results.get(
+                                        "market_context"
+                                    )
+                                )
+                            )
+                        )
+
+                    except Exception as challenger_error:
+
+                        challenger_result = {
+                            "status": "failed",
+                            "error": str(
+                                challenger_error
+                            )
+                        }
+
+                    execution_results[
+                        "challenger"
+                    ] = challenger_result
+                
             self.workflow_state.update_status(
                 work_package.job_id,
                 WorkflowStatus.QUALITY_REVIEW
@@ -1176,6 +1277,20 @@ class Hermes:
                                 }
 
 
+                company_metrics = (
+                    self.financial_metric_builder
+                    .build_comparison(
+                        company_results
+                    )
+                )
+
+                financial_table = (
+                    self.financial_table_formatter
+                    .build_comparison_table(
+                        company_metrics
+                    )
+                )
+                
                 comparison_result = (
                     self.comparison_agent
                     .analyze(
@@ -1195,6 +1310,10 @@ class Hermes:
 
                         custom_formula=(
                             custom_formula
+                        ),
+
+                        financial_table=(
+                            financial_table
                         )
                     )
                 )
@@ -1219,7 +1338,14 @@ class Hermes:
                 comparison_response = (
                     comparison_response.strip()
                 )
-
+                
+                if financial_table:
+                    comparison_response = (
+                        "Financial Comparison\n\n"
+                        + financial_table
+                        + "\n\n"
+                        + comparison_response
+                    )
 
                 if not comparison_response:
 
@@ -1540,6 +1666,22 @@ class Hermes:
         execution_results,
         quality_review
     ):
+        
+        financial_metrics = (
+            self.financial_metric_builder
+            .build(
+                execution_results
+            )
+        )
+
+        financial_table = (
+           self.financial_table_formatter
+        .build_sectioned_tables(
+            financial_metrics
+        )
+            if financial_metrics
+            else ""
+        )
 
         research = (
             execution_results.get(
@@ -1564,6 +1706,10 @@ class Hermes:
 
         sections = []
 
+        if financial_table:
+            sections.append(
+                financial_table
+            )
 
         if research.strip():
 

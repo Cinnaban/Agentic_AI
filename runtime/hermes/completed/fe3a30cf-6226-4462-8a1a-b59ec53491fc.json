@@ -1,0 +1,29 @@
+{
+  "job_id": "fe3a30cf-6226-4462-8a1a-b59ec53491fc",
+  "status": "completed",
+  "created_at": "2026-10-04T11:26:56.075996",
+  "updated_at": "2026-10-04T11:29:53.061357",
+  "data": {
+    "message": "What do you know about HPQ's prospect and direction for the next year?",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "HPQ",
+        "ticker": "HPQ",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

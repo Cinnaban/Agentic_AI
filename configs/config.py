@@ -18,32 +18,80 @@ class Config:
     QWEN_MODEL = "qwen3:30b"
     GEMMA_MODEL = "gemma4:12b"
     HERMES_MODEL = "hermes3:latest"
+    DEEPSEEK_MODEL = "deepseek-r1:14b"
+    MISTRAL_MODEL = "mistral:7b"
+    
     OLLAMA_HOST = "http://localhost:11434"
     OLLAMA_GENERATE_ENDPOINT = (
         f"{OLLAMA_HOST}/api/generate"
     )
+    FAST_MODEL = QWEN_MODEL
+    GENERAL_MODEL = GEMMA_MODEL
 
+    REASONING_MODEL = QWEN_MODEL
+    CHALLENGER_MODEL = DEEPSEEK_MODEL
+
+    TOOL_MODEL = HERMES_MODEL
+    JUDGE_MODEL = MISTRAL_MODEL
     # ==========================================
     # Agent Model Assignments
     # ==========================================
 
-    ORCHESTRATOR_MODEL = HERMES_MODEL
+    ORCHESTRATOR_MODEL = QWEN_MODEL
 
-    COMPANY_DETECTION_MODEL = HERMES_MODEL
+    COMPANY_DETECTION_MODEL = FAST_MODEL
 
-    RESEARCH_MODEL = GEMMA_MODEL
+    RESEARCH_ASSIGNMENT_MODEL = FAST_MODEL
+
+    RESEARCH_MODEL = REASONING_MODEL
+
+    SENTIMENT_MODEL = GEMMA_MODEL
+
+    RISK_MODEL = REASONING_MODEL
+
+    RESEARCH_CHALLENGER_MODEL = DEEPSEEK_MODEL
     
-    RESEARCH_ASSIGNMENT_MODEL = HERMES_MODEL
+    RISK_CHALLENGER_MODEL = DEEPSEEK_MODEL
 
-    SENTIMENT_MODEL = HERMES_MODEL
+    SIGNAL_RECONCILIATION_MODEL = REASONING_MODEL
 
-    RISK_MODEL = HERMES_MODEL
+    QUALITY_MODEL = JUDGE_MODEL
 
-    SIGNAL_RECONCILIATION_MODEL = HERMES_MODEL
+    GENERAL_RESPONSE_MODEL = GEMMA_MODEL
 
-    QUALITY_MODEL = HERMES_MODEL
+    TOOL_USE_MODEL = HERMES_MODEL
+    
+    
+    
+    # ==========================================
+    # Agent Reasoning
+    # ==========================================
 
-    GENERAL_RESPONSE_MODEL = HERMES_MODEL
+    ORCHESTRATOR_THINKING = False
+
+    COMPANY_DETECTION_THINKING = False
+    RESEARCH_ASSIGNMENT_THINKING = False
+    SENTIMENT_THINKING = False
+
+    RESEARCH_THINKING = True
+    RISK_THINKING = True
+    SIGNAL_RECONCILIATION_THINKING = True
+
+    QUALITY_THINKING = False
+    GENERAL_RESPONSE_THINKING = False
+    
+    # ==========================================
+    # Challenger Settings
+    # ==========================================
+
+    ENABLE_CHALLENGER = True
+
+    CHALLENGER_NUM_PREDICT = 1024
+    CHALLENGER_NUM_CTX = 8192
+
+    CHALLENGER_ON_RESEARCH = True
+    CHALLENGER_ON_RISK = True
+    
     # ==========================================
     # Gaming PC Compute Worker
     # ==========================================
@@ -145,6 +193,27 @@ class Config:
         ROOT_DIR
         / "logs"
     )
+    
+    # ==========================================
+    # Ollama Runtime
+    # ==========================================
+
+    OLLAMA_TIMEOUT = 300
+    
+    # ==========================================
+    # Ollama Model Lifecycle
+    # ==========================================
+
+    OLLAMA_KEEP_ALIVE_FAST = "10m"
+
+    OLLAMA_KEEP_ALIVE_REASONING = "5m"
+
+    OLLAMA_KEEP_ALIVE_CHALLENGER = "0"
+
+    OLLAMA_KEEP_ALIVE_QUALITY = "0"
+
+    OLLAMA_KEEP_ALIVE_TOOL = "5m"
+    
     # ==========================================
     # Model Settings
     # ==========================================

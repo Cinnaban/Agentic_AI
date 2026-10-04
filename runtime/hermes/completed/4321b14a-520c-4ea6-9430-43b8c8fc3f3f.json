@@ -1,0 +1,29 @@
+{
+  "job_id": "4321b14a-520c-4ea6-9430-43b8c8fc3f3f",
+  "status": "completed",
+  "created_at": "2026-10-04T15:57:47.708415",
+  "updated_at": "2026-10-04T16:00:20.627735",
+  "data": {
+    "message": "What is the current research regarding the effects of MP on human health.",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "MP",
+        "ticker": "MP",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

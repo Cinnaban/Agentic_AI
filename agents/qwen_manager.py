@@ -180,12 +180,73 @@ class QwenManager:
 
         return validation
 
+    def _validate_challenger(
+        self,
+        results
+    ):
+        validation = {
+            "available": False,
+            "completed": False,
+            "issues": []
+        }
+
+        if not isinstance(
+            results,
+            dict
+        ):
+            return validation
+
+        challenger = results.get(
+            "challenger"
+        )
+
+        if challenger is None:
+            return validation
+
+        validation[
+            "available"
+        ] = True
+
+        if not isinstance(
+            challenger,
+            dict
+        ):
+            validation[
+                "issues"
+            ].append(
+                "Invalid Challenger output"
+            )
+            return validation
+
+        status = challenger.get(
+            "status"
+        )
+
+        if status == "completed":
+            validation[
+                "completed"
+            ] = True
+
+        elif status == "failed":
+            validation[
+                "issues"
+            ].append(
+                "Challenger review failed"
+            )
+
+        return validation
+
     def review(
         self,
         results
     ):
         reconciliation_validation = (
             self._validate_reconciliation(
+                results
+            )
+        )
+        challenger_validation = (
+            self._validate_challenger(
                 results
             )
         )
@@ -213,51 +274,79 @@ class QwenManager:
             2. Unresolved contradictions between agent outputs.
             3. Obvious factual or structural errors.
             4. Incomplete analysis.
+            5. Material objections identified by the Challenger.
+            6. Whether Challenger objections are supported by
+               supplied agent evidence.
 
-            QUALITY RULES:
-            - A documented quantitative signal conflict is not by itself
-            a quality failure.
-            - A documented forecast-horizon difference is not by itself
-            a quality failure.
-            - Signal Reconciliation is the authoritative source for
-            quantitative conflicts and horizon differences.
-            - Risk may preserve those disagreements as uncertainty.
-            - If Risk.signal_uncertainty is "high", this means the
-            conflicting quantitative evidence has been explicitly
-            acknowledged.
-            - Do not reject solely because
-            Signal Reconciliation.requires_caution is true.
-            - Do not reject solely because short-term and long-term
-            forecasts point in different directions.
-            - Do not reject solely because predictive_rating,
-            recommendation, and forecast_consensus disagree.
-            - Reject when a downstream agent contradicts, removes,
-            misrepresents, or fails to acknowledge an authoritative
-            Signal Reconciliation result.
-            - Reject when Risk.signal_conflicts differs materially from
-            Signal Reconciliation.conflicts.
-            - Reject when Risk.horizon_differences differs materially
-            from Signal Reconciliation.horizon_differences.
-            - A mixed investment outlook may still be internally
-            consistent and complete.
-            
-            DETERMINISTIC VALIDATION RULES:
-            - Deterministic Reconciliation Validation is authoritative.
-            - If its consistent value is true, do not reject solely because
-            quantitative conflicts or horizon differences exist.
-            - A consistent value of true means Risk correctly preserved the
-            authoritative reconciliation structure.
-            - High signal uncertainty is an acceptable analytical conclusion.
-            - Mixed quantitative evidence is an analysis result, not
-            automatically a quality defect.
-            - If deterministic validation is false, treat its listed issues
-            as material quality problems.
-            
-            Deterministic Reconciliation Validation:
-                {json.dumps(
-                    reconciliation_validation,
-                    indent=2
-                )}
+    QUALITY RULES:
+    - A documented quantitative signal conflict is not by itself
+    a quality failure.
+    - A documented forecast-horizon difference is not by itself
+    a quality failure.
+    - Signal Reconciliation is the authoritative source for
+    quantitative conflicts and horizon differences.
+    - Risk may preserve those disagreements as uncertainty.
+    - If Risk.signal_uncertainty is "high", this means the
+    conflicting quantitative evidence has been explicitly
+    acknowledged.
+    - Do not reject solely because
+    Signal Reconciliation.requires_caution is true.
+    - Do not reject solely because short-term and long-term
+    forecasts point in different directions.
+    - Do not reject solely because predictive_rating,
+    recommendation, and forecast_consensus disagree.
+    - Reject when a downstream agent contradicts, removes,
+    misrepresents, or fails to acknowledge an authoritative
+    Signal Reconciliation result.
+    - Reject when Risk.signal_conflicts differs materially from
+    Signal Reconciliation.conflicts.
+    - Reject when Risk.horizon_differences differs materially
+    from Signal Reconciliation.horizon_differences.
+    - A mixed investment outlook may still be internally
+    consistent and complete.
+    
+    DETERMINISTIC VALIDATION RULES:
+    - Deterministic Reconciliation Validation is authoritative.
+    - If its consistent value is true, do not reject solely because
+    quantitative conflicts or horizon differences exist.
+    - A consistent value of true means Risk correctly preserved the
+    authoritative reconciliation structure.
+    - High signal uncertainty is an acceptable analytical conclusion.
+    - Mixed quantitative evidence is an analysis result, not
+    automatically a quality defect.
+    - If deterministic validation is false, treat its listed issues
+    as material quality problems.
+    
+    CHALLENGER RULES:
+    - Challenger is an independent adversarial review.
+    - Challenger is advisory, not authoritative.
+    - Do not reject analysis merely because Challenger
+        disagrees with Research or Risk.
+    - Evaluate whether each material Challenger objection
+        is supported by the supplied agent evidence.
+    - Unsupported Challenger objections should not cause
+        rejection.
+    - A supported Challenger objection that exposes a
+        material unresolved error, contradiction, missing
+        risk, or unsupported claim should be treated as a
+        quality issue.
+    - If Research or Risk already acknowledges the issue,
+        do not treat the Challenger observation alone as a
+        new quality defect.
+    - Do not allow Challenger to override authoritative
+        deterministic Signal Reconciliation results.
+    - Challenger must not introduce facts that are absent
+        from the supplied evidence.
+    - A failed or unavailable Challenger is not by itself
+        a reason to reject otherwise valid analysis.
+    
+    
+    
+    Deterministic Reconciliation Validation:
+        {json.dumps(
+            reconciliation_validation,
+            indent=2
+        )}
                 
         Return ONLY valid JSON using exactly this schema:
 
@@ -304,7 +393,12 @@ class QwenManager:
 """
         response = self.ollama.generate(
             prompt,
-            model=Config.QUALITY_MODEL
+
+            model=Config.QUALITY_MODEL,
+
+            keep_alive=(
+                Config.OLLAMA_KEEP_ALIVE_QUALITY
+            )
         )
 
         thinking = response.get(

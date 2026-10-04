@@ -1,0 +1,29 @@
+{
+  "job_id": "9a08dea4-bb6f-4cf6-9a2b-ee4eb5c84e75",
+  "status": "completed",
+  "created_at": "2026-10-02T17:09:16.867038",
+  "updated_at": "2026-10-02T17:11:07.863388",
+  "data": {
+    "message": "How is Nintendo doing against the gaming market?",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Nintendo",
+        "ticker": "NTDOY",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

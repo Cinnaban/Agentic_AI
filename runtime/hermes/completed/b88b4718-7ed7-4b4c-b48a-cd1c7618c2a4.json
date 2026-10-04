@@ -1,0 +1,29 @@
+{
+  "job_id": "b88b4718-7ed7-4b4c-b48a-cd1c7618c2a4",
+  "status": "completed",
+  "created_at": "2026-10-04T09:58:44.894479",
+  "updated_at": "2026-10-04T10:01:22.131866",
+  "data": {
+    "message": "I need the history of Bear Sterns and why they failed in 07-08",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Bear Sterns",
+        "ticker": "BSC",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

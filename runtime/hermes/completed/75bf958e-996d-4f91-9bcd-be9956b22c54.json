@@ -1,0 +1,198 @@
+{
+  "job_id": "75bf958e-996d-4f91-9bcd-be9956b22c54",
+  "status": "completed",
+  "created_at": "2026-10-03T17:07:07.009210",
+  "updated_at": "2026-10-03T17:10:48.287757",
+  "data": {
+    "message": "Let's compare Coca Cola and Pepsi",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Coca Cola",
+        "ticker": "KO",
+        "entity_type": "company"
+      },
+      {
+        "name": "Pepsi",
+        "ticker": "PEP",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": false
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the provided Company Evidence, Coca Cola (KO) had a comparative analysis score of 0.7, while Pepsi (PEP) scored 0.3. The formula was created to provide a comprehensive view of both companies' financial performance and potential growth by considering growth, profitability, market momentum, and valuation. The scores for KO were higher in growth, momentum, and profitability, indicating a stronger financial standing compared to PEP. However, KO's valuation score was also higher, suggesting the company might be slightly overvalued in the market. This analysis suggests that Coca Cola may be a stronger investment choice based on the selected metrics, but investors should also consider the valuation factor and any other potential market or industry events. The formula's limitation is that it does not account for macroeconomic factors, industry challenges, or company-specific events that could impact the companies' financial performance beyond the assessed metrics."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": {
+      "opportunity": "helpful",
+      "design": {
+        "name": "Coca Cola vs Pepsi Comparative Analysis Formula",
+        "purpose": "To compare the overall financial performance and potential growth of Coca Cola and Pepsi based on key metrics.",
+        "components": [
+          {
+            "metric": "growth_score",
+            "weight": 0.3,
+            "direction": "higher_is_better",
+            "reason": "This metric assesses each company's sales and earnings growth, indicating their expansion and financial health over time."
+          },
+          {
+            "metric": "momentum_score",
+            "weight": 0.25,
+            "direction": "higher_is_better",
+            "reason": "Momentum score considers the recent trends in stock price, volume, and earnings surprise, showing the companies' current market momentum."
+          },
+          {
+            "metric": "profitability_score",
+            "weight": 0.2,
+            "direction": "higher_is_better",
+            "reason": "Profitability score evaluates the companies' ability to generate profits from their revenues, indicating their efficiency and profitability potential."
+          },
+          {
+            "metric": "valuation_score",
+            "weight": 0.25,
+            "direction": "lower_is_better",
+            "reason": "Valuation score compares the companies' current stock prices to their earnings, cash flows, and growth potential, indicating whether they are undervalued or overvalued in the market."
+          }
+        ],
+        "how_created": "The formula components were selected based on their relevance to comparing the overall financial performance and potential growth of Coca Cola and Pepsi. Growth score, momentum score, and profitability score directly assess the companies' growth, market momentum, and profitability, which are crucial for their long-term success. Valuation score, being a comparative metric, helps determine whether one company might be more undervalued or overvalued compared to the other, adding a market perspective to the analysis. The weights were assigned based on the perceived importance and impact of each metric on the companies' overall financial health and growth potential.",
+        "why_important": "By combining these metrics, the formula provides a comprehensive view of Coca Cola and Pepsi's financial performance and potential growth. It considers both internal metrics (growth, profitability) and external factors (market momentum, valuation), offering a balanced perspective on the companies' current standing and future prospects. This analysis can help investors make informed decisions about which company to invest in, considering factors like growth potential, profitability, market momentum, and valuation.",
+        "assumptions": [
+          "The formula assumes that higher growth, profitability, and momentum scores, and a lower valuation score are generally positive for a company's stock price and overall financial health. It also assumes that the scores accurately reflect the companies' actual financial performance and market conditions.",
+          "The formula does not consider specific macroeconomic factors, industry challenges, or company-specific events that could impact the companies' financial performance beyond the assessed metrics."
+        ],
+        "limitations": [
+          "The formula's results are based on the selected financial metrics and their weights, which may not fully capture a company's true financial performance or market potential. Different weights or additional metrics could alter the analysis outcomes.",
+          "The formula does not account for the potential impact of market sentiment, industry trends, or unforeseen events on the companies' stock prices and financial health."
+        ]
+      },
+      "evaluation": {
+        "status": "completed",
+        "formula": {
+          "name": "Coca Cola vs Pepsi Comparative Analysis Formula",
+          "purpose": "To compare the overall financial performance and potential growth of Coca Cola and Pepsi based on key metrics.",
+          "components": [
+            {
+              "metric": "growth_score",
+              "weight": 0.3,
+              "direction": "higher_is_better",
+              "reason": "This metric assesses each company's sales and earnings growth, indicating their expansion and financial health over time."
+            },
+            {
+              "metric": "momentum_score",
+              "weight": 0.25,
+              "direction": "higher_is_better",
+              "reason": "Momentum score considers the recent trends in stock price, volume, and earnings surprise, showing the companies' current market momentum."
+            },
+            {
+              "metric": "profitability_score",
+              "weight": 0.2,
+              "direction": "higher_is_better",
+              "reason": "Profitability score evaluates the companies' ability to generate profits from their revenues, indicating their efficiency and profitability potential."
+            },
+            {
+              "metric": "valuation_score",
+              "weight": 0.25,
+              "direction": "lower_is_better",
+              "reason": "Valuation score compares the companies' current stock prices to their earnings, cash flows, and growth potential, indicating whether they are undervalued or overvalued in the market."
+            }
+          ],
+          "how_created": "The formula components were selected based on their relevance to comparing the overall financial performance and potential growth of Coca Cola and Pepsi. Growth score, momentum score, and profitability score directly assess the companies' growth, market momentum, and profitability, which are crucial for their long-term success. Valuation score, being a comparative metric, helps determine whether one company might be more undervalued or overvalued compared to the other, adding a market perspective to the analysis. The weights were assigned based on the perceived importance and impact of each metric on the companies' overall financial health and growth potential.",
+          "why_important": "By combining these metrics, the formula provides a comprehensive view of Coca Cola and Pepsi's financial performance and potential growth. It considers both internal metrics (growth, profitability) and external factors (market momentum, valuation), offering a balanced perspective on the companies' current standing and future prospects. This analysis can help investors make informed decisions about which company to invest in, considering factors like growth potential, profitability, market momentum, and valuation.",
+          "assumptions": [
+            "The formula assumes that higher growth, profitability, and momentum scores, and a lower valuation score are generally positive for a company's stock price and overall financial health. It also assumes that the scores accurately reflect the companies' actual financial performance and market conditions.",
+            "The formula does not consider specific macroeconomic factors, industry challenges, or company-specific events that could impact the companies' financial performance beyond the assessed metrics."
+          ],
+          "limitations": [
+            "The formula's results are based on the selected financial metrics and their weights, which may not fully capture a company's true financial performance or market potential. Different weights or additional metrics could alter the analysis outcomes.",
+            "The formula does not account for the potential impact of market sentiment, industry trends, or unforeseen events on the companies' stock prices and financial health."
+          ]
+        },
+        "scores": {
+          "KO": {
+            "score": 0.7,
+            "components": {
+              "growth_score": {
+                "normalized_value": 0.0,
+                "weight": 0.3,
+                "weighted_value": 0.0
+              },
+              "momentum_score": {
+                "normalized_value": 1.0,
+                "weight": 0.25,
+                "weighted_value": 0.25
+              },
+              "profitability_score": {
+                "normalized_value": 1.0,
+                "weight": 0.2,
+                "weighted_value": 0.2
+              },
+              "valuation_score": {
+                "normalized_value": 1.0,
+                "weight": 0.25,
+                "weighted_value": 0.25
+              }
+            }
+          },
+          "PEP": {
+            "score": 0.3,
+            "components": {
+              "growth_score": {
+                "normalized_value": 1.0,
+                "weight": 0.3,
+                "weighted_value": 0.3
+              },
+              "momentum_score": {
+                "normalized_value": 0.0,
+                "weight": 0.25,
+                "weighted_value": 0.0
+              },
+              "profitability_score": {
+                "normalized_value": 0.0,
+                "weight": 0.2,
+                "weighted_value": 0.0
+              },
+              "valuation_score": {
+                "normalized_value": 0.0,
+                "weight": 0.25,
+                "weighted_value": 0.0
+              }
+            }
+          }
+        },
+        "ranking": [
+          {
+            "ticker": "KO",
+            "score": 0.7
+          },
+          {
+            "ticker": "PEP",
+            "score": 0.3
+          }
+        ]
+      }
+    },
+    "final_status": "completed"
+  }
+}

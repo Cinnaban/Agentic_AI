@@ -315,12 +315,6 @@ class AgentExecutor:
                     ticker
                 )
 
-                print(
-                    "MULTI-COMPANY RISK:",
-                    ticker
-                )
-
-
                 risk_result = (
                     self.risk_agent
                     .analyze(
@@ -331,14 +325,7 @@ class AgentExecutor:
                         )
                     )
                 )
-
-
-                print(
-                    "MULTI-COMPANY RISK COMPLETE:",
-                    ticker
-                )
-
-            
+           
             if market_context is None:
 
                 market_context = (
@@ -575,5 +562,11 @@ class AgentExecutor:
                     )
                 )
             )
+
+        # Preserve source evidence for downstream
+        # challenger and quality-review stages.
+        results["market_context"] = (
+            market_context
+        )
 
         return results

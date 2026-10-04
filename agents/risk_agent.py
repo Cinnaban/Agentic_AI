@@ -330,6 +330,18 @@ STRICT DATA RULES:
                     "invalid JSON"
                 )
             }
+            
+        if not isinstance(
+            result,
+            dict
+        ):
+            return {
+                "status": "failed",
+                "error": (
+                    "Risk Agent returned "
+                    "an invalid result"
+                )
+            }
 
         if isinstance(
             reconciliation_data,
