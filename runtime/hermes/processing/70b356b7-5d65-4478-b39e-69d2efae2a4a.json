@@ -1,0 +1,23 @@
+{
+  "job_id": "70b356b7-5d65-4478-b39e-69d2efae2a4a",
+  "status": "processing",
+  "created_at": "2026-10-05T19:56:52.255173",
+  "updated_at": "2026-10-05T19:56:52.259989",
+  "data": {
+    "message": "Analyze AMD",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    }
+  }
+}
