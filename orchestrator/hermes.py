@@ -212,6 +212,7 @@ class Hermes:
                 )
             )
             
+        
     def _all_companies_have_public_tickers(
         self,
         company_result
@@ -1661,12 +1662,375 @@ class Hermes:
                 error_response
             )
        
+
+    def _build_challenger_section(
+        self,
+        execution_results
+    ):
+
+        challenger = (
+            execution_results.get(
+                "challenger",
+                {}
+            )
+        )
+
+        if not isinstance(
+            challenger,
+            dict
+        ):
+            return ""
+
+        if challenger.get(
+            "status"
+        ) != "completed":
+            return ""
+
+        lines = []
+
+        agreement = challenger.get(
+            "agreement"
+        )
+
+        if agreement:
+            lines.append(
+                f"Agreement: {agreement}"
+            )
+
+        summary = challenger.get(
+            "summary"
+        )
+
+        if summary:
+            lines.append("")
+            lines.append(
+                str(summary).strip()
+            )
+
+        if not lines:
+            return ""
+
+        return (
+            "Independent Review:\n"
+            + "\n".join(lines)
+        )
+        
+        
+    def _build_evidence_section(
+        self,
+        execution_results
+    ):
+
+            market_context = (
+                execution_results.get(
+                    "market_context",
+                    {}
+                )
+            )
+
+            if not isinstance(
+                market_context,
+                dict
+            ):
+                return ""
+
+            source_status = (
+                market_context.get(
+                    "source_status",
+                    {}
+                )
+            )
+
+            if not isinstance(
+                source_status,
+                dict
+            ):
+                return ""
+
+            lines = []
+
+            ordered_sources = [
+
+                "financial_data",
+
+                "sec_facts",
+
+                "sec_filings",
+
+                "macro",
+
+                "news",
+
+                "live_market_context",
+
+                "social"
+            ]
+
+            for source in ordered_sources:
+
+                value = source_status.get(
+                    source
+                )
+
+                if value is None:
+                    continue
+
+                lines.append(
+                    f"{source}: {value}"
+                )
+
+            if not lines:
+                return ""
+
+            return (
+                "Evidence Availability:\n"
+                + "\n".join(
+                    lines
+                )
+            )
+        
+    def _build_evidence_section(
+        self,
+        execution_results
+    ):
+
+        market_context = (
+            execution_results.get(
+                "market_context",
+                {}
+            )
+        )
+
+        if not isinstance(
+            market_context,
+            dict
+        ):
+            return ""
+
+        source_status = (
+            market_context.get(
+                "source_status",
+                {}
+            )
+        )
+
+        if not isinstance(
+            source_status,
+            dict
+        ):
+            return ""
+
+        lines = []
+
+        for key in [
+            "financial_data",
+            "sec_facts",
+            "sec_filings",
+            "macro",
+            "news",
+            "live_market_context",
+            "social"
+        ]:
+
+            value = source_status.get(
+                key
+            )
+
+            if value is not None:
+
+                lines.append(
+                    f"{key}: {value}"
+                )
+
+        if not lines:
+            return ""
+
+        return (
+            "Evidence Availability:\n"
+            + "\n".join(lines)
+        )
+
+    def _build_social_discussion_section(
+        self,
+        execution_results
+    ):
+
+        market_context = (
+            execution_results.get(
+                "market_context",
+                {}
+            )
+        )
+
+        if not isinstance(
+            market_context,
+            dict
+        ):
+            return ""
+
+        social_summary = (
+            market_context.get(
+                "social_summary",
+                {}
+            )
+        )
+
+        if not isinstance(
+            social_summary,
+            dict
+        ):
+            return ""
+
+        if not social_summary.get(
+            "available"
+        ):
+            return ""
+
+        lines = []
+
+        discussion_volume = (
+            social_summary.get(
+                "discussion_volume"
+            )
+        )
+
+        if discussion_volume is not None:
+
+            lines.append(
+                f"Discussion Volume: "
+                f"{discussion_volume}"
+            )
+
+        platforms = (
+            social_summary.get(
+                "platforms",
+                []
+            )
+        )
+
+        if platforms:
+
+            lines.append(
+                "Platforms: "
+                + ", ".join(
+                    platforms
+                )
+            )
+
+        discussion_themes = (
+            social_summary.get(
+                "discussion_themes",
+                []
+            )
+        )
+
+        if discussion_themes:
+
+            lines.append(
+                "Recurring Themes: "
+                + ", ".join(
+                    discussion_themes[:10]
+                )
+            )
+
+        if not lines:
+            return ""
+
+        lines.append("")
+
+        lines.append(
+            "These observations summarize "
+            "retrieved public discussion. "
+            "They provide supplemental "
+            "context and should not be "
+            "treated as verified facts, "
+            "financial evidence, or "
+            "evidence of public consensus."
+        )
+
+        return (
+            "Public Discussion Signals:\n"
+            + "\n".join(
+                lines
+            )
+        )
+
+    def _build_challenger_section(
+        self,
+        execution_results
+    ):
+
+        challenger = (
+            execution_results.get(
+                "challenger",
+                {}
+            )
+        )
+
+        if not isinstance(
+            challenger,
+            dict
+        ):
+            return ""
+
+        if challenger.get(
+            "status"
+        ) != "completed":
+            return ""
+
+        lines = []
+
+        agreement = challenger.get(
+            "agreement"
+        )
+
+        if agreement:
+
+            lines.append(
+                f"Agreement: {agreement}"
+            )
+
+        summary = challenger.get(
+            "summary"
+        )
+
+        if summary:
+
+            lines.append(
+                ""
+            )
+
+            lines.append(
+                str(summary)
+                .strip()
+            )
+
+        if not lines:
+            return ""
+
+        return (
+            "Independent Review:\n"
+            + "\n".join(
+                lines
+            )
+        )
+
+
     def _build_company_response(
         self,
         execution_results,
         quality_review
     ):
         
+        
+        market_context = (
+            execution_results.get(
+                "market_context",
+                {}
+            )
+        )
+
+             
         financial_metrics = (
             self.financial_metric_builder
             .build(
@@ -1696,6 +2060,37 @@ class Hermes:
             )
         )
 
+        social_discussion_section = (
+            self._build_social_discussion_section(
+                execution_results
+            )
+        )
+        
+        challenger_section = (
+            self._build_challenger_section(
+                execution_results
+            )
+        )
+        
+        evidence_section = (
+            self._build_evidence_section(
+                execution_results
+            )
+        )
+        
+        challenger_section = (
+            self._build_challenger_section(
+                execution_results
+            )
+        )
+        
+        market_context = (
+            execution_results.get(
+                "market_context",
+                {}
+            )
+        )
+
         if not isinstance(
             research,
             str
@@ -1710,11 +2105,36 @@ class Hermes:
             sections.append(
                 financial_table
             )
+            
+        if evidence_section:
+            sections.append(
+                evidence_section
+            )
 
         if research.strip():
-
             sections.append(
                 research.strip()
+            )
+            
+        if challenger_section:
+            sections.append(
+                challenger_section
+            )
+        
+        if evidence_section:
+            sections.append(
+                evidence_section
+            )
+            
+        if challenger_section:
+            sections.append(
+                challenger_section
+            )
+
+        if social_discussion_section:
+
+            sections.append(
+                social_discussion_section
             )
 
 
@@ -1768,26 +2188,6 @@ class Hermes:
                         risk_lines
                     )
                 )
-
-
-        if isinstance(
-            quality_review,
-            dict
-        ):
-
-            confidence = (
-                quality_review.get(
-                    "confidence"
-                )
-            )
-
-            if confidence is not None:
-
-                sections.append(
-                    "Quality Confidence: "
-                    f"{confidence}"
-                )
-
 
         return "\n\n".join(
             sections

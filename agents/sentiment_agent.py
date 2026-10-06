@@ -37,6 +37,18 @@ class SentimentAgent:
             "source_status",
             {}
         )
+        social_summary = (
+            market_context.get(
+                "social_summary",
+                {}
+            )
+        )
+
+        if not isinstance(
+            social_summary,
+            dict
+        ):
+            social_summary = {}
 
         news_available = (
             source_status.get(
@@ -47,6 +59,12 @@ class SentimentAgent:
         sentiment_available = (
             source_status.get(
                 "sentiment_sources"
+            ) == "available"
+        )
+        
+        social_available = (
+            source_status.get(
+                "social"
             ) == "available"
         )
 
@@ -96,6 +114,9 @@ class SentimentAgent:
                     source_status.get(
                         "news"
                     ),
+                    
+            "social_summary":
+                social_summary,
 
                 "sentiment_sources":
                     source_status.get(
@@ -110,6 +131,23 @@ class SentimentAgent:
         {company}
 
         Sentiment Evidence:
+
+        SOCIAL DISCUSSION SUMMARY:
+
+            - social_summary may contain public
+            discussion patterns.
+
+            - Public discussion is not verified
+            sentiment evidence.
+
+            - Public discussion may be used as
+            supporting context only.
+
+            - Do not treat public discussion
+            as sentiment source data.
+
+            - Do not infer investor sentiment
+            solely from public discussion.
 
         {json.dumps(
             sentiment_context,
@@ -144,6 +182,23 @@ class SentimentAgent:
 
         - If the supplied evidence is insufficient to determine sentiment,
         explicitly state that sentiment remains uncertain.
+
+        SOCIAL DISCUSSION RULES:
+
+        - Use social discussion only to identify:
+
+            • recurring concerns
+            • recurring themes
+            • community discussion
+
+        - Do not classify discussion as
+        bullish or bearish sentiment
+        unless supported by supplied
+        sentiment evidence.
+
+        - Discussion themes may provide
+        context but do not replace
+        sentiment evidence.
 
         GROUNDING RULES:
 

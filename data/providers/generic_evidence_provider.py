@@ -10,6 +10,14 @@ from data.providers.live.firecrawl_backend import (
     FirecrawlBackend
 )
 
+from data.providers.social.social_evidence_provider import (
+    SocialEvidenceProvider
+)
+
+from data.providers.social.social_summary_builder import (
+    SocialSummaryBuilder
+)
+
 from urllib.parse import (
     urlsplit,
     urlunsplit
@@ -31,6 +39,14 @@ class GenericEvidenceProvider:
 
         self.firecrawl = (
             FirecrawlBackend()
+        )
+
+        self.social = (
+            SocialEvidenceProvider()
+        )
+        
+        self.social_summary_builder = (
+            SocialSummaryBuilder()
         )
 
         self.max_pages = 15
@@ -274,6 +290,21 @@ class GenericEvidenceProvider:
                 page_limit=page_limit
             )
         )
+        social_context = (
+            self.social.get_context(
+                query=query,
+                search_queries=cleaned_queries
+            )
+        )
+        social_summary = (
+            self.social_summary_builder
+            .build(
+                social_context.get(
+                    "results",
+                    []
+                )
+            )
+        )
 
 
         sources = []
@@ -295,11 +326,30 @@ class GenericEvidenceProvider:
                     source
                 )
 
+        social_sources = (
+            social_context.get(
+                "sources",
+                []
+            )
+        )
+
+        for source in social_sources:
+
+            if (
+                source
+                and source not in sources
+            ):
+                sources.append(
+                    source
+                )
 
         return {
             "available":
                 bool(
                     enriched
+                    or social_context.get(
+                        "results"
+                    )
                 ),
 
             "query":
@@ -307,6 +357,15 @@ class GenericEvidenceProvider:
 
             "results":
                 enriched,
+                
+            "social_results":
+                social_context.get(
+                    "results",
+                    []
+                ),
+                
+            "social_summary":
+                social_summary,
 
             "search_queries":
                 cleaned_queries,

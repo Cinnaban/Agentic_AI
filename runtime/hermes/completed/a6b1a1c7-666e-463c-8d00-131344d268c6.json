@@ -1,0 +1,29 @@
+{
+  "job_id": "a6b1a1c7-666e-463c-8d00-131344d268c6",
+  "status": "completed",
+  "created_at": "2026-10-05T19:17:41.785181",
+  "updated_at": "2026-10-05T19:19:07.909649",
+  "data": {
+    "message": "Analyze Tesla",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "Tesla",
+        "ticker": "TSLA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

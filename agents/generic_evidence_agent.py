@@ -47,6 +47,12 @@ class GenericEvidenceAgent:
             "results",
             []
         )
+        social_summary = (
+            evidence.get(
+                "social_summary",
+                {}
+            )
+        )
 
 
         if not results:
@@ -112,12 +118,53 @@ RESEARCH PLAN:
 
 RETRIEVED PUBLIC EVIDENCE:
 
+SOCIAL SUMMARY:
+
+The evidence may contain:
+- social_results
+- social_summary
+
+When social_summary exists:
+- prefer it over individual posts
+- summarize recurring themes
+- avoid repeating every post
+- identify major discussion topics
+``
+
 {json.dumps(
     evidence,
     indent=2,
     default=str
 )}
 
+SOCIAL EVIDENCE:
+
+The evidence may contain:
+
+social_results
+social_summary
+
+When social_summary exists,
+use it as the primary source
+for discussion signals rather
+than repeating every individual
+post.
+
+SOCIAL DISCUSSION SUMMARY:
+
+{json.dumps(
+    social_summary,
+    indent=2,
+    default=str
+)}
+
+PUBLIC DISCUSSION PREFERENCE:
+
+- Use discussion_themes when available.
+- Use top_keywords as supporting context.
+- Use sample_posts only as examples.
+- Do not treat discussion patterns as verified facts.
+- Clearly separate discussion signals from evidence.
 RESEARCH-PLAN RULES:
 
 - Answer the user's original question, not the search
@@ -318,6 +365,35 @@ audited financial facts.
 When evidence sources disagree, describe the
 disagreement rather than silently choosing the
 stronger-looking claim.
+
+SOCIAL EVIDENCE RULES:
+
+- Reddit and X represent public discussion.
+- Public discussion is not verified fact.
+- Public discussion may be used to identify:
+  - recurring themes
+  - user experiences
+  - developer opinions
+  - public concerns
+  - community reactions
+
+- Public discussion must not be treated as:
+  - audited financial information
+  - official company statements
+  - scientific proof
+  - regulatory findings
+  - verified market data
+
+- When social evidence is used:
+  clearly distinguish discussion
+  from verified evidence.
+
+- If public discussion conflicts with
+  authoritative evidence, authoritative
+  evidence takes priority.
+
+- Do not present rumors, speculation,
+  or unsupported claims as facts.
 
 RULES:
 

@@ -103,6 +103,18 @@ class ResearchAgent:
                     )
             }
             
+        social_summary = (
+            market_context.get(
+                "social_summary",
+                {}
+            )
+        )
+        if not isinstance( 
+                social_summary,
+                dict 
+            ): 
+                social_summary = {}
+            
         research_context = {
             "financial_data":
                 market_context.get(
@@ -127,6 +139,13 @@ class ResearchAgent:
                     "news",
                     []
                 ),
+                
+            "macro_facts":
+                market_context.get( 
+                    "macro_facts",
+                    {} 
+                ),
+            
             "source_status": {
                 "financial_data":
                     market_context
@@ -157,11 +176,6 @@ class ResearchAgent:
                     .get(
                         "sec_filings"
                     ),
-                "macro_facts":
-                    market_context.get(
-                            "macro_facts",
-                            {}
-                        ),  
                 
                 "live_market_context":
                     market_context
@@ -189,6 +203,16 @@ class ResearchAgent:
                     .get(
                         "news"
                     ),
+                
+                "social": 
+                    market_context 
+                    .get( 
+                         "source_status", 
+                         {} 
+                    ) 
+                    .get( 
+                         "social"
+                    ),
 
                 "sentiment_sources":
                     market_context
@@ -212,6 +236,12 @@ Provide:
 3. Competitive Position
 4. Major Risks
 5. Key Strengths
+6. Social Considerations
+- Discuss only when materially relevant.
+- Do not repeat discussion volume.
+- Do not repeat discussion platforms.
+- Do not repeat discussion themes verbatim.
+- Interpret significance instead.
 
 Company:
 
@@ -222,6 +252,14 @@ Market Context:
 {json.dumps(
     research_context,
     indent=2
+)}
+
+SOCIAL DISCUSSION SUMMARY:
+
+{json.dumps(
+    social_summary,
+    indent=2,
+    default=str
 )}
 EVIDENCE HIERARCHY:
 
@@ -321,6 +359,34 @@ News
    - Use News only when source_status.news is available.
    - Do not invent current news when News is unavailable.
 
+SOCIAL DISCUSSION RULES:
+
+- Social discussion represents public discussion
+  and not verified fact.
+
+- Use social discussion to identify:
+  - recurring themes
+  - public concerns
+  - user experiences
+  - community reaction
+
+- Do not treat social discussion as:
+  - company-reported facts
+  - SEC disclosures
+  - financial statements
+  - verified market data
+
+- If social discussion conflicts with SEC,
+  SEC takes precedence.
+
+- Clearly distinguish discussion signals
+  from verified evidence.
+  
+- If source_status.social is unavailable, do not claim to have retrieved social discussion. 
+- If social_summary.available is false, omit the Public Discussion Signals section. 
+- Prefer social_summary themes and patterns over repeating individual posts. 
+- Do not infer public consensus from a small, unrepresentative, or unknown-size sample. 
+- If sample posts are supplied, treat them only as examples of retrieved public discussion.
 Sentiment Sources
    - Use these only when
      source_status.sentiment_sources is available.

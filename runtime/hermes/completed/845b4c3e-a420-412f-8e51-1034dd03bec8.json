@@ -1,0 +1,29 @@
+{
+  "job_id": "845b4c3e-a420-412f-8e51-1034dd03bec8",
+  "status": "completed",
+  "created_at": "2026-10-04T23:58:53.561972",
+  "updated_at": "2026-10-05T00:02:04.517632",
+  "data": {
+    "message": "Evaluate AMD",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

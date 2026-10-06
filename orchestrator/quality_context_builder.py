@@ -31,6 +31,19 @@ class QualityContextBuilder:
             "challenger":
                 execution_results.get(
                     "challenger"
+                ),
+                
+            "social_summary":
+                (
+                    execution_results
+                    .get(
+                        "market_context",
+                        {}
+                    )
+                    .get(
+                        "social_summary",
+                        {}
+                    )
                 )
         }
 
@@ -163,5 +176,25 @@ class QualityContextBuilder:
         context[
             "quant_summary"
         ] = quant_summary
+        
+        social_summary = (
+            context.get(
+                "social_summary",
+                {}
+            )
+        )
+
+        context[
+            "social_available"
+        ] = bool(
+            isinstance(
+                social_summary,
+                dict
+            )
+            and social_summary.get(
+                "available"
+            )
+        )
+        
 
         return context

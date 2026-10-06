@@ -195,6 +195,19 @@ class Config:
     )
     
     # ==========================================
+    # Social Intelligence
+    # ==========================================
+
+    ENABLE_SOCIAL = True
+
+    ENABLE_REDDIT = True
+
+    ENABLE_X = False
+
+    SOCIAL_RESULT_LIMIT = 25
+    
+    SOCIAL_MAX_CONTENT_LENGTH = 4000
+    # ==========================================
     # Ollama Runtime
     # ==========================================
 

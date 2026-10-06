@@ -1,0 +1,19 @@
+{
+  "job_id": "b866bf00-4672-404e-a0a5-4f0ecf66c0ab",
+  "status": "failed",
+  "created_at": "2026-10-04T23:44:58.306617",
+  "updated_at": "2026-10-04T23:45:13.323730",
+  "data": {
+    "message": "Lets compare Intel to AMD",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {},
+    "final_status": "failed"
+  }
+}

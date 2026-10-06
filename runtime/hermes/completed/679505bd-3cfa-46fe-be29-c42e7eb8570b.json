@@ -1,0 +1,51 @@
+{
+  "job_id": "679505bd-3cfa-46fe-be29-c42e7eb8570b",
+  "status": "completed",
+  "created_at": "2026-10-05T19:24:10.198254",
+  "updated_at": "2026-10-05T19:29:33.548729",
+  "data": {
+    "message": "Compare Microsoft and Apple",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "Microsoft",
+        "ticker": "MSFT",
+        "entity_type": "company"
+      },
+      {
+        "name": "Apple",
+        "ticker": "AAPL",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": false,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the supplied company evidence, when comparing Microsoft (MSFT) and Apple (AAPL) across the requested risk dimensions, the companies have similar risk scores of 0 out of 100, indicating low overall risk. However, the signal uncertainty for both is rated as high, suggesting higher than average confidence intervals around the risk scores. The evidence shows Microsoft has moderate overall risk while Apple is considered low risk, potentially due to slightly different market and competitive dynamics between the two tech giants. However, the company evidence does not contain enough information to decisively declare one company as having lower risk than the other when comparing risk. The risk scores and overall risk ratings are the same for both companies. The evidence points to Apple having lower risk, but the high signal uncertainty limits confidence in definitively declaring Apple as the lower risk company.\n\nThe risk scores and ratings were derived directly from the supplied risk assessment data for each company. The overall risk, signal uncertainty and confidence intervals are metrics that come standard with the full financial profile and were automatically pulled to populate the risk table. The overall risk rating is a qualitative assessment that combines multiple quantitative risk factors into a single risk score. The signal uncertainty reflects how widely analysts' estimates vary around the calculated risk score. Higher scores and lower confidence intervals would indicate lower overall risk and higher confidence in the risk assessment. But Microsoft and Apple have the same numbers in this case.\n\nThe risk factors were calculated using the standard financial risk assessment model applied to the supplied data for each company. The model generates risk scores across multiple dimensions like business risk, competitive risk, market risk etc. and combines them into an overall risk score and qualitative rating. But the evidence supplied does not contain enough details to fully unpack the model's risk assessment logic or to explain why Microsoft has moderate risk while Apple is considered low. More granular risk factor data would be needed to have a more detailed apples-to-apples comparison of the companies' specific risk profiles beyond the high-level numbers provided. The risk scores and overall ratings are the only risk dimensions the user requested and so they are the only ones included in the comparison."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": null,
+    "final_status": "completed"
+  }
+}

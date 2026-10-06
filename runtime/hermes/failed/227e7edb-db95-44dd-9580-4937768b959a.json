@@ -1,0 +1,24 @@
+{
+  "job_id": "227e7edb-db95-44dd-9580-4937768b959a",
+  "status": "failed",
+  "created_at": "2026-10-04T23:46:53.595200",
+  "updated_at": "2026-10-04T23:46:58.094573",
+  "data": {
+    "message": "Let's compare INTC and AMD",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "INTC",
+        "ticker": "INTC",
+        "entity_type": "security"
+      },
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {},
+    "final_status": "failed"
+  }
+}

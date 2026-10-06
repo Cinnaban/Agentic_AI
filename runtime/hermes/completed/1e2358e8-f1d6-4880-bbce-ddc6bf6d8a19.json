@@ -1,0 +1,29 @@
+{
+  "job_id": "1e2358e8-f1d6-4880-bbce-ddc6bf6d8a19",
+  "status": "completed",
+  "created_at": "2026-10-04T23:32:28.892280",
+  "updated_at": "2026-10-04T23:35:40.086566",
+  "data": {
+    "message": "Explore INTC",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "INTC",
+        "ticker": "INTC",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

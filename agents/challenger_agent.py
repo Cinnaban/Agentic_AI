@@ -26,13 +26,36 @@ class ChallengerAgent:
         if market_context is None:
             market_context = {}
 
+        social_summary = {}
+
+        if isinstance(
+            market_context,
+            dict
+        ):
+            social_summary = (
+                market_context.get(
+                    "social_summary",
+                    {}
+                )
+            )
+
         challenge_input = {
             "company": company,
+
             "research": research,
+
             "risk": risk,
+
             "quant": quant,
-            "signal_reconciliation": signal_reconciliation,
-            "market_context": market_context
+
+            "signal_reconciliation":
+                signal_reconciliation,
+
+            "market_context":
+                market_context,
+
+            "social_summary":
+                social_summary
         }
 
         prompt = f"""
@@ -54,6 +77,41 @@ Look specifically for:
 6. Alternative interpretations
 7. Evidence that does not support the conclusion
 8. Important evidence the analysis overlooked
+
+SOCIAL DISCUSSION REVIEW RULES:
+
+- Social discussion indicates public discussion,
+  not verified facts.
+
+- Determine whether recurring public concerns
+  are acknowledged by the research.
+
+- Do not treat social discussion as authoritative
+  evidence.
+
+- Do not reject SEC-reported facts based on
+  public discussion.
+
+- Flag cases where:
+    • research ignores significant recurring concerns
+    • research presents discussion as fact
+    • discussion is overstated relative to evidence
+
+- Social discussion may strengthen or weaken
+  confidence in conclusions but does not replace
+  authoritative evidence.
+  
+- If social discussion is unavailable,
+  do not invent public discussion themes.
+
+- If social discussion is available,
+  evaluate whether material recurring
+  discussion concerns were addressed
+  by the primary research.
+
+- Missing acknowledgement of a recurring
+  concern is not automatically evidence
+  that the concern is valid.
 
 EVIDENCE RULES:
 
@@ -99,7 +157,15 @@ Return ONLY valid JSON using this schema:
     "missing_risks": [],
     "unsupported_claims": [],
     "alternative_interpretations": [],
-    "summary": ""
+    
+    "social_review": {
+        "discussion_available": false,
+        "discussion_aligned": true,
+        "missing_discussion_points": []
+    }
+    
+    "summary": "",
+        
 }}
 
 Challenge Input:

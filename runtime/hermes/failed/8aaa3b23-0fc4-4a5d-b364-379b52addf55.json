@@ -1,0 +1,39 @@
+{
+  "job_id": "8aaa3b23-0fc4-4a5d-b364-379b52addf55",
+  "status": "failed",
+  "created_at": "2026-10-05T18:58:31.874773",
+  "updated_at": "2026-10-05T18:59:31.370158",
+  "data": {
+    "message": "What are users discussing about local AI coding tools?",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "AI",
+        "ticker": "AI",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing company identification",
+        "Lack of operational or revenue details",
+        "Absence of market context",
+        "Unavailability of SEC filings and financial data",
+        "No competitive analysis possible",
+        "No material risks identified",
+        "No verifiable strengths exist",
+        "No social discussion data available",
+        "Challenger failed due to an Invalid format specifier"
+      ],
+      "confidence": 50
+    },
+    "final_status": "quality_rejected"
+  }
+}

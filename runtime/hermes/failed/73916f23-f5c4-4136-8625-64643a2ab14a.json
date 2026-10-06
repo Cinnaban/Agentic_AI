@@ -1,0 +1,32 @@
+{
+  "job_id": "73916f23-f5c4-4136-8625-64643a2ab14a",
+  "status": "failed",
+  "created_at": "2026-10-05T19:31:42.208618",
+  "updated_at": "2026-10-05T19:32:36.594450",
+  "data": {
+    "message": "What are users discussing about local AI coding tools?",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "AI",
+        "ticker": "AI",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing SEC facts and filings, financial data, live market context, news, social discussion, and macroeconomic indicators",
+        "Challenger failed with error 'Invalid format specifier'"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

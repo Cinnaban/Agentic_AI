@@ -24,6 +24,13 @@ from data.providers.macro_fact_builder import (
 from data.providers.live_market_providers import (
     LiveMarketProvider
 )
+from data.providers.social.social_evidence_provider import (
+    SocialEvidenceProvider
+)
+from data.providers.social.social_summary_builder import (
+    SocialSummaryBuilder
+)
+
 class MarketContextProvider:
     
     def __init__(self):
@@ -44,6 +51,12 @@ class MarketContextProvider:
         )
         self.live_market_provider = (
             LiveMarketProvider()
+        )
+        self.social_provider = (
+                SocialEvidenceProvider()
+        )
+        self.social_summary_builder = (
+                SocialSummaryBuilder()
         )
 
     def _build_financial_context(
@@ -217,6 +230,21 @@ class MarketContextProvider:
                 company
             )
         )
+        
+        social_context = (
+            self.social_provider
+            .get_context(
+                query=company
+            )
+        )
+
+        social_summary = (
+            social_context.get(
+                "social_summary",
+                {}
+            )
+        )
+
         sec_filings = (
             self.sec_provider
             .normalize_recent_filings(
@@ -247,6 +275,12 @@ class MarketContextProvider:
         has_sec_facts = bool(
             sec_fact_values
         )
+        has_social = bool(
+            social_summary.get(
+                "available"
+            )
+        )
+
         
         if isinstance(
             quant_data,
@@ -301,6 +335,11 @@ class MarketContextProvider:
                 live_market_context,
             "news": 
                 news,
+            "social_context":
+                social_context,
+
+            "social_summary":
+                social_summary,
             "sentiment_sources": [],
             "source_status": {
                 "financial_data": (
@@ -333,13 +372,19 @@ class MarketContextProvider:
                     if news
                     else "unavailable"
                 ),
+                "social": (
+                    "available"
+                    if has_social
+                    else "unavailable"
+                ),
                 "sentiment_sources": "unavailable",
                 "source_metadata": {
                     "financial_data": [],
                     "news": [],
                     "filings": [],
                     "macro": [],
-                    "live_market_context": []
+                    "live_market_context": [], 
+                    "social": [],
                 }
             }
         }
