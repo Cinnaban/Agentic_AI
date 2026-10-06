@@ -1,0 +1,19 @@
+{
+  "job_id": "8ab0627b-8392-4a5d-a44f-0b5dd8710dc1",
+  "status": "failed",
+  "created_at": "2026-10-06T00:38:34.364299",
+  "updated_at": "2026-10-06T00:38:46.748609",
+  "data": {
+    "message": "Evaluate KO stock",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "KO",
+        "ticker": "KO",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {},
+    "final_status": "failed"
+  }
+}

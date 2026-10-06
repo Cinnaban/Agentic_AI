@@ -1,0 +1,29 @@
+{
+  "job_id": "15d731f9-188d-457a-9cd8-fb1e8b94b7ab",
+  "status": "completed",
+  "created_at": "2026-10-06T01:01:24.227607",
+  "updated_at": "2026-10-06T01:03:15.013808",
+  "data": {
+    "message": "evaluate coca cola",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Coca-Cola",
+        "ticker": "KO",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

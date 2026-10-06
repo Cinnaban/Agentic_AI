@@ -108,7 +108,8 @@ class RedditProvider:
             )
             
         if not self.firecrawl.health_check():
-            return []
+            print("[REDDIT] Firecrawl health check failed")
+            return []   
 
         urls = (
             self._build_reddit_urls(
@@ -125,6 +126,10 @@ class RedditProvider:
                     url
                 )
             )
+            print(
+                f"[REDDIT] URL={url} "
+                f"SCRAPED={scraped is not None}"
+            )
 
             if not scraped:
                 continue
@@ -132,6 +137,11 @@ class RedditProvider:
             markdown = scraped.get(
                 "markdown",
                 ""
+            )
+            
+            print(
+                f"[REDDIT] Markdown Length="
+                f"{len(markdown)}"
             )
 
             if not markdown:

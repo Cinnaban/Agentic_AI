@@ -39,6 +39,8 @@ class SocialSummaryBuilder:
         platforms = set()
         
         keywords = Counter()
+        
+        platform_counts = Counter()
 
         for record in records:
 
@@ -51,6 +53,36 @@ class SocialSummaryBuilder:
             platform = record.get(
                 "platform"
             )
+            content = (
+                record.get("content")
+                or ""
+            )
+
+            words = re.findall(
+                r"\b[a-zA-Z]{4,}\b",
+                content.lower()
+            )
+
+            stop_words = {
+                "this",
+                "that",
+                "with",
+                "from",
+                "have",
+                "been",
+                "will",
+                "would",
+                "their",
+                "about",
+                "stock",
+                "reddit",
+                "discussion"
+            }
+
+            for word in words:
+                if word not in stop_words:
+                    keywords[word] += 1
+
             
             if (
                 len(
@@ -60,15 +92,23 @@ class SocialSummaryBuilder:
                 )
                 < 5
             ):
-                summary[
-                    "sample_posts"
-                ].append(
-                    record.get(
-                        "content"
+                content = (
+                    record.get("content")
+                    or ""
+                ).strip()
+
+                if (
+                    content
+                    and len(
+                        summary["sample_posts"]
+                    ) < 5
+                ):
+                    summary["sample_posts"].append(
+                        content[:500]
                     )
-                )
 
             if platform:
+                platform_counts[platform] += 1
                 platforms.add(
                     platform
                 )
@@ -97,6 +137,21 @@ class SocialSummaryBuilder:
                 }
             )
 
+
+        volume = len(summary["records"]) 
+        
+        summary["discussion_volume"] = volume 
+        
+        summary["available"] = volume > 0
+
+        if volume >= 10:
+            status = "available"
+        elif volume > 0:
+            status = "limited"
+        else:
+            status = "unavailable"
+        summary["status"] = status
+            
         summary[
             "platforms"
         ] = sorted(

@@ -239,9 +239,11 @@ class MarketContextProvider:
         )
 
         social_summary = (
-            social_context.get(
-                "social_summary",
-                {}
+            self.social_summary_builder.build(
+                social_context.get(
+                    "results",
+                    []
+                )
             )
         )
 
@@ -275,10 +277,19 @@ class MarketContextProvider:
         has_sec_facts = bool(
             sec_fact_values
         )
-        has_social = bool(
+        social_status = (
             social_summary.get(
-                "available"
+                "status",
+                "unavailable"
             )
+        )
+
+        has_social = (
+            social_status
+            in {
+                "available",
+                "limited"
+            }
         )
 
         

@@ -1881,9 +1881,14 @@ class Hermes:
         ):
             return ""
 
-        if not social_summary.get(
-            "available"
-        ):
+        status = (
+            social_summary.get(
+                "status",
+                "unavailable"
+            )
+        )
+
+        if status == "unavailable":
             return ""
 
         lines = []
@@ -1900,6 +1905,17 @@ class Hermes:
                 f"Discussion Volume: "
                 f"{discussion_volume}"
             )
+            
+        status = (
+            social_summary.get(
+                "status"
+            )
+        )
+
+        if status:
+            lines.append(
+                f"Status: {status}"
+            )
 
         platforms = (
             social_summary.get(
@@ -1914,6 +1930,31 @@ class Hermes:
                 "Platforms: "
                 + ", ".join(
                     platforms
+                )
+            )
+
+        platform_counts = (
+            social_summary.get(
+                "platform_counts",
+                {}
+            )
+        )
+
+        if platform_counts:
+
+            count_lines = []
+
+            for platform, count in (
+                platform_counts.items()
+            ):
+                count_lines.append(
+                    f"{platform}: {count}"
+                )
+
+            lines.append(
+                "Platform Activity: "
+                + ", ".join(
+                    count_lines
                 )
             )
 

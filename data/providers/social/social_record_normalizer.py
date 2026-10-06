@@ -56,7 +56,9 @@ class SocialRecordNormalizer:
                     "query"
                 ),
 
-            "metadata": {}
+            "metadata": {
+                "source": "reddit"
+            }
         }
 
     def normalize_x(
@@ -117,5 +119,8 @@ class SocialRecordNormalizer:
                     "query"
                 ),
 
-            "metadata": {}
+            "metadata": {
+                "source": "x"
+            }
+
         }

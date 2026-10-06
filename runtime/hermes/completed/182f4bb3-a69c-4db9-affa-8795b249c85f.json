@@ -1,0 +1,29 @@
+{
+  "job_id": "182f4bb3-a69c-4db9-affa-8795b249c85f",
+  "status": "completed",
+  "created_at": "2026-10-06T00:29:06.288596",
+  "updated_at": "2026-10-06T00:30:48.227358",
+  "data": {
+    "message": "Evaluate Intel",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "Intel",
+        "ticker": "INTC",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "issues": [],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}
