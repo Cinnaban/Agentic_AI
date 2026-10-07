@@ -184,87 +184,287 @@ class QwenManager:
         self,
         results
     ):
-        confidence = 50
-
         strengths = []
         limitations = []
+        issues = []
+
+        if not isinstance(
+            results,
+            dict
+        ):
+            return {
+                "approved": False,
+                "confidence": 0,
+                "issues": [
+                    "Invalid quality context"
+                ],
+                "strengths": [],
+                "limitations": [
+                    "Quality context was unavailable"
+                ],
+                "review_source":
+                    "heuristic_fallback"
+            }
+
+        reconciliation_validation = (
+            self._validate_reconciliation(
+                results
+            )
+        )
+
+        challenger_validation = (
+            self._validate_challenger(
+                results
+            )
+        )
 
         market_context = (
             results.get(
                 "market_context",
                 {}
             )
-            if isinstance(
-                results,
-                dict
-            )
-            else {}
         )
+
+        if not isinstance(
+            market_context,
+            dict
+        ):
+            market_context = {}
 
         source_status = (
             market_context.get(
                 "source_status",
                 {}
             )
-            if isinstance(
-                market_context,
-                dict
-            )
-            else {}
         )
 
-        scoring = {
-            "financial_data": 15,
+        if not isinstance(
+            source_status,
+            dict
+        ):
+            source_status = {}
+
+        # Base confidence for a structurally
+        # usable quality context.
+        confidence = 20
+
+        evidence_weights = {
+            "financial_data": 20,
             "sec_facts": 15,
             "sec_filings": 15,
             "macro": 10,
             "social": 5
         }
 
-        for source, points in scoring.items():
+        display_names = {
+            "financial_data":
+                "Financial data",
+            "sec_facts":
+                "SEC facts",
+            "sec_filings":
+                "SEC filings",
+            "macro":
+                "Macroeconomic data",
+            "social":
+                "Public discussion evidence"
+        }
 
-            if source_status.get(source) == "available":
+        for source, points in (
+            evidence_weights.items()
+        ):
+            status = (
+                source_status.get(
+                    source
+                )
+            )
 
+            display_name = (
+                display_names.get(
+                    source,
+                    source
+                )
+            )
+
+            if status == "available":
                 confidence += points
 
                 strengths.append(
-                    f"{source} available"
+                    f"{display_name} available"
                 )
-
             else:
-
                 limitations.append(
-                    f"{source} unavailable"
+                    f"{display_name} unavailable"
                 )
 
-        if results.get("quant"):
+        news_status = (
+            source_status.get(
+                "news"
+            )
+        )
+
+        if news_status == "available":
+            strengths.append(
+                "Current news evidence available"
+            )
+        else:
+            limitations.append(
+                "Current news evidence unavailable"
+            )
+
+        live_status = (
+            source_status.get(
+                "live_market_context"
+            )
+        )
+
+        if live_status == "available":
+            strengths.append(
+                "Live market context available"
+            )
+        else:
+            limitations.append(
+                "Live market context unavailable"
+            )
+
+        quant = results.get(
+            "quant",
+            {}
+        )
+
+        quant_completed = bool(
+            isinstance(
+                quant,
+                dict
+            )
+            and (
+                quant.get(
+                    "status"
+                ) == "completed"
+                or bool(
+                    quant.get(
+                        "results"
+                    )
+                )
+            )
+        )
+
+        if quant_completed:
             confidence += 10
 
             strengths.append(
-                "quantitative analysis completed"
+                "Quantitative analysis completed"
+            )
+        else:
+            limitations.append(
+                "Quantitative analysis incomplete"
             )
 
-        if results.get("risk"):
-            confidence += 10
+        risk = results.get(
+            "risk",
+            {}
+        )
+
+        risk_completed = bool(
+            isinstance(
+                risk,
+                dict
+            )
+            and (
+                risk.get(
+                    "status"
+                ) == "completed"
+                or any(
+                    key in risk
+                    for key in {
+                        "overall_risk",
+                        "risk_score",
+                        "signal_uncertainty"
+                    }
+                )
+            )
+        )
+
+        if risk_completed:
+            confidence += 5
 
             strengths.append(
-                "risk analysis completed"
+                "Risk analysis completed"
+            )
+        else:
+            limitations.append(
+                "Risk analysis incomplete"
             )
 
-        confidence = min(
-            confidence,
-            100
+        reconciliation_consistent = bool(
+            reconciliation_validation.get(
+                "consistent",
+                False
+            )
+        )
+
+        if reconciliation_consistent:
+            strengths.append(
+                "Signal reconciliation is "
+                "internally consistent"
+            )
+        else:
+            confidence -= 20
+
+            reconciliation_issues = (
+                reconciliation_validation.get(
+                    "issues",
+                    []
+                )
+            )
+
+            if isinstance(
+                reconciliation_issues,
+                list
+            ):
+                issues.extend(
+                    str(issue)
+                    for issue
+                    in reconciliation_issues
+                )
+
+        if challenger_validation.get(
+            "available"
+        ):
+            if challenger_validation.get(
+                "completed"
+            ):
+                strengths.append(
+                    "Independent challenger "
+                    "review completed"
+                )
+            else:
+                limitations.append(
+                    "Independent challenger "
+                    "review incomplete"
+                )
+
+        confidence = max(
+            0,
+            min(
+                int(confidence),
+                100
+            )
         )
 
         return {
-            "approved": True,
-            "confidence": confidence,
-            "issues": strengths,
-            "limitations": limitations,
+            "approved":
+                reconciliation_consistent,
+            "confidence":
+                confidence,
+            "issues":
+                issues,
+            "strengths":
+                strengths,
+            "limitations":
+                limitations,
             "review_source":
                 "heuristic_fallback"
         }
-
     def _validate_challenger(
         self,
         results
