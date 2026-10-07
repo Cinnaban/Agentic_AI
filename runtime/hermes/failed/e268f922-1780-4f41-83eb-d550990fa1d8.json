@@ -1,0 +1,24 @@
+{
+  "job_id": "e268f922-1780-4f41-83eb-d550990fa1d8",
+  "status": "failed",
+  "created_at": "2026-10-07T11:44:25.643444",
+  "updated_at": "2026-10-07T11:46:19.364262",
+  "data": {
+    "message": "Tell me about the history of Intel",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Intel",
+        "ticker": "INTC",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "final_status": "failed"
+  }
+}

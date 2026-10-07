@@ -121,14 +121,84 @@ class CompanyDetectionAgent:
 
         {{
             "is_company_request": false,
+            "intent": "general_information",
             "companies": []
         }}
 
         Never return explanatory prose outside the JSON.
+        
         Determine whether the user's message is asking
         about one or more companies, organizations,
         publicly traded securities, ETFs, or private
         companies.
+        
+        Also determine the user's intent.
+
+        Valid intents:
+
+        analysis
+        evaluation
+        comparison
+        history
+        leadership
+        products
+        general_information
+
+        Use analysis when the user explicitly asks to:
+        - analyze
+        - perform analysis
+        - investment analysis
+        - valuation
+        - forecast
+        - outlook
+        - risk analysis
+        - recommendation
+        - buy
+        - sell
+        - bull case
+        - bear case
+
+        Use evaluation when the user explicitly asks to:
+        - evaluate
+        - assess
+        - rate
+        - review as an investment
+
+        Use comparison when the user compares:
+        - companies
+        - stocks
+        - investments
+
+        Use history when the user asks about:
+        - history
+        - founding
+        - origins
+        - timeline
+
+        Use leadership when the user asks about:
+        - management
+        - CEO
+        - executives
+        - board members
+        - founders
+
+        Use products when the user asks about:
+        - products
+        - services
+        - business segments
+
+        Use general_information for:
+        - tell me about
+        - what is
+        - who is
+        - company overview
+        - business overview
+
+        IMPORTANT:
+
+        Do NOT classify something as analysis merely because a company name is mentioned.
+
+        A company name alone is usually general_information.
         
         A private company is still a company request.
 
@@ -161,13 +231,25 @@ class CompanyDetectionAgent:
         Public company Example:
 
         {{
-        "is_company_request": true,
-        "companies": [
-            {{
-            "name": "NVIDIA",
-            "ticker": "NVDA"
-            }}
-        ]
+            "is_company_request": true,
+            "intent": "analysis",
+            "companies": [
+                {{
+                    "name": "NVIDIA",
+                    "ticker": "NVDA"
+                }}
+            ]
+        }}
+        
+        {{
+            "is_company_request": true,
+            "intent": "history",
+            "companies": [
+                {{
+                    "name": "Intel",
+                    "ticker": "INTC"
+                }}
+            ]
         }}
         
         Private company example:
@@ -405,12 +487,18 @@ class CompanyDetectionAgent:
                     }
                 )
 
+            intent = result.get(
+                "intent",
+                "general_information"
+            )
+
             return {
                 "is_company_request":
                     bool(
                         merged_companies
                     ),
-
+                "intent":
+                    intent,
                 "companies":
                     merged_companies
             }
@@ -426,28 +514,16 @@ class CompanyDetectionAgent:
             if explicit_entities:
 
                 return {
-                    "is_company_request":
-                        True,
-
-                    "companies":
-                        explicit_entities,
-
-                    "error":
-                        str(
-                            e
-                        )
+                    "is_company_request": True,
+                    "intent": "general_information",
+                    "companies": explicit_entities,
+                    "error": str(e)
                 }
 
 
             return {
-                "is_company_request":
-                    False,
-
-                "companies":
-                    [],
-
-                "error":
-                    str(
-                        e
-                    )
+                "is_company_request": False,
+                "intent": "general_information",
+                "companies": [],
+                "error": str(e)
             }

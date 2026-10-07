@@ -162,7 +162,7 @@ class SocialSummaryBuilder:
             "top_keywords"
         ] = dict(
             keywords.most_common(
-                20
+                50
             )
         )
         

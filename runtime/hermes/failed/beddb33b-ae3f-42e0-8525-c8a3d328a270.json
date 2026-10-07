@@ -1,0 +1,24 @@
+{
+  "job_id": "beddb33b-ae3f-42e0-8525-c8a3d328a270",
+  "status": "failed",
+  "created_at": "2026-10-07T11:17:28.622232",
+  "updated_at": "2026-10-07T11:19:56.113885",
+  "data": {
+    "message": "Can you tell me the history of RAZR",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "RAZR",
+        "ticker": "RAZR",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "final_status": "failed"
+  }
+}

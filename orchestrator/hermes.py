@@ -311,6 +311,13 @@ class Hermes:
                 message
             )
         )
+        
+        intent = (
+            company_result.get(
+                "intent",
+                "analysis"
+            )
+        )
 
         if not company_result.get(
             "is_company_request",
@@ -333,6 +340,26 @@ class Hermes:
                     "no_public_ticker"
             }
 
+        if intent not in {
+            "analysis",
+            "evaluation",
+            "comparison"
+        }:
+
+            return {
+                "route":
+                    "company_information",
+
+                "intent":
+                    intent,
+
+                "companies":
+                    company_result.get(
+                        "companies",
+                        []
+                    )
+            }
+
         assignment_result = (
             self.assignment_agent.analyze(
                 company_result["companies"],
@@ -350,6 +377,7 @@ class Hermes:
                 original_message=message
             )
         )
+        
 
         return work_package
 
@@ -673,6 +701,60 @@ class Hermes:
                 )
                 
                 fallback_reason = None
+                
+                if (
+                    isinstance(
+                        work_package,
+                        dict
+                    )
+                    and work_package.get(
+                        "route"
+                    ) == "company_information"
+                ):
+
+                    company_names = [
+                        company.get(
+                            "name",
+                            ""
+                        )
+                        for company in work_package.get(
+                            "companies",
+                            []
+                        )
+                    ]
+
+                    company_text = (
+                        ", ".join(
+                            company_names
+                        )
+                    )
+
+                    intent = work_package.get(
+                        "intent",
+                        "general_information"
+                    )
+
+                    info_prompt = (
+                        f"{message}\n\n"
+                        f"Intent: {intent}\n\n"
+                        f"Provide factual information "
+                        f"about {company_text}. "
+                        f"Do not perform valuation, "
+                        f"forecasting, investment "
+                        f"analysis, recommendations, "
+                        f"or financial evaluation."
+                    )
+
+                    general_result = (
+                        self.general_response_agent
+                        .analyze(
+                            info_prompt
+                        )
+                    )
+
+                    return self.outbound_gate.prepare(
+                        general_result
+                    )
 
                 if isinstance(
                     work_package,

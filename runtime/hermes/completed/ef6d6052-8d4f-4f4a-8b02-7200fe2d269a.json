@@ -1,0 +1,45 @@
+{
+  "job_id": "ef6d6052-8d4f-4f4a-8b02-7200fe2d269a",
+  "status": "completed",
+  "created_at": "2026-10-07T10:58:14.794566",
+  "updated_at": "2026-10-07T11:01:10.747099",
+  "data": {
+    "message": "Evaluate Razer laptop company from Hong Kong",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Razer",
+        "ticker": "RAZR",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "confidence": 20,
+      "issues": [],
+      "strengths": [
+        "Signal reconciliation is internally consistent"
+      ],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete",
+        "Independent challenger review incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}
