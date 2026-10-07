@@ -1,0 +1,24 @@
+{
+  "job_id": "b9c9b111-4f44-4175-9a8a-0733251ba3ad",
+  "status": "failed",
+  "created_at": "2026-10-06T13:02:08.493843",
+  "updated_at": "2026-10-06T13:02:08.498991",
+  "data": {
+    "message": "Analyze Tesla",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "Tesla",
+        "ticker": "TSLA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}

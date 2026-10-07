@@ -1,0 +1,24 @@
+{
+  "job_id": "6b3b5938-5369-4ffb-a35d-29e30ed2885e",
+  "status": "failed",
+  "created_at": "2026-10-06T13:00:04.042786",
+  "updated_at": "2026-10-06T13:00:04.047022",
+  "data": {
+    "message": "Analyze NVIDIA",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}

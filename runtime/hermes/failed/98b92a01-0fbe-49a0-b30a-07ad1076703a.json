@@ -1,0 +1,24 @@
+{
+  "job_id": "98b92a01-0fbe-49a0-b30a-07ad1076703a",
+  "status": "failed",
+  "created_at": "2026-10-06T17:29:25.590692",
+  "updated_at": "2026-10-06T17:29:27.998255",
+  "data": {
+    "message": "Analyze comcast",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "Comcast",
+        "ticker": "CMCSA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}

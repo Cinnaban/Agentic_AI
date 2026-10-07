@@ -29,6 +29,7 @@ class SocialEvidenceProvider:
         query,
         search_queries=None
     ):
+        reddit_found = False
         if search_queries is None:
             search_queries = []
 
@@ -120,28 +121,7 @@ class SocialEvidenceProvider:
 
         if x_found:
             sources.append("x")        
-        
-        print()
-        print("=" * 50)
-        print("SOCIAL SUMMARY")
-        print("=" * 50)
-
-        print(
-            f"Queries={len(expanded_queries)}"
-        )
-
-        print(
-            f"Sources={sources}"
-        )
-
-        print(
-            f"Raw Results={len(all_results)}"
-        )
-
-        print(
-            f"Deduped Results={len(deduped_results)}"
-        )
-        
+               
         
         seen_urls = set()
 
@@ -159,6 +139,27 @@ class SocialEvidenceProvider:
 
             deduped_results.append(
                 result
+            )
+        
+            print()
+            print("=" * 50)
+            print("SOCIAL SUMMARY")
+            print("=" * 50)
+        
+            print(
+                f"Queries={len(expanded_queries)}"
+            )
+        
+            print(
+                f"Sources={sources}"
+            )
+        
+            print(
+                f"Raw Results={len(all_results)}"
+            )
+        
+            print(
+                f"Deduped Results={len(deduped_results)}"
             )
             
         return {

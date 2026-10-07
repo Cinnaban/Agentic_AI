@@ -231,10 +231,26 @@ class MarketContextProvider:
             )
         )
         
+        social_query = company
+
+        if isinstance(
+            company,
+            dict
+        ):
+            social_query = (
+                company.get(
+                    "ticker"
+                )
+                or company.get(
+                    "name"
+                )
+                or ""
+            )
+
         social_context = (
             self.social_provider
             .get_context(
-                query=company
+                query=social_query
             )
         )
 

@@ -1,0 +1,29 @@
+{
+  "job_id": "3e8bcc1b-cff1-457a-a162-ffd597a9cfc3",
+  "status": "failed",
+  "created_at": "2026-10-06T13:07:24.159871",
+  "updated_at": "2026-10-06T13:07:43.068282",
+  "data": {
+    "message": "Compare Microsoft and Apple",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "Microsoft",
+        "ticker": "MSFT",
+        "entity_type": "company"
+      },
+      {
+        "name": "Apple",
+        "ticker": "AAPL",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}

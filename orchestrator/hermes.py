@@ -1034,6 +1034,26 @@ class Hermes:
                     comparison_plan
                 )
 
+            print()
+            print("=" * 60)
+            print("EXECUTING WORK PACKAGE")
+            print("=" * 60)
+
+            print(
+                "JOB ID:",
+                work_package.job_id
+            )
+
+            print(
+                "COMPANIES:",
+                work_package.companies
+            )
+
+            print(
+                "AGENTS:",
+                work_package.required_agents
+            )
+
             execution_results = (
                 self.executor.execute(
                     work_package
@@ -1625,6 +1645,20 @@ class Hermes:
             return safe_response
 
         except Exception as e:
+            
+            print()
+            print("=" * 100)
+            print("HERMES EXCEPTION")
+            print("=" * 100)
+
+            traceback.print_exc()
+
+            print(
+                "ERROR:",
+                str(e)
+            )
+
+            print("=" * 100)
             if (
                 work_package is not None
                 and hasattr(
@@ -1874,6 +1908,14 @@ class Hermes:
                 {}
             )
         )
+        print()
+        print("=" * 50)
+        print("HERMES SOCIAL")
+        print("=" * 50)
+
+        print(
+            social_summary
+        )
 
         if not isinstance(
             social_summary,
@@ -1905,7 +1947,19 @@ class Hermes:
                 f"Discussion Volume: "
                 f"{discussion_volume}"
             )
-            
+        
+        status = (
+            social_summary.get(
+                "status",
+                "unavailable"
+            )
+        )
+
+        lines.append(
+            f"Status: {status}"
+        )
+
+         
         status = (
             social_summary.get(
                 "status"

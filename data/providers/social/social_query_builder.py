@@ -1,5 +1,3 @@
-# social_query_builder.py
-
 class SocialQueryBuilder:
 
     def build(
@@ -7,6 +5,11 @@ class SocialQueryBuilder:
         ticker,
         company_name=None
     ):
+        
+        ticker = str(
+            ticker
+        ).strip()
+        
         queries = [
             ticker,
             f"${ticker}",

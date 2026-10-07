@@ -1,0 +1,24 @@
+{
+  "job_id": "55f4d9f1-7bf1-40b7-b247-1a2ab5f951ba",
+  "status": "failed",
+  "created_at": "2026-10-06T17:41:08.271377",
+  "updated_at": "2026-10-06T17:41:08.277817",
+  "data": {
+    "message": "Analyze Comcast",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "Comcast",
+        "ticker": "CMCSA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}

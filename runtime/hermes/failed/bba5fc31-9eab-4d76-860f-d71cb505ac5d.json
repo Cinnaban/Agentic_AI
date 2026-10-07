@@ -1,0 +1,24 @@
+{
+  "job_id": "bba5fc31-9eab-4d76-860f-d71cb505ac5d",
+  "status": "failed",
+  "created_at": "2026-10-06T13:10:30.303973",
+  "updated_at": "2026-10-06T13:10:30.326135",
+  "data": {
+    "message": "What are users discussing about local AI coding tools?",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "AI",
+        "ticker": "AI",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "final_status": "failed"
+  }
+}

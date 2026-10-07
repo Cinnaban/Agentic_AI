@@ -1,0 +1,24 @@
+{
+  "job_id": "edcda98c-ebed-4748-a269-787a932463c3",
+  "status": "failed",
+  "created_at": "2026-10-06T13:59:36.271252",
+  "updated_at": "2026-10-06T13:59:39.654941",
+  "data": {
+    "message": "Evaluate the company Comcast",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Comcast",
+        "ticker": "CMCSA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}
