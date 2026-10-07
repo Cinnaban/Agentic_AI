@@ -1,0 +1,31 @@
+{
+  "job_id": "292d20d0-04fc-4af1-88c6-5424ef544a7f",
+  "status": "failed",
+  "created_at": "2026-10-06T19:42:38.282393",
+  "updated_at": "2026-10-06T19:45:27.595234",
+  "data": {
+    "message": "Analyze Nvidia",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Quality Manager returned invalid JSON"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

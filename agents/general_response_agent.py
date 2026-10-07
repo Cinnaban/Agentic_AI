@@ -25,9 +25,11 @@ If the request involves:
 - stock comparisons
 - market sentiment
 
-then defer to the specialized
-research workflow rather than
-inventing analysis.
+Company and investment research
+requests are handled elsewhere.
+Do not explain the routing process.
+Respond only when the request is
+general conversation.
 
 Do not perform stock or company analysis unless
 the request specifically requires it.

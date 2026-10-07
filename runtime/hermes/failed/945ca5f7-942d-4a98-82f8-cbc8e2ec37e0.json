@@ -1,0 +1,31 @@
+{
+  "job_id": "945ca5f7-942d-4a98-82f8-cbc8e2ec37e0",
+  "status": "failed",
+  "created_at": "2026-10-06T19:05:15.687505",
+  "updated_at": "2026-10-06T19:08:01.930921",
+  "data": {
+    "message": "Tell me about Comcast",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "Comcast",
+        "ticker": "CMCSA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": false,
+      "risk": false
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Quality Manager returned invalid JSON"
+      ],
+      "confidence": 0
+    },
+    "final_status": "quality_rejected"
+  }
+}

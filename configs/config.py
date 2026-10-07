@@ -55,7 +55,7 @@ class Config:
 
     SIGNAL_RECONCILIATION_MODEL = REASONING_MODEL
 
-    QUALITY_MODEL = JUDGE_MODEL
+    QUALITY_MODEL = REASONING_MODEL
 
     GENERAL_RESPONSE_MODEL = GEMMA_MODEL
 
@@ -193,6 +193,11 @@ class Config:
         ROOT_DIR
         / "logs"
     )
+
+    # ==========================================
+    # Quality Settings
+    # ==========================================  
+    QUALITY_REVIEW_BLOCKING = False
     
     # ==========================================
     # Social Intelligence

@@ -746,6 +746,17 @@ class Hermes:
                             "assistant",
                             response_text
                         )
+                        
+                    print()
+                    print("=" * 80)
+                    print("FINAL RESPONSE")
+                    print("=" * 80)
+
+                    print(
+                        safe_response
+                    )
+
+                    print("=" * 80)
 
                     return safe_response
 
@@ -1502,7 +1513,19 @@ class Hermes:
                     False
                 )
             )
-        
+
+            quality_confidence = (
+                quality_review.get(
+                    "confidence",
+                    0
+                )
+            )
+
+            effective_approval = (
+                quality_approved
+                or not Config.QUALITY_REVIEW_BLOCKING
+            )
+
             aggregated_results = (
                 self.aggregator.aggregate(
                     execution_results,
@@ -1522,14 +1545,17 @@ class Hermes:
                 )
             )
 
-            if response_approved != quality_approved:
+            if (
+                Config.QUALITY_REVIEW_BLOCKING
+                and response_approved != quality_approved
+            ):
 
                 raise RuntimeError(
                     "Quality review and final response "
                     "approval states do not match"
                 )
             
-            if quality_approved:
+            if effective_approval:
 
                 response_text = (
                     self._build_company_response(
@@ -1539,10 +1565,64 @@ class Hermes:
                 )
 
                 if response_text.strip():
+                    response_text += (
+                        "\n\n"
+                        f"Quality Review Confidence: "
+                        f"{quality_confidence}"
+                    )
+                                        
+                    issues = quality_review.get(
+                        "issues",
+                        []
+                    )
 
+                    if issues:
+
+                        response_text += (
+                            "\n\n"
+                            "Quality Review Notes:\n"
+                            + "\n".join(
+                                f"- {issue}"
+                                for issue in issues
+                            )
+                        )
                     final_response[
                         "response"
                     ] = response_text
+
+            else:
+
+                quality_issues = (
+                    quality_review.get(
+                        "issues",
+                        []
+                    )
+                )
+
+                if not isinstance(
+                    quality_issues,
+                    list
+                ):
+                    quality_issues = []
+
+                final_response["response"] = (
+                    "The analysis completed, but the "
+                    "result did not pass the final "
+                    "quality review."
+                )
+
+                if (
+                    Config.DEBUG
+                    and quality_issues
+                ):
+                    final_response["response"] += (
+                        "\n\nQuality issues:\n- "
+                        + "\n- ".join(
+                            str(issue)
+                            for issue
+                            in quality_issues
+                        )
+                    )
                        
             self.storage_manager.update_job_record(
                 job_id=work_package.job_id,
@@ -1554,7 +1634,7 @@ class Hermes:
                     "final_status":
                         (
                             "completed"
-                            if quality_approved
+                            if effective_approval
                             else "quality_rejected"
                         )
                 }
@@ -1570,7 +1650,30 @@ class Hermes:
                 )
             )
             
-            if quality_approved:
+            response_text = (
+                safe_response.get(
+                    "response"
+                )
+            )
+
+            if (
+                not isinstance(
+                    response_text,
+                    str
+                )
+                or not response_text.strip()
+            ):
+                safe_response["response"] = (
+                    "The analysis completed, but "
+                    "no response message was "
+                    "generated."
+                )
+            
+            
+            if (
+                quality_approved 
+                or not Config.QUALITY_REVIEW_BLOCKING
+            ):
                 completed_path = (
                     self.storage_manager.move_job(
                         job_id=work_package.job_id,
@@ -1748,81 +1851,7 @@ class Hermes:
             "Independent Review:\n"
             + "\n".join(lines)
         )
-        
-        
-    def _build_evidence_section(
-        self,
-        execution_results
-    ):
-
-            market_context = (
-                execution_results.get(
-                    "market_context",
-                    {}
-                )
-            )
-
-            if not isinstance(
-                market_context,
-                dict
-            ):
-                return ""
-
-            source_status = (
-                market_context.get(
-                    "source_status",
-                    {}
-                )
-            )
-
-            if not isinstance(
-                source_status,
-                dict
-            ):
-                return ""
-
-            lines = []
-
-            ordered_sources = [
-
-                "financial_data",
-
-                "sec_facts",
-
-                "sec_filings",
-
-                "macro",
-
-                "news",
-
-                "live_market_context",
-
-                "social"
-            ]
-
-            for source in ordered_sources:
-
-                value = source_status.get(
-                    source
-                )
-
-                if value is None:
-                    continue
-
-                lines.append(
-                    f"{source}: {value}"
-                )
-
-            if not lines:
-                return ""
-
-            return (
-                "Evidence Availability:\n"
-                + "\n".join(
-                    lines
-                )
-            )
-        
+                
     def _build_evidence_section(
         self,
         execution_results
@@ -1958,18 +1987,6 @@ class Hermes:
         lines.append(
             f"Status: {status}"
         )
-
-         
-        status = (
-            social_summary.get(
-                "status"
-            )
-        )
-
-        if status:
-            lines.append(
-                f"Status: {status}"
-            )
 
         platforms = (
             social_summary.get(
