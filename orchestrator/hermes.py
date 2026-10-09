@@ -318,15 +318,70 @@ class Hermes:
                 "analysis"
             )
         )
+        
+               
+        evaluation_keywords = {
+            "evaluate",
+            "evaluation",
+            "assess",
+            "review",
+            "critique",
+            "reverse engineer",
+            "portfolio",
+            "allocation",
+            "weighting",
+            "holdings",
+            "positions",
+            "chosen",
+            "selection"
+        }
 
+        normalized = (
+            str(message)
+            .lower()
+        )
+
+        is_evaluation_request = any(
+            keyword in normalized
+            for keyword in evaluation_keywords
+        )
+        
         if not company_result.get(
             "is_company_request",
             False
         ):
 
+            if is_evaluation_request:
+
+                return {
+                    "route":
+                        "general_evaluation"
+                }
+
             return {
-                "route": "local_agents"
+                "route":
+                    "local_agents"
             }
+            
+        if intent not in {
+                    "analysis",
+                    "evaluation",
+                    "comparison"
+                }:
+        
+                    return {
+                        "route":
+                            "company_information",
+        
+                        "intent":
+                            intent,
+        
+                        "companies":
+                            company_result.get(
+                                "companies",
+                                []
+                            )
+                    }
             
         if not self._all_companies_have_public_tickers(
             company_result
@@ -338,26 +393,6 @@ class Hermes:
 
                 "fallback_reason":
                     "no_public_ticker"
-            }
-
-        if intent not in {
-            "analysis",
-            "evaluation",
-            "comparison"
-        }:
-
-            return {
-                "route":
-                    "company_information",
-
-                "intent":
-                    intent,
-
-                "companies":
-                    company_result.get(
-                        "companies",
-                        []
-                    )
             }
 
         assignment_result = (
@@ -756,10 +791,36 @@ class Hermes:
                         general_result
                     )
 
-                if isinstance(
-                    work_package,
-                    dict
+                if (
+                    isinstance(
+                        work_package,
+                        dict
+                    )
+                    and work_package.get(
+                        "route"
+                    ) == "general_evaluation"
                 ):
+
+                    evaluation_prompt = (
+                        f"{message}\n\n"
+                        "Provide reasoning, observations, "
+                        "strengths, weaknesses, patterns, "
+                        "and possible explanations. "
+                        "Do not perform company valuation "
+                        "or investment recommendations "
+                        "unless explicitly requested."
+                    )
+
+                    general_result = (
+                        self.general_response_agent
+                        .analyze(
+                            evaluation_prompt
+                        )
+                    )
+
+                    return self.outbound_gate.prepare(
+                        general_result
+                    )
 
                     fallback_reason = (
                         work_package.get(
@@ -1868,6 +1929,39 @@ class Hermes:
             else:
                 job_id = None
 
+
+            try:
+                fallback_result = (
+                    self.general_response_agent
+                    .analyze(
+                        f"""
+                The specialized workflow could not complete.
+
+                Failure:
+                {str(e)}
+
+                Provide the best possible response using
+                general reasoning and available context.
+
+                Do not claim access to unavailable data.
+
+                USER REQUEST:
+
+                {message}
+                """
+                    )
+                )
+
+                return self.outbound_gate.prepare(
+                    fallback_result
+                )
+
+            except Exception as fallback_error:
+                print(
+                    "GENERAL FALLBACK FAILED:",
+                    fallback_error
+                )
+            
             error_response = {
                 "approved": False,
                 "confidence": 0,

@@ -1,0 +1,200 @@
+{
+  "job_id": "abee2d63-77ae-485e-ae57-5ea0b033095b",
+  "status": "completed",
+  "created_at": "2026-10-08T19:48:43.991996",
+  "updated_at": "2026-10-08T19:54:02.049391",
+  "data": {
+    "message": "Compare KO and WMT",
+    "source": "unknown",
+    "companies": [
+      {
+        "name": "KO",
+        "ticker": "KO",
+        "entity_type": "security"
+      },
+      {
+        "name": "WMT",
+        "ticker": "WMT",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the supplied company evidence and custom analytical formula, Coca-Cola (KO) appears to be the better investment option compared to Walmart (WMT) when evaluating factors like valuation, profitability, momentum, and shareholder performance. \n\nThe custom formula ranks KO higher than WMT with a score of 0.6 compared to 0.4. KO scores higher on valuation, profitability, and momentum, while WMT has a slightly better shareholder score. However, overall KO's financial metrics suggest stronger performance and potential growth.\n\nLooking at the key financial metrics in the comparison table, we see KO generated over $11B in operating income and $5B in net income last year compared to WMT's $13B and $4B. KO also trades at a higher valuation with a market cap of over $200B vs WMT's $350B. Despite the differences in size, KO's margins and returns on capital appear healthier.\n\nWhile the custom formula has limitations and doesn't account for non-financial factors, the evidence supports KO being the more attractive investment. WMT's low valuation may make it appealing in the short-term, but KO's financial strength and stability likely provide better long-term growth potential.\n\nOf course, this analysis relies on the specific metrics and weights chosen for the custom formula. An investor should consider additional factors and analyze whether the formula's ranking aligns with their investment criteria. The formula is also limited in that it doesn't account for competitive advantages, market trends, or management quality that could impact the companies' performance.\n\nIn summary, based on the supplied financial evidence and custom analysis, Coca-Cola (KO) appears to be the stronger investment compared to Walmart (WMT) when evaluating valuation, profitability, momentum, and shareholder performance. The evidence suggests KO is the better financial choice, although investors should analyze additional factors beyond the provided data and formula."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": {
+      "opportunity": "helpful",
+      "design": {
+        "name": "KO vs WMT Comparison Formula",
+        "purpose": "To evaluate and compare the performance and value of KO (Coca-Cola) and WMT (Walmart) based on their financial metrics, with the goal of determining which company is a better investment option.",
+        "components": [
+          {
+            "metric": "valuation_score",
+            "weight": 0.3,
+            "direction": "higher_is_better",
+            "reason": "A higher valuation score indicates the stock market's perception of the company's value, which can be a good indicator of potential investment returns."
+          },
+          {
+            "metric": "profitability_score",
+            "weight": 0.3,
+            "direction": "higher_is_better",
+            "reason": "A higher profitability score suggests the company's ability to generate profits, which is crucial for long-term sustainability and potential growth."
+          },
+          {
+            "metric": "momentum_score",
+            "weight": 0.2,
+            "direction": "higher_is_better",
+            "reason": "A higher momentum score indicates the company's recent stock price performance, which can be a good short-term indicator of market sentiment and potential further gains."
+          },
+          {
+            "metric": "shareholder_score",
+            "weight": 0.2,
+            "direction": "higher_is_better",
+            "reason": "A higher shareholder score suggests the company's performance in creating value for its shareholders, which can be a good indicator of the company's overall management effectiveness."
+          }
+        ],
+        "how_created": "The formula components were selected based on their relevance to answering the user's question of comparing KO and WMT as investment options. Valuation, profitability, momentum, and shareholder scores were chosen because they collectively provide a comprehensive view of a company's financial health, growth potential, and value creation for investors. The weights were determined by assigning more importance to the valuation and profitability scores, as these are considered fundamental indicators of a company's long-term sustainability and value. Momentum and shareholder scores were given lower weights to reflect their shorter-term relevance and importance.",
+        "why_important": "By combining these financial metrics, the formula provides a well-rounded comparison of KO and WMT, considering their valuation, profitability, momentum, and shareholder performance. This allows investors to make a more informed decision on which company to invest in based on their overall financial strength and growth potential. The formula is especially useful for comparing the two companies head-to-head, as it takes into account multiple critical aspects of their financial performance.",
+        "assumptions": [
+          "The formula assumes that a higher score in each metric indicates better performance, as lower scores may suggest issues that could negatively impact the company's value and growth potential.",
+          "The scores used in this formula are hypothetical and should be replaced with actual scores calculated using reliable financial data sources."
+        ],
+        "limitations": [
+          "This formula does not take into account non-financial factors that could impact a company's performance, such as management quality, competitive advantage, and market trends.",
+          "The weights assigned to each metric are arbitrary and may not reflect the preferences of all investors.",
+          "The formula's effectiveness in predicting future investment returns is not guaranteed and should be used in conjunction with other research and analysis techniques."
+        ]
+      },
+      "evaluation": {
+        "status": "completed",
+        "formula": {
+          "name": "KO vs WMT Comparison Formula",
+          "purpose": "To evaluate and compare the performance and value of KO (Coca-Cola) and WMT (Walmart) based on their financial metrics, with the goal of determining which company is a better investment option.",
+          "components": [
+            {
+              "metric": "valuation_score",
+              "weight": 0.3,
+              "direction": "higher_is_better",
+              "reason": "A higher valuation score indicates the stock market's perception of the company's value, which can be a good indicator of potential investment returns."
+            },
+            {
+              "metric": "profitability_score",
+              "weight": 0.3,
+              "direction": "higher_is_better",
+              "reason": "A higher profitability score suggests the company's ability to generate profits, which is crucial for long-term sustainability and potential growth."
+            },
+            {
+              "metric": "momentum_score",
+              "weight": 0.2,
+              "direction": "higher_is_better",
+              "reason": "A higher momentum score indicates the company's recent stock price performance, which can be a good short-term indicator of market sentiment and potential further gains."
+            },
+            {
+              "metric": "shareholder_score",
+              "weight": 0.2,
+              "direction": "higher_is_better",
+              "reason": "A higher shareholder score suggests the company's performance in creating value for its shareholders, which can be a good indicator of the company's overall management effectiveness."
+            }
+          ],
+          "how_created": "The formula components were selected based on their relevance to answering the user's question of comparing KO and WMT as investment options. Valuation, profitability, momentum, and shareholder scores were chosen because they collectively provide a comprehensive view of a company's financial health, growth potential, and value creation for investors. The weights were determined by assigning more importance to the valuation and profitability scores, as these are considered fundamental indicators of a company's long-term sustainability and value. Momentum and shareholder scores were given lower weights to reflect their shorter-term relevance and importance.",
+          "why_important": "By combining these financial metrics, the formula provides a well-rounded comparison of KO and WMT, considering their valuation, profitability, momentum, and shareholder performance. This allows investors to make a more informed decision on which company to invest in based on their overall financial strength and growth potential. The formula is especially useful for comparing the two companies head-to-head, as it takes into account multiple critical aspects of their financial performance.",
+          "assumptions": [
+            "The formula assumes that a higher score in each metric indicates better performance, as lower scores may suggest issues that could negatively impact the company's value and growth potential.",
+            "The scores used in this formula are hypothetical and should be replaced with actual scores calculated using reliable financial data sources."
+          ],
+          "limitations": [
+            "This formula does not take into account non-financial factors that could impact a company's performance, such as management quality, competitive advantage, and market trends.",
+            "The weights assigned to each metric are arbitrary and may not reflect the preferences of all investors.",
+            "The formula's effectiveness in predicting future investment returns is not guaranteed and should be used in conjunction with other research and analysis techniques."
+          ]
+        },
+        "scores": {
+          "KO": {
+            "score": 0.6,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 0.0,
+                "weight": 0.3,
+                "weighted_value": 0.0
+              },
+              "profitability_score": {
+                "normalized_value": 1.0,
+                "weight": 0.3,
+                "weighted_value": 0.3
+              },
+              "momentum_score": {
+                "normalized_value": 1.0,
+                "weight": 0.2,
+                "weighted_value": 0.2
+              },
+              "shareholder_score": {
+                "normalized_value": 0.5,
+                "weight": 0.2,
+                "weighted_value": 0.1
+              }
+            }
+          },
+          "WMT": {
+            "score": 0.4,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 1.0,
+                "weight": 0.3,
+                "weighted_value": 0.3
+              },
+              "profitability_score": {
+                "normalized_value": 0.0,
+                "weight": 0.3,
+                "weighted_value": 0.0
+              },
+              "momentum_score": {
+                "normalized_value": 0.0,
+                "weight": 0.2,
+                "weighted_value": 0.0
+              },
+              "shareholder_score": {
+                "normalized_value": 0.5,
+                "weight": 0.2,
+                "weighted_value": 0.1
+              }
+            }
+          }
+        },
+        "ranking": [
+          {
+            "ticker": "KO",
+            "score": 0.6
+          },
+          {
+            "ticker": "WMT",
+            "score": 0.4
+          }
+        ]
+      }
+    },
+    "final_status": "completed"
+  }
+}
