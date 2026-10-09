@@ -56,11 +56,36 @@ class CompanyDetectionAgent:
     ):
 
         explicit_tickers = (
-    self._extract_explicit_tickers(
-        message
-    )
-)
+            self._extract_explicit_tickers(
+                message
+            )
+        )
+        
+        normalized = (
+            str(message)
+            .lower()
+        )
 
+        portfolio_terms = {
+            "portfolio",
+            "allocation",
+            "holdings",
+            "positions",
+            "weight",
+            "weighting",
+            "reverse engineer",
+            "reverse-engineer"
+        }
+
+        if any(
+            term in normalized
+            for term in portfolio_terms
+        ):
+            return {
+                "is_company_request": False,
+                "intent": "portfolio_evaluation",
+                "companies": []
+            }
 
         explicit_entities = [
             {
@@ -270,11 +295,31 @@ class CompanyDetectionAgent:
         """
 
         response = self.ollama.generate(
-            prompt,
-            model=Config.COMPANY_DETECTION_MODEL
+    prompt,
+    ...
+)
+
+        if not isinstance(
+            response,
+            dict
+        ):
+            return {
+                "is_company_request": False,
+                "intent": "general_information",
+                "companies": []
+            }
+
+        model_response = response.get(
+            "response",
+            ""
         )
 
-        model_response = response["response"]
+        if not model_response:
+            return {
+                "is_company_request": False,
+                "intent": "general_information",
+                "companies": []
+            }
 
         print(model_response)
 

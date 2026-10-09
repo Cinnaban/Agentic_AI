@@ -312,6 +312,11 @@ class Hermes:
             )
         )
         
+        normalized = (
+            str(message)
+            .lower()
+        )
+        
         intent = (
             company_result.get(
                 "intent",
@@ -336,15 +341,37 @@ class Hermes:
             "selection"
         }
 
-        normalized = (
-            str(message)
-            .lower()
+        portfolio_keywords = {
+            "portfolio",
+            "allocation",
+            "weight",
+            "weighting",
+            "holdings",
+            "positions",
+            "reverse-engineer",
+            "reverse engineer"
+        }
+
+        is_portfolio_request = any(
+            keyword in normalized
+            for keyword in portfolio_keywords
         )
+
+        if is_portfolio_request:
+            return {
+                "route":
+                    "general_evaluation"
+            }
 
         is_evaluation_request = any(
             keyword in normalized
             for keyword in evaluation_keywords
         )
+        print()
+        print("=" * 80)
+        print("COMPANY RESULT")
+        print(company_result)
+        print("=" * 80)
         
         if not company_result.get(
             "is_company_request",
@@ -817,11 +844,7 @@ class Hermes:
                             evaluation_prompt
                         )
                     )
-
-                    return self.outbound_gate.prepare(
-                        general_result
-                    )
-
+                    
                     fallback_reason = (
                         work_package.get(
                             "fallback_reason"
@@ -849,7 +872,11 @@ class Hermes:
 
                     print("=" * 60)
 
+                    return self.outbound_gate.prepare(
+                        general_result
+                    )
 
+                
                 if requires_live_data:
 
                     live_context = (
@@ -1971,10 +1998,7 @@ class Hermes:
                     "The request could not be completed."
                 ]
             }
-            return self.outbound_gate.prepare(
-                error_response
-            )
-       
+                  
 
     def _build_challenger_section(
         self,
