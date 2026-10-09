@@ -61,8 +61,6 @@ class Config:
 
     TOOL_USE_MODEL = HERMES_MODEL
     
-    
-    
     # ==========================================
     # Agent Reasoning
     # ==========================================
@@ -79,6 +77,14 @@ class Config:
 
     QUALITY_THINKING = False
     GENERAL_RESPONSE_THINKING = False
+    
+    PORTFOLIO_EVALUATION_ENABLED = True 
+    
+    PORTFOLIO_CONTEXT_MIN_HOLDINGS = 3 
+    
+    PORTFOLIO_CONTEXT_MAX_HOLDINGS = 25 
+    
+    PORTFOLIO_EVALUATION_MODEL = ( GENERAL_RESPONSE_MODEL )
     
     # ==========================================
     # Challenger Settings

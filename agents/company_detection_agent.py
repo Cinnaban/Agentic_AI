@@ -61,31 +61,6 @@ class CompanyDetectionAgent:
             )
         )
         
-        normalized = (
-            str(message)
-            .lower()
-        )
-
-        portfolio_terms = {
-            "portfolio",
-            "allocation",
-            "holdings",
-            "positions",
-            "weight",
-            "weighting",
-            "reverse engineer",
-            "reverse-engineer"
-        }
-
-        if any(
-            term in normalized
-            for term in portfolio_terms
-        ):
-            return {
-                "is_company_request": False,
-                "intent": "portfolio_evaluation",
-                "companies": []
-            }
 
         explicit_entities = [
             {

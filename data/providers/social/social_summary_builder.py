@@ -2,6 +2,8 @@ import re
 
 from collections import Counter
 
+
+
 class SocialSummaryBuilder:
 
     def build(
@@ -78,10 +80,42 @@ class SocialSummaryBuilder:
                 "reddit",
                 "discussion"
             }
+            
+            NOISE_TERMS = {
+                "https",
+                "http",
+                "www",
+                "reddit",
+                "search",
+                "comments",
+                "styles",
+                "type",
+                "javascript",
+                "json",
+                "css",
+
+                # NEW
+                "redditmedia",
+                "webp",
+                "width",
+                "height",
+                "votes",
+                "sort",
+                "posts",
+                "post",
+                "share",
+                "comment",
+                "subreddit",
+                "flair",
+                "community",
+            }
 
             for word in words:
-                if word not in stop_words:
-                    keywords[word] += 1
+                if word in stop_words:
+                    continue
+                if word in NOISE_TERMS:
+                    continue
+                keywords[word] += 1
 
             
             if (

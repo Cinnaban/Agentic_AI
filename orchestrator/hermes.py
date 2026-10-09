@@ -39,6 +39,15 @@ from memory.workflow_state import (
 from agents.comparison_agent import (
     ComparisonAgent
 )
+from orchestrator.portfolio_request_parser import (
+    PortfolioRequestParser
+)
+from agents.portfolio_evaluation_agent import (
+    PortfolioEvaluationAgent
+)
+from data.providers.portfolio_context_provider import (
+    PortfolioContextProvider
+)
 from orchestrator.comparison_intent import (
     ComparisonIntent
 )
@@ -96,6 +105,16 @@ class Hermes:
         self.quality_context_builder = (QualityContextBuilder())
         self.financial_metric_builder = (
             FinancialMetricBuilder()
+        )
+        self.portfolio_request_parser = (
+            PortfolioRequestParser()
+        )
+        self.portfolio_evaluation_agent = (
+            PortfolioEvaluationAgent()
+        )
+
+        self.portfolio_context_provider = (
+            PortfolioContextProvider()
         )
         self.financial_table_formatter = (
             FinancialTableFormatter()
@@ -305,26 +324,47 @@ class Hermes:
         self,
         message
     ):
+        portfolio_request = (
+            self.portfolio_request_parser
+            .parse(
+                message
+            )
+        )
+
+        if portfolio_request.get(
+            "is_portfolio_request",
+            False
+        ):
+            return {
+                "route":
+                    "general_evaluation",
+                "evaluation_type":
+                    "portfolio",
+                "holdings":
+                    portfolio_request.get(
+                        "holdings",
+                        []
+                    )
+            }
 
         company_result = (
             self.company_agent.analyze(
                 message
             )
         )
-        
+
         normalized = (
             str(message)
             .lower()
         )
-        
+
         intent = (
             company_result.get(
                 "intent",
-                "analysis"
+                "general_information"
             )
         )
         
-               
         evaluation_keywords = {
             "evaluate",
             "evaluation",
@@ -340,28 +380,6 @@ class Hermes:
             "chosen",
             "selection"
         }
-
-        portfolio_keywords = {
-            "portfolio",
-            "allocation",
-            "weight",
-            "weighting",
-            "holdings",
-            "positions",
-            "reverse-engineer",
-            "reverse engineer"
-        }
-
-        is_portfolio_request = any(
-            keyword in normalized
-            for keyword in portfolio_keywords
-        )
-
-        if is_portfolio_request:
-            return {
-                "route":
-                    "general_evaluation"
-            }
 
         is_evaluation_request = any(
             keyword in normalized
@@ -827,55 +845,72 @@ class Hermes:
                         "route"
                     ) == "general_evaluation"
                 ):
-
-                    evaluation_prompt = (
-                        f"{message}\n\n"
-                        "Provide reasoning, observations, "
-                        "strengths, weaknesses, patterns, "
-                        "and possible explanations. "
-                        "Do not perform company valuation "
-                        "or investment recommendations "
-                        "unless explicitly requested."
-                    )
-
-                    general_result = (
-                        self.general_response_agent
-                        .analyze(
-                            evaluation_prompt
-                        )
-                    )
-                    
-                    fallback_reason = (
+                    holdings = (
                         work_package.get(
-                            "fallback_reason"
+                            "holdings",
+                            []
                         )
                     )
-                    print()
-                    print("=" * 60)
-                    print("HERMES LOCAL ROUTE")
-                    print("=" * 60)
 
-                    print(
-                        "WORK PACKAGE:",
-                        work_package
+                    if not isinstance(
+                        holdings,
+                        list
+                    ):
+                        holdings = []
+
+                    minimum_holdings = int(
+                        getattr(
+                            Config,
+                            "PORTFOLIO_CONTEXT_MIN_HOLDINGS",
+                            3
+                        )
                     )
 
-                    print(
-                        "FALLBACK REASON:",
-                        fallback_reason
+                    portfolio_context = {}
+
+                    if (
+                        Config.PORTFOLIO_EVALUATION_ENABLED
+                        and len(holdings)
+                        >= minimum_holdings
+                    ):
+                        portfolio_context = (
+                            self.portfolio_context_provider
+                            .get_context(
+                                holdings
+                            )
+                        )
+
+                    portfolio_result = (
+                        self.portfolio_evaluation_agent
+                        .analyze(
+                            message=effective_message,
+                            holdings=holdings,
+                            portfolio_context=(
+                                portfolio_context
+                            )
+                        )
                     )
 
-                    print(
-                        "REQUIRES LIVE DATA:",
-                        requires_live_data
+                    safe_response = (
+                        self.outbound_gate.prepare(
+                            portfolio_result
+                        )
                     )
 
-                    print("=" * 60)
-
-                    return self.outbound_gate.prepare(
-                        general_result
+                    response_text = (
+                        safe_response.get(
+                            "response"
+                        )
                     )
 
+                    if response_text:
+                        self.conversation_context.add_message(
+                            conversation_key,
+                            "assistant",
+                            response_text
+                        )
+
+                    return safe_response
                 
                 if requires_live_data:
 
