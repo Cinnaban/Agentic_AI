@@ -86,6 +86,11 @@ class Config:
     
     PORTFOLIO_EVALUATION_MODEL = ( GENERAL_RESPONSE_MODEL )
     
+    PORTFOLIO_QUANT_ENABLED = True
+
+    PORTFOLIO_QUANT_MIN_HOLDINGS = 3
+
+    PORTFOLIO_QUANT_MAX_HOLDINGS = 10
     # ==========================================
     # Challenger Settings
     # ==========================================

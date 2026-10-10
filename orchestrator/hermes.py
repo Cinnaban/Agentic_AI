@@ -845,11 +845,9 @@ class Hermes:
                         "route"
                     ) == "general_evaluation"
                 ):
-                    holdings = (
-                        work_package.get(
-                            "holdings",
-                            []
-                        )
+                    holdings = work_package.get(
+                        "holdings",
+                        []
                     )
 
                     if not isinstance(
@@ -868,6 +866,121 @@ class Hermes:
 
                     portfolio_context = {}
 
+                    quant_data_by_ticker = {}
+
+                    quant_enabled = bool(
+                        getattr(
+                            Config,
+                            "PORTFOLIO_QUANT_ENABLED",
+                            True
+                        )
+                    )
+
+                    quant_minimum = int(
+                        getattr(
+                            Config,
+                            "PORTFOLIO_QUANT_MIN_HOLDINGS",
+                            3
+                        )
+                    )
+
+                    quant_maximum = int(
+                        getattr(
+                            Config,
+                            "PORTFOLIO_QUANT_MAX_HOLDINGS",
+                            10
+                        )
+                    )
+
+                    if (
+                        quant_enabled
+                        and len(holdings)
+                        >= quant_minimum
+                    ):
+                        for holding in holdings[
+                            :quant_maximum
+                        ]:
+                            if not isinstance(
+                                holding,
+                                dict
+                            ):
+                                continue
+
+                            ticker = str(
+                                holding.get(
+                                    "ticker",
+                                    ""
+                                )
+                                or ""
+                            ).strip().upper()
+
+                            if not ticker:
+                                continue
+
+                            company = {
+                                "name":
+                                    ticker,
+                                "ticker":
+                                    ticker,
+                                "entity_type":
+                                    "security"
+                            }
+
+                            quant_work_package = (
+                                self.job_factory
+                                .create_work_package(
+                                    companies=[
+                                        company
+                                    ],
+                                    required_agents={
+                                        "research": False,
+                                        "sentiment": False,
+                                        "quant": True,
+                                        "risk": False
+                                    },
+                                    original_message=(
+                                        "Generate a brief quantitative "
+                                        f"snapshot for {ticker}"
+                                    ),
+                                    source="portfolio",
+                                    priority=50
+                                )
+                            )
+
+                            try:
+                                quant_execution = (
+                                    self.executor.execute(
+                                        quant_work_package
+                                    )
+                                )
+
+                                if not isinstance(
+                                    quant_execution,
+                                    dict
+                                ):
+                                    continue
+
+                                quant_result = (
+                                    quant_execution.get(
+                                        "quant"
+                                    )
+                                )
+
+                                if isinstance(
+                                    quant_result,
+                                    dict
+                                ):
+                                    quant_data_by_ticker[
+                                        ticker
+                                    ] = quant_result
+
+                            except Exception as quant_error:
+                                print(
+                                    "PORTFOLIO QUANT FAILED:",
+                                    ticker,
+                                    quant_error
+                                )
+
                     if (
                         Config.PORTFOLIO_EVALUATION_ENABLED
                         and len(holdings)
@@ -876,7 +989,10 @@ class Hermes:
                         portfolio_context = (
                             self.portfolio_context_provider
                             .get_context(
-                                holdings
+                                holdings=holdings,
+                                quant_data_by_ticker=(
+                                    quant_data_by_ticker
+                                )
                             )
                         )
 

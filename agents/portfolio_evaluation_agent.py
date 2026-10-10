@@ -79,6 +79,69 @@ Focus primarily on:
 - thematic exposure
 - selection hypotheses
 
+PORTFOLIO FUNDAMENTALS:
+
+- Summarize every holding.
+- If a holding has financial data:
+    include a brief financial snapshot.
+- If a holding lacks financial data:
+    include a brief missing-data summary.
+- Do not ignore holdings simply because
+financial metrics are unavailable.
+- For every holding, provide a very short
+financial snapshot using only supplied data.
+
+Use this format when data exists:
+
+TICKER
+- Price:
+- Sector:
+- Market Cap:
+- Trailing P/E:
+- Forward P/E:
+- Dividend Yield:
+- Valuation:
+- Growth:
+- Financial Strength:
+- Momentum:
+
+In a compact coverage table.
+
+Do not show fields whose values are null,
+missing, unavailable, or empty.
+
+If some financial fields are missing, add
+one short sentence under that holding:
+
+"Additional valuation or operating metrics
+were not available in the retrieved snapshot."
+
+Do not repeat a long list of every missing
+field unless the absence materially affects
+the portfolio conclusion.
+
+After the holding snapshots, discuss:
+
+- concentration
+- weight distribution
+- sector concentration
+- valuation patterns
+- growth versus value characteristics
+- financial-strength patterns
+- diversification
+- social signals
+- selection hypotheses
+- material evidence limitations
+
+Use market and financial evidence before
+social discussion when both are available.
+
+Social themes are supplemental evidence only.
+
+Do not infer sector, financial strength,
+valuation, growth, or profitability from
+ticker identity or social keywords.
+
 USER REQUEST:
 
 {message}

@@ -78,6 +78,83 @@ class PortfolioContextProvider:
         ):
             market_snapshot = {}
 
+
+        financial_summary = {
+            "price":
+                market_snapshot.get(
+                    "price"
+                ),
+            "sector":
+                market_snapshot.get(
+                    "sector"
+                ),
+            "market_cap":
+                market_snapshot.get(
+                    "market_cap"
+                ),
+            "trailing_pe":
+                market_snapshot.get(
+                    "trailing_pe"
+                ),
+            "forward_pe":
+                market_snapshot.get(
+                    "forward_pe"
+                ),
+            "dividend_yield":
+                market_snapshot.get(
+                    "dividend_yield"
+                ),
+            "beta":
+                market_snapshot.get(
+                    "beta"
+                ),
+            "valuation_rating":
+                market_snapshot.get(
+                    "valuation_rating"
+                ),
+            "growth_rating":
+                market_snapshot.get(
+                    "growth_rating"
+                ),
+            "profitability_rating":
+                market_snapshot.get(
+                    "profitability_rating"
+                ),
+            "financial_strength_rating":
+                market_snapshot.get(
+                    "financial_strength_rating"
+                ),
+            "stability_rating":
+                market_snapshot.get(
+                    "stability_rating"
+                ),
+            "momentum_rating":
+                market_snapshot.get(
+                    "momentum_rating"
+                )
+        }
+        
+        available_financial_fields = [
+            key
+            for key, value
+            in financial_summary.items()
+            if value is not None
+        ]
+
+        missing_financial_fields = [
+            key
+            for key, value
+            in financial_summary.items()
+            if value is None
+        ]
+        
+        financial_availability = {
+            "available_fields":
+                available_financial_fields,
+            "missing_fields":
+                missing_financial_fields
+        }
+        
         return {
             "ticker":
                 ticker,
@@ -94,8 +171,72 @@ class PortfolioContextProvider:
                 weight,
             "source_status":
                 source_status,
-            "market_snapshot":
-                market_snapshot,
+            "financial_summary": {
+                "price":
+                    market_snapshot.get(
+                        "price"
+                    ),
+
+                "sector":
+                    market_snapshot.get(
+                        "sector"
+                    ),
+
+                "market_cap":
+                    market_snapshot.get(
+                        "market_cap"
+                    ),
+
+                "trailing_pe":
+                    market_snapshot.get(
+                        "trailing_pe"
+                    ),
+
+                "forward_pe":
+                    market_snapshot.get(
+                        "forward_pe"
+                    ),
+
+                "dividend_yield":
+                    market_snapshot.get(
+                        "dividend_yield"
+                    ),
+
+                "beta":
+                    market_snapshot.get(
+                        "beta"
+                    ),
+
+                "valuation_rating":
+                    market_snapshot.get(
+                        "valuation_rating"
+                    ),
+
+                "growth_rating":
+                    market_snapshot.get(
+                        "growth_rating"
+                    ),
+
+                "profitability_rating":
+                    market_snapshot.get(
+                        "profitability_rating"
+                    ),
+
+                "financial_strength_rating":
+                    market_snapshot.get(
+                        "financial_strength_rating"
+                    ),
+
+                "stability_rating":
+                    market_snapshot.get(
+                        "stability_rating"
+                    ),
+
+                "momentum_rating":
+                    market_snapshot.get(
+                        "momentum_rating"
+                    )
+            },
             "social": {
                 "status":
                     social_summary.get(
@@ -121,8 +262,16 @@ class PortfolioContextProvider:
 
     def get_context(
         self,
-        holdings
+        holdings,
+        quant_data_by_ticker=None
     ):
+        
+        if not isinstance(
+            quant_data_by_ticker,
+            dict
+        ):
+            quant_data_by_ticker = {}
+        
         if not isinstance(
             holdings,
             list
@@ -169,18 +318,33 @@ class PortfolioContextProvider:
                 "weight"
             )
 
+            quant_data = (
+                quant_data_by_ticker.get(
+                    ticker
+                )
+            )
+
             try:
                 context = (
                     self.market_context_provider
                     .get_context(
                         company={
-                            "name": ticker,
-                            "ticker": ticker,
+                            "name":
+                                ticker,
+                            "ticker":
+                                ticker,
                             "entity_type":
                                 "security"
-                        }
+                        },
+                        quant_data=quant_data,
+                        original_message=(
+                            "Brief portfolio financial "
+                            f"context for {ticker}"
+                        ),
+                        requires_live_data=False
                     )
                 )
+                
             except Exception as error:
                 snapshots.append(
                     {
@@ -204,6 +368,23 @@ class PortfolioContextProvider:
                 )
             )
 
+        financial_snapshots_available = sum(
+            1
+            for snapshot in snapshots
+            if (
+                isinstance(
+                    snapshot,
+                    dict
+                )
+                and snapshot.get(
+                    "financial_availability",
+                    {}
+                ).get(
+                    "status"
+                ) == "available"
+            )
+        )
+        
         return {
             "status":
                 "available"
@@ -220,5 +401,12 @@ class PortfolioContextProvider:
                 was_truncated,
 
             "holdings":
-                snapshots
+                snapshots,
+                
+            "financial_coverage": {
+                "available_count":
+                    financial_snapshots_available,
+                "researched_count":
+                    len(snapshots)
+            },
         }
