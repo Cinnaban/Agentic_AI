@@ -78,11 +78,15 @@ class Config:
     QUALITY_THINKING = False
     GENERAL_RESPONSE_THINKING = False
     
+    # ==========================================
+    # Portfolio Evaluation Settings
+    # ==========================================
+    
     PORTFOLIO_EVALUATION_ENABLED = True 
     
     PORTFOLIO_CONTEXT_MIN_HOLDINGS = 3 
     
-    PORTFOLIO_CONTEXT_MAX_HOLDINGS = 25 
+    PORTFOLIO_CONTEXT_MAX_HOLDINGS = 50
     
     PORTFOLIO_EVALUATION_MODEL = ( GENERAL_RESPONSE_MODEL )
     
@@ -90,7 +94,7 @@ class Config:
 
     PORTFOLIO_QUANT_MIN_HOLDINGS = 3
 
-    PORTFOLIO_QUANT_MAX_HOLDINGS = 10
+    PORTFOLIO_QUANT_MAX_HOLDINGS = 50
     # ==========================================
     # Challenger Settings
     # ==========================================
