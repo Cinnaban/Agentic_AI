@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install pinned runtime dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile application modules
+        run: >-
+          python -m compileall -q agents configs data financial_engine
+          integrations job_queue memory orchestrator security shared_storage
+          utils workers
+      - name: Run deterministic offline tests
+        run: |
+          python -m unittest discover -s tests -p 'test_evidence_provenance.py'
+          python tests/test_freshness_detector.py
+          python tests/test_followup_resolver.py
+          python tests/test_message_router.py
+          python tests/test_queue_coordinator.py
+          python tests/test_response_formatter.py

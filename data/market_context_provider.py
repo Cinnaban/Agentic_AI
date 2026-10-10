@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -367,6 +368,13 @@ class MarketContextProvider:
 
             "social_summary":
                 social_summary,
+
+            "retrieved_at":
+                datetime.now(timezone.utc).isoformat(),
+
+            "requires_live_data":
+                bool(requires_live_data),
+
             "sentiment_sources": [],
             "source_status": {
                 "financial_data": (

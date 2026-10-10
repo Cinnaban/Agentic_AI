@@ -70,7 +70,8 @@ Include factors if possible:
 - Size or population
 - Public or private entity
 - Country reside or founded
-- Year of reference
+- Year of origin
+- Genre
 - Do not invent or infer themes, factors general information
 - Provide summarization 
 

@@ -20,6 +20,9 @@ from agents.current_topic_agent import (
 from orchestrator.freshness_detector import (
     FreshnessDetector
 )
+from orchestrator.evidence_provenance import (
+    EvidenceProvenance
+)
 from agents.challenger_agent import ChallengerAgent
 
 from data.providers.live_market_providers import (
@@ -1204,6 +1207,13 @@ class Hermes:
                         )
                     )
 
+                    current_result = (
+                        EvidenceProvenance.add_to_result(
+                            current_result,
+                            live_context,
+                            requires_current=True
+                        )
+                    )
 
                     safe_response = (
                         self.outbound_gate.prepare(
@@ -1470,6 +1480,13 @@ class Hermes:
                         message=message,
                         evidence=evidence,
                         research_plan=research_plan
+                    )
+                )
+
+                general_result = (
+                    EvidenceProvenance.add_to_result(
+                        general_result,
+                        evidence
                     )
                 )
 
@@ -2829,6 +2846,17 @@ class Hermes:
                         risk_lines
                     )
                 )
+
+        if isinstance(market_context, dict):
+            sections.append(
+                EvidenceProvenance.format_note(
+                    market_context,
+                    requires_current=market_context.get(
+                        "requires_live_data",
+                        False
+                    )
+                )
+            )
 
         return "\n\n".join(
             sections

@@ -208,6 +208,8 @@ Firecrawl is a retrieval mechanism, not the publisher. The original article publ
 
 For current/latest/recent questions, retrieved results are filtered by publication date before Firecrawl enrichment. If sufficiently recent evidence cannot be retrieved, the system should fail closed rather than substituting stale model memory as current information.
 
+Research-backed responses include an evidence note with the UTC retrieval time, contributing publishers, and supplied publication dates where available. Financial analyses also identify available and unavailable evidence sources. Retrieval time indicates when this system gathered the evidence; it does not mean the underlying data itself is current. If live evidence cannot verify a current-information request, the response explicitly says so rather than falling back to model memory.
+
 ## Firecrawl
 
 Firecrawl is self-hosted locally through Docker Desktop on the Mac Mini.
@@ -336,6 +338,54 @@ FIRECRAWL_BASE_URL=
 
 Non-secret application settings such as model names, Ollama endpoints, logging paths, and system prompts can remain in `configs/config.py` as appropriate.
 
+## Clean Setup
+
+The supported Python version is 3.11. From a fresh clone:
+
+```bash
+python3.11 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `.env` locally; never commit it. The variables are optional unless the matching integration is enabled:
+
+- **Telegram:** `TELEGRAM_BOT_TOKEN`
+- **Discord questions bot:** `DISCORD_BOT_TOKEN` and `DISCORD_QUESTIONS_CHANNEL_ID`
+- **ETF spreadsheet job:** `DISCORD_BOT_TOKEN`, `DISCORD_UPDATES_CHANNEL_ID`, `GOOGLE_CREDENTIALS_FILE`, `GOOGLE_SHEET_NAME`, and `GOOGLE_ASSET_TAB`
+- **SEC requests:** `SEC_USER_AGENT` should identify the application and provide a contact email.
+- **Optional evidence providers:** `FRED_API_KEY`, Inoreader feed URLs, and `FIRECRAWL_BASE_URL`
+
+The credential file path in `GOOGLE_CREDENTIALS_FILE` must point to a locally provisioned Google service-account JSON file. The Ollama service and, for quantitative analysis, the Gaming PC worker must also be reachable using the endpoints configured in `configs/config.py`.
+
+Run a bot from the repository root after loading the environment:
+
+```bash
+set -a
+source .env
+set +a
+.venv/bin/python -m integrations.messaging.telegram_bot
+```
+
+Use `integrations.messaging.discord_bot` in place of the Telegram module to start the Discord bot. Stop either foreground process with `Ctrl-C`. The ETF job can be run manually with `.venv/bin/python workers/etf_update.py` after loading `.env`; it exits when the update completes. For a persistent macOS service, install the LaunchAgent in the user's `~/Library/LaunchAgents` and configure its program arguments and log paths for the local clone. The machine-specific scripts and LaunchAgent used by the current Mac Mini are intentionally not included as portable deployment files.
+
+## CI and Offline Tests
+
+The GitHub Actions workflow compiles application modules and runs a selected deterministic test set on Python 3.11. It does not contact Ollama, SEC/FRED, Discord/Telegram, Google Sheets, Firecrawl, or the Gaming PC. Run the same checks locally:
+
+```bash
+.venv/bin/python -m compileall -q agents configs data financial_engine integrations job_queue memory orchestrator security shared_storage utils workers
+.venv/bin/python -m unittest discover -s tests -p 'test_evidence_provenance.py'
+.venv/bin/python tests/test_freshness_detector.py
+.venv/bin/python tests/test_followup_resolver.py
+.venv/bin/python tests/test_message_router.py
+.venv/bin/python tests/test_queue_coordinator.py
+.venv/bin/python tests/test_response_formatter.py
+```
+
+Tests that require live providers or local services should be run separately after those dependencies have been configured.
+
 ## Recommended `.gitignore`
 
 At minimum:
@@ -398,47 +448,49 @@ Mac Mini
 
 ## Key Tests
 
+The checks below are grouped by feature. Some integration scripts require configured external services; use the CI/offline commands above for a repeatable local baseline.
+
 ### Core / Regression
 
 ```bash
-python tests/test_stock_agent_smoke.py
-python tests/test_process_request.py
-python tests/test_general_request.py
+.venv/bin/python tests/test_stock_agent_smoke.py
+.venv/bin/python tests/test_process_request.py
+.venv/bin/python tests/test_general_request.py
 ```
 
 ### Messaging
 
 ```bash
-python tests/test_message_router.py
-python tests/test_response_formatter.py
-python tests/test_messaging_pipeline.py
-python tests/test_telegram_bot.py
-python tests/test_discord_bot.py
+.venv/bin/python tests/test_message_router.py
+.venv/bin/python tests/test_response_formatter.py
+.venv/bin/python tests/test_messaging_pipeline.py
+.venv/bin/python tests/test_telegram_bot.py
+.venv/bin/python tests/test_discord_bot.py
 ```
 
 ### Current Information
 
 ```bash
-python tests/test_freshness_detector.py
-python tests/test_public_topic_news_backend_live.py
-python tests/test_live_market_provider_contract.py
-python tests/test_live_market_enrichment.py
-python tests/test_current_general_topic.py
-python tests/test_current_company_research.py
+.venv/bin/python tests/test_freshness_detector.py
+.venv/bin/python tests/test_public_topic_news_backend.py
+.venv/bin/python tests/test_live_market_provider_contract.py
+.venv/bin/python tests/test_live_market_enrichment.py
+.venv/bin/python tests/test_current_general_topic.py
+.venv/bin/python tests/test_current_company_research.py
 ```
 
 ### Firecrawl
 
 ```bash
-python tests/test_firecrawl_health.py
-python tests/test_firecrawl_scrape.py
-python tests/test_ddgs_firecrawl_pipeline.py
+.venv/bin/python tests/test_firecrawl_health.py
+.venv/bin/python tests/test_firecrawl_scrape.py
+.venv/bin/python tests/test_ddgs_firecrawl_pipeline.py
 ```
 
 ### ETF Automation
 
 ```bash
-python tests/test_etf_update_config.py
+.venv/bin/python tests/test_etf_update_config.py
 ```
 
 Manual launchd validation:

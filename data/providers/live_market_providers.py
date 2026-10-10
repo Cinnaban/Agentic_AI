@@ -420,7 +420,10 @@ class LiveMarketProvider:
                 [],
 
             "sources":
-                []
+                [],
+
+            "retrieved_at":
+                datetime.now(timezone.utc).isoformat()
         }
 
 
@@ -492,7 +495,7 @@ class LiveMarketProvider:
                 query
             )
 
-        results, sources = (
+        results, _ = (
             self._collect_results(
                 company=company,
                 query=query
@@ -529,7 +532,18 @@ class LiveMarketProvider:
                 results,
 
             "sources":
-                sources,
+                list(
+                    dict.fromkeys(
+                        result.get("source")
+                        for result in results
+                        if isinstance(result, dict)
+                        and isinstance(result.get("source"), str)
+                        and result.get("source").strip()
+                    )
+                ),
+
+            "retrieved_at":
+                datetime.now(timezone.utc).isoformat(),
             
             "recency_policy": {
                 "max_age_days":

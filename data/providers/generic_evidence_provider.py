@@ -1,3 +1,9 @@
+from datetime import datetime, timezone
+from urllib.parse import (
+    urlsplit,
+    urlunsplit
+)
+
 from data.providers.live.public_web_backend import (
     PublicWebBackend
 )
@@ -16,11 +22,6 @@ from data.providers.social.social_evidence_provider import (
 
 from data.providers.social.social_summary_builder import (
     SocialSummaryBuilder
-)
-
-from urllib.parse import (
-    urlsplit,
-    urlunsplit
 )
 
 class GenericEvidenceProvider:
@@ -380,7 +381,10 @@ class GenericEvidenceProvider:
                 page_limit,
 
             "sources":
-                sources
+                sources,
+
+            "retrieved_at":
+                datetime.now(timezone.utc).isoformat()
         }
 
     def _enrich(
