@@ -36,6 +36,9 @@ from memory.workflow_state import (
     WorkflowState,
     WorkflowStatus
 )
+from memory.conversation_history_provider import (
+    ConversationHistoryProvider
+)
 from agents.comparison_agent import (
     ComparisonAgent
 )
@@ -106,6 +109,16 @@ class Hermes:
         self.financial_metric_builder = (
             FinancialMetricBuilder()
         )
+        self.conversation_context = (
+            ConversationContext()
+        )
+
+        self.conversation_history_provider = (
+            ConversationHistoryProvider(
+                conversation_context=
+                    self.conversation_context
+            )
+        )
         self.portfolio_request_parser = (
             PortfolioRequestParser()
         )
@@ -150,9 +163,6 @@ class Hermes:
         )
         self.comparison_intent = (
             ComparisonIntent()
-        )
-        self.conversation_context = (
-            ConversationContext()
         )
         self.followup_resolver = (
             FollowUpResolver()
@@ -679,6 +689,52 @@ class Hermes:
                     context=conversation_state
                 )
             )
+            
+            recent_messages = (
+                conversation_state.get(
+                    "recent_messages",
+                    []
+                )
+            )
+
+            portfolio_followup_phrases = (
+                "compare it",
+                "compare that",
+                "compare against",
+                "posted earlier",
+                "previous portfolio",
+                "last portfolio",
+                "earlier portfolio",
+                "what i posted earlier"
+            )
+
+            portfolio_followup = any(
+                phrase in normalized_message
+                for phrase in portfolio_followup_phrases
+            )
+
+            if (
+                followup is None
+                and portfolio_followup
+            ):
+                followup = {
+                    "intent":
+                        "portfolio_followup",
+                    "recent_messages":
+                        recent_messages
+                }
+            print()
+            print("=" * 60)
+            print("FOLLOWUP DEBUG")
+            print("=" * 60)
+            print("CONVERSATION STATE:")
+            print(conversation_state)
+
+            print()
+            print("FOLLOWUP:")
+            print(followup)
+
+            print("=" * 60)
 
             if isinstance(
                 last_generic_research,
@@ -706,6 +762,65 @@ class Hermes:
 
                 if work_package is None:
 
+                    if (
+                        isinstance(
+                            followup,
+                            dict
+                        )
+                        and followup.get(
+                            "intent"
+                        ) == "portfolio_followup"
+                    ):
+                        recent_portfolio = None
+
+                        for history_message in reversed(
+                            recent_messages
+                        ):
+                            if (
+                                history_message.get(
+                                    "role"
+                                )
+                                != "user"
+                            ):
+                                continue
+
+                            content = str(
+                                history_message.get(
+                                    "content",
+                                    ""
+                                )
+                            )
+
+                            portfolio_candidate = (
+                                self.portfolio_request_parser
+                                .parse(
+                                    content
+                                )
+                            )
+
+                            if portfolio_candidate.get(
+                                "is_portfolio_request",
+                                False
+                            ):
+                                recent_portfolio = content
+                                break
+
+                        if recent_portfolio:
+                            effective_message = (
+                                "PREVIOUS PORTFOLIO:\n\n"
+                                + recent_portfolio
+                                + "\n\nCURRENT REQUEST:\n\n"
+                                + str(message)
+                            )
+                            
+                        print()
+                        print("=" * 60)
+                        print("PORTFOLIO FOLLOWUP RESOLVED")
+                        print("=" * 60)
+                        print(recent_portfolio)
+                        print("=" * 60)
+                        
+
                     work_package = (
                         self.build_workflow(
                             effective_message
@@ -714,6 +829,48 @@ class Hermes:
 
 
             else:
+
+                history_context = (
+                    self.conversation_history_provider
+                    .get_context(
+                        source=source,
+                        channel_id=channel_id,
+                        user_id=user_id
+                    )
+                )
+                
+                recent_portfolios = (
+                    history_context.get(
+                        "recent_portfolios",
+                        []
+                    )
+                )
+
+                portfolio_reference_terms = (
+                    "earlier",
+                    "previous",
+                    "last portfolio",
+                    "that portfolio",
+                    "posted earlier",
+                    "compare it"
+                )
+
+                should_use_portfolio_context = any(
+                    term in normalized_message
+                    for term in portfolio_reference_terms
+                )
+
+                if (
+                    recent_portfolios
+                    and should_use_portfolio_context
+                ):
+                
+                    effective_message = (
+                        "RECENT PORTFOLIO CONTEXT:\n\n"
+                        + recent_portfolios[-1]
+                        + "\n\nCURRENT REQUEST:\n\n"
+                        + effective_message
+                    )
 
                 work_package = (
                     self.build_workflow(
@@ -1288,10 +1445,31 @@ class Hermes:
 
                     return safe_response
 
+                research_plan = (
+                    self.generic_research_planner
+                    .plan(message)
+                )
+
+                evidence = (
+                    self.generic_evidence_provider
+                    .get_context(
+                        query=message,
+                        search_queries=(
+                            research_plan.get(
+                                "queries",
+                                []
+                            )
+                        ),
+                        research_plan=research_plan
+                    )
+                )
+
                 general_result = (
                     self.general_response_agent
                     .analyze(
-                        message
+                        message=message,
+                        evidence=evidence,
+                        research_plan=research_plan
                     )
                 )
 
