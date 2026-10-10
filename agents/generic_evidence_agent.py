@@ -77,36 +77,22 @@ USER QUESTION:
 
 {message}
 
-QUESTION INTERPRETATION:
+DIRECT FACTUAL REQUESTS:
 
-First determine whether the user's wording can be
-answered directly from the supplied evidence.
+If the user asks:
 
-If the user's wording is broad, ambiguous, comparative,
-or asks for judgment such as:
+- What is X?
+- Who is X?
+- Tell me about X
+- What can you tell me about X?
+- Describe X
 
-- potential
-- large or small
-- important
-- competitive
-- better or worse
-- strong or weak
-- likely growth
-- market opportunity
+DO NOT rewrite the question.
 
-translate the user's wording into a more precise
-research question that can be evaluated from public
-evidence.
+DO NOT generate an interpreted question.
 
-Do not change the user's underlying intent.
-
-Do not make the rewritten question more certain or
-more specific than the evidence permits.
-
-If the user's original wording requires interpretation:
-
-Interpreted question:
-"<faithful descriptive rewording>"
+Retrieve evidence and summarize only the
+retrieved evidence.
 
 RESEARCH PLAN:
 

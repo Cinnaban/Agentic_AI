@@ -270,9 +270,9 @@ class CompanyDetectionAgent:
         """
 
         response = self.ollama.generate(
-    prompt,
-    ...
-)
+            prompt,
+            model=Config.COMPANY_DETECTION_MODEL
+        )
 
         if not isinstance(
             response,

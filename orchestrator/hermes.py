@@ -985,10 +985,57 @@ class Hermes:
                         f"or financial evaluation."
                     )
 
+                    research_plan = (
+                        self.generic_research_planner
+                        .plan(
+                            message
+                        )
+                    )
+
+                    if not isinstance(
+                        research_plan,
+                        dict
+                    ):
+                        research_plan = {}
+
+                    search_queries = (
+                        research_plan.get(
+                            "queries",
+                            []
+                        )
+                    )
+
+                    if not isinstance(
+                        search_queries,
+                        list
+                    ):
+                        search_queries = []
+
+                    evidence = (
+                        self.generic_evidence_provider
+                        .get_context(
+                            query=message,
+                            search_queries=search_queries,
+                            research_plan=research_plan
+                        )
+                    )
+
+                    if not isinstance(
+                        evidence,
+                        dict
+                    ):
+                        evidence = {
+                            "available": False,
+                            "results": [],
+                            "sources": []
+                        }
+
                     general_result = (
                         self.general_response_agent
                         .analyze(
-                            info_prompt
+                            message=info_prompt,
+                            evidence=evidence,
+                            research_plan=research_plan
                         )
                     )
 
@@ -1457,36 +1504,55 @@ class Hermes:
 
                 research_plan = (
                     self.generic_research_planner
-                    .plan(message)
+                    .plan(
+                        effective_message
+                    )
                 )
+
+                if not isinstance(
+                    research_plan,
+                    dict
+                ):
+                    research_plan = {}
+
+                search_queries = (
+                    research_plan.get(
+                        "queries",
+                        []
+                    )
+                )
+
+                if not isinstance(
+                    search_queries,
+                    list
+                ):
+                    search_queries = []
 
                 evidence = (
                     self.generic_evidence_provider
                     .get_context(
-                        query=message,
-                        search_queries=(
-                            research_plan.get(
-                                "queries",
-                                []
-                            )
-                        ),
+                        query=effective_message,
+                        search_queries=search_queries,
                         research_plan=research_plan
                     )
                 )
+
+                if not isinstance(
+                    evidence,
+                    dict
+                ):
+                    evidence = {
+                        "available": False,
+                        "results": [],
+                        "sources": []
+                    }
 
                 general_result = (
                     self.general_response_agent
                     .analyze(
-                        message=message,
+                        message=effective_message,
                         evidence=evidence,
                         research_plan=research_plan
-                    )
-                )
-
-                general_result = (
-                    EvidenceProvenance.add_to_result(
-                        general_result,
-                        evidence
                     )
                 )
 
@@ -2304,34 +2370,95 @@ class Hermes:
 
 
             try:
-                fallback_result = (
-                    self.general_response_agent
-                    .analyze(
-                        f"""
-                The specialized workflow could not complete.
+                fallback_message = str(
+                    message
+                    or ""
+                ).strip()
 
-                Failure:
-                {str(e)}
-
-                Provide the best possible response using
-                general reasoning and available context.
-
-                Do not claim access to unavailable data.
-
-                USER REQUEST:
-
-                {message}
-                """
+                fallback_research_plan = (
+                    self.generic_research_planner
+                    .plan(
+                        fallback_message
                     )
                 )
 
-                return self.outbound_gate.prepare(
-                    fallback_result
+                if not isinstance(
+                    fallback_research_plan,
+                    dict
+                ):
+                    fallback_research_plan = {}
+
+                fallback_search_queries = (
+                    fallback_research_plan.get(
+                        "queries",
+                        []
+                    )
                 )
+
+                if not isinstance(
+                    fallback_search_queries,
+                    list
+                ):
+                    fallback_search_queries = []
+
+                fallback_evidence = (
+                    self.generic_evidence_provider
+                    .get_context(
+                        query=fallback_message,
+                        search_queries=(
+                            fallback_search_queries
+                        ),
+                        research_plan=(
+                            fallback_research_plan
+                        )
+                    )
+                )
+
+                if not isinstance(
+                    fallback_evidence,
+                    dict
+                ):
+                    fallback_evidence = {
+                        "available": False,
+                        "results": [],
+                        "sources": []
+                    }
+
+                fallback_result = (
+                    self.general_response_agent
+                    .analyze(
+                        message=fallback_message,
+                        evidence=fallback_evidence,
+                        research_plan=(
+                            fallback_research_plan
+                        )
+                    )
+                )
+
+                safe_fallback = (
+                    self.outbound_gate.prepare(
+                        fallback_result
+                    )
+                )
+
+                fallback_response_text = (
+                    safe_fallback.get(
+                        "response"
+                    )
+                )
+
+                if fallback_response_text:
+                    self.conversation_context.add_message(
+                        conversation_key,
+                        "assistant",
+                        fallback_response_text
+                    )
+
+                return safe_fallback
 
             except Exception as fallback_error:
                 print(
-                    "GENERAL FALLBACK FAILED:",
+                    "EVIDENCE FALLBACK FAILED:",
                     fallback_error
                 )
             
