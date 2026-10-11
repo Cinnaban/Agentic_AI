@@ -1,0 +1,55 @@
+{
+  "job_id": "d440629d-b038-45a4-8b6c-8168e240ba1d",
+  "status": "completed",
+  "created_at": "2026-10-10T22:33:40.871336",
+  "updated_at": "2026-10-10T22:36:18.484198",
+  "data": {
+    "message": "Evaluate AAPL",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "AAPL",
+        "ticker": "AAPL",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Consumer Electronics",
+          "sector": "Technology"
+        },
+        "industry": "Consumer Electronics",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": false,
+      "confidence": 0,
+      "issues": [
+        "Risk conflicts do not match Signal Reconciliation",
+        "Risk horizon differences do not match Signal Reconciliation",
+        "Risk failed to acknowledge quantitative uncertainty"
+      ],
+      "strengths": [],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete",
+        "Independent challenger review incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}

@@ -249,6 +249,15 @@ For current/latest/recent questions, retrieved results are filtered by publicati
 
 Research-backed responses include an evidence note with the UTC retrieval time, contributing publishers, and supplied publication dates where available. Financial analyses also identify available and unavailable evidence sources. Retrieval time indicates when this system gathered the evidence; it does not mean the underlying data itself is current. If live evidence cannot verify a current-information request, the response explicitly says so rather than falling back to model memory.
 
+General factual answers search for the named subject's official website and
+Wikipedia article first, retrieve a matching Wikipedia article directly when
+available, and then use distinct public publishers for corroboration.
+Irrelevant subject matches and social-platform results are excluded from
+ordinary factual answers; Reddit/X evidence is retrieved only for explicit
+community-discussion questions. Answers stay anchored to the user's question,
+distinguish retrieved pages from search snippets, cite supplied source IDs,
+and include direct source links so claims can be checked.
+
 ## Firecrawl
 
 Firecrawl is self-hosted locally through Docker Desktop on the Mac Mini.
@@ -419,6 +428,7 @@ The GitHub Actions workflow compiles application modules and runs a selected det
 .venv/bin/python -m unittest discover -s tests -p 'test_stock_evaluation_routing.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_etf_evaluation.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_performance_chart.py'
+.venv/bin/python -m unittest discover -s tests -p 'test_generic_factual_sources.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_quant_priority.py'
 .venv/bin/python tests/test_freshness_detector.py
 .venv/bin/python tests/test_followup_resolver.py

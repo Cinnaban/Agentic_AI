@@ -73,6 +73,39 @@ class GenericEvidenceAgent:
         prompt = f"""
 You are answering a general informational question.
 
+OVERRIDING ACCURACY RULES:
+
+- Answer the exact subject and question in USER QUESTION.
+- Do not reinterpret it as a question about a subreddit,
+  community, discussion, or another topic unless the user
+  explicitly asks about that topic.
+- Do not use conversation history or social discussion as
+  factual evidence for this answer.
+- Use only factual claims supported by the supplied webpage
+  content, clearly attributed reference sources, or search
+  summaries when page content is unavailable.
+- Prefer retrieved pages from a subject's own website for
+  what the subject says about itself. Prefer Wikipedia,
+  government/academic pages, and independent reporting for
+  corroboration. A search result labeled "official" is only a
+  candidate until its URL and retrieved content support that.
+- Present a claim from an official page as the organization's
+  own description unless an independent source corroborates it.
+- For dates, locations, ownership, achievements, and other
+  specific claims, prefer agreement between independent sources.
+  If only one secondary source supports a detail, qualify it
+  and attribute it; omit it if the evidence is unclear.
+- Treat a single search snippet as unverified. Do not state
+  specific facts from it as certain.
+- For an important factual statement, cite a supplied source
+  ID such as [S1]. Never invent a source ID or URL.
+- If reliable sources disagree, explain the discrepancy and
+  attribute each version. Do not merge incompatible claims.
+- If the evidence does not establish a fact, say it could not
+  be verified. Do not fill gaps from model memory.
+- Keep the answer direct. Do not force an "interpreted
+  question" or assessment format onto a simple factual request.
+
 USER QUESTION:
 
 {message}
@@ -464,6 +497,14 @@ content to understand and summarize the source.
 
 Keep the response concise unless the research plan
 requested deep evidence.
+
+FINAL CHECK BEFORE RESPONDING:
+
+Verify that the answer names the subject asked about, that
+every factual statement is supported by the supplied evidence,
+and that citations use only the supplied source IDs. Do not
+include social discussion unless the user explicitly requested
+social or community discussion.
 """
 
 
@@ -502,6 +543,36 @@ requested deep evidence.
                 "summary."
             )
 
+        sources = evidence.get("sources", [])
+        source_lines = []
+        if isinstance(sources, list):
+            for source in sources:
+                if not isinstance(source, dict):
+                    continue
+                source_id = source.get("source_id")
+                title = source.get("title")
+                url = source.get("url")
+                publisher = source.get("publisher")
+                if not all(
+                    isinstance(value, str) and value.strip()
+                    for value in (source_id, title, url)
+                ):
+                    continue
+                attribution = (
+                    f" ({publisher})"
+                    if isinstance(publisher, str) and publisher
+                    else ""
+                )
+                source_lines.append(
+                    f"- [{source_id}] {title}{attribution}: {url}"
+                )
+
+        if source_lines:
+            text = (
+                text.rstrip()
+                + "\n\nSources:\n"
+                + "\n".join(source_lines)
+            )
 
         return {
             "status":

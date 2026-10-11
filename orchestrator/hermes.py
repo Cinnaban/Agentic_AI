@@ -1097,7 +1097,8 @@ class Hermes:
                         .get_context(
                             query=message,
                             search_queries=search_queries,
-                            research_plan=research_plan
+                            research_plan=research_plan,
+                            subject=company_text
                         )
                     )
 
