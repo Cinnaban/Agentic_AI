@@ -1,4 +1,5 @@
 import math
+import re
 
 
 def _is_finite_number(value):
@@ -19,6 +20,38 @@ def _format_number(value):
     if not _is_finite_number(value):
         return None
     return f"{value:.2f}"
+
+
+def format_change_direction(field, old_value, new_value):
+    normalized_field = str(field or "").strip().lower()
+    if normalized_field not in {"eps", "dividend yield"}:
+        return ""
+
+    def numeric_value(value):
+        if _is_finite_number(value):
+            return float(value)
+        if not isinstance(value, str):
+            return None
+        cleaned = value.strip().replace(",", "")
+        match = re.fullmatch(r"[-+]?\$?(\d+(?:\.\d+)?)%?", cleaned)
+        if not match:
+            return None
+        number = float(match.group(1))
+        if cleaned.startswith("-"):
+            number = -number
+        if normalized_field == "dividend yield" and cleaned.endswith("%"):
+            number /= 100
+        return number
+
+    old_number = numeric_value(old_value)
+    new_number = numeric_value(new_value)
+    if old_number is None or new_number is None:
+        return "⚪ direction unavailable"
+    if math.isclose(old_number, new_number, rel_tol=1e-9, abs_tol=1e-9):
+        return "⚪ unchanged"
+    if new_number > old_number:
+        return "🟢 increase"
+    return "🔴 decrease"
 
 
 def generate_etf_portfolio_appendix(holdings):

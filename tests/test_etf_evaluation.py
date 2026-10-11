@@ -110,18 +110,22 @@ class ETFEvaluationTests(unittest.TestCase):
             "get_fund_context",
             return_value={"status": "available"}
         ) as get_context:
-            result = provider.resolve("SOXX", "Evaluate the ETF SOXX")
+            result = provider.resolve("NOQUOTE", "Evaluate the ETF NOQUOTE")
 
         self.assertEqual(result["entity_type"], "etf")
         self.assertEqual(
             result["classification_status"],
             "unverified"
         )
-        get_context.assert_called_once_with("SOXX", yf_ticker=ticker)
+        get_context.assert_called_once_with("NOQUOTE", yf_ticker=ticker)
 
     def test_quote_type_overrides_conflicting_user_label(self):
         ticker = SimpleNamespace(
-            info={"quoteType": "EQUITY"}
+            info={
+                "quoteType": "EQUITY",
+                "sector": "Technology",
+                "industry": "Semiconductors"
+            }
         )
         with patch(
             "data.providers.etf_fund_provider.yf.Ticker",
@@ -134,6 +138,8 @@ class ETFEvaluationTests(unittest.TestCase):
 
         self.assertEqual(result["entity_type"], "stock")
         self.assertEqual(result["classification_status"], "resolved")
+        self.assertEqual(result["sector"], "Technology")
+        self.assertEqual(result["industry"], "Semiconductors")
 
     def test_unavailable_quote_type_is_reported_as_unresolved(self):
         ticker = SimpleNamespace(
@@ -144,8 +150,8 @@ class ETFEvaluationTests(unittest.TestCase):
             return_value=ticker
         ):
             result = ETFFundProvider().resolve(
-                "SOXX",
-                "Evaluate SOXX"
+                "NOQUOTE",
+                "Evaluate NOQUOTE"
             )
 
         self.assertEqual(result["entity_type"], "security")
@@ -153,6 +159,32 @@ class ETFEvaluationTests(unittest.TestCase):
             result["classification_status"],
             "unresolved"
         )
+
+    def test_known_etf_is_recognized_when_quote_metadata_is_empty(self):
+        ticker = SimpleNamespace(info={})
+        provider = ETFFundProvider()
+        fund_context = {
+            "status": "unavailable",
+            "quote_type": None,
+            "sector_weightings": {"financialServices": 0.40}
+        }
+        with patch(
+            "data.providers.etf_fund_provider.yf.Ticker",
+            return_value=ticker
+        ), patch.object(
+            provider,
+            "get_fund_context",
+            return_value=fund_context
+        ):
+            result = provider.resolve("SCHD", "Evaluate my portfolio")
+
+        self.assertEqual(result["entity_type"], "etf")
+        self.assertEqual(result["classification_status"], "resolved")
+        self.assertEqual(
+            result["classification_source"],
+            "curated ETF ticker registry"
+        )
+        self.assertEqual(result["etf_context"], fund_context)
 
     def test_empty_detector_response_preserves_explicit_ticker(self):
         agent = CompanyDetectionAgent.__new__(CompanyDetectionAgent)

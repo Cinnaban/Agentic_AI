@@ -59,6 +59,9 @@ from data.providers.etf_fund_provider import ETFFundProvider
 from data.providers.performance_chart_provider import (
     PerformanceChartProvider
 )
+from data.providers.portfolio_allocation_chart_provider import (
+    PortfolioAllocationChartProvider
+)
 from orchestrator.comparison_intent import (
     ComparisonIntent
 )
@@ -140,6 +143,9 @@ class Hermes:
         self.etf_fund_provider = ETFFundProvider()
         self.performance_chart_provider = (
             PerformanceChartProvider()
+        )
+        self.portfolio_allocation_chart_provider = (
+            PortfolioAllocationChartProvider()
         )
         self.financial_table_formatter = (
             FinancialTableFormatter()
@@ -399,6 +405,9 @@ class Hermes:
                 holding["classification_error"] = classification[
                     "classification_error"
                 ]
+            for field in ("sector", "industry"):
+                if classification.get(field):
+                    holding[field] = classification[field]
 
             etf_context = classification.get("etf_context")
             if entity_type == "etf" and isinstance(etf_context, dict):
@@ -1287,6 +1296,9 @@ class Hermes:
                                 "entity_type":
                                     entity_type
                             }
+                            for field in ("sector", "industry"):
+                                if holding.get(field):
+                                    company[field] = holding[field]
                             if entity_type == "etf":
                                 company["etf_context"] = holding.get(
                                     "etf_context"
@@ -1372,6 +1384,36 @@ class Hermes:
                             )
                         )
                     )
+
+                    allocation_chart = (
+                        self.portfolio_allocation_chart_provider
+                        .generate(holdings)
+                    )
+                    if (
+                        isinstance(allocation_chart, dict)
+                        and allocation_chart.get("status") == "completed"
+                        and allocation_chart.get("path")
+                    ):
+                        portfolio_result["attachments"] = [{
+                            "path": allocation_chart["path"],
+                            "filename": "portfolio_allocation.png",
+                            "caption": allocation_chart.get("caption", "")
+                        }]
+                        portfolio_result["response"] = (
+                            str(portfolio_result.get("response", "")).rstrip()
+                            + "\n\nPortfolio allocation chart is attached."
+                        )
+                    elif isinstance(allocation_chart, dict):
+                        portfolio_result["response"] = (
+                            str(portfolio_result.get("response", "")).rstrip()
+                            + "\n\nPortfolio allocation chart unavailable: "
+                            + str(
+                                allocation_chart.get(
+                                    "error",
+                                    "No valid holding weights."
+                                )
+                            )
+                        )
 
                     safe_response = (
                         self.outbound_gate.prepare(

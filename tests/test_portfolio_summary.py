@@ -4,16 +4,27 @@ from unittest.mock import Mock
 
 from agents.portfolio_evaluation_agent import PortfolioEvaluationAgent
 from data.providers.portfolio_context_provider import PortfolioContextProvider
+from data.providers.portfolio_allocation_chart_provider import (
+    PortfolioAllocationChartProvider
+)
 from workers.etf_portfolio_evaluation import (
+    format_change_direction,
     generate_etf_portfolio_appendix
 )
+from pathlib import Path
+from tempfile import gettempdir
 
 
 class PortfolioSummaryTests(unittest.TestCase):
 
     def test_portfolio_composition_splits_stock_etf_and_unresolved_weights(self):
         result = PortfolioEvaluationAgent._build_portfolio_overview([
-            {"ticker": "NVDA", "weight": 50, "entity_type": "stock"},
+            {
+                "ticker": "NVDA",
+                "weight": 50,
+                "entity_type": "stock",
+                "sector": "Technology"
+            },
             {"ticker": "SOXX", "weight": 30, "entity_type": "etf"},
             {"ticker": "UNKN", "weight": 10, "entity_type": "unresolved"}
         ])
@@ -23,6 +34,32 @@ class PortfolioSummaryTests(unittest.TestCase):
         self.assertIn("total 90.00%", result)
         self.assertIn("do not total 100%", result)
         self.assertIn("excluded from stock/ETF comparisons", result)
+        self.assertIn("Technology 50.00%", result)
+
+    def test_etf_sector_exposure_is_reported_separately_from_stock_weight(self):
+        result = PortfolioEvaluationAgent._build_portfolio_overview([
+            {
+                "ticker": "NVDA",
+                "weight": 65,
+                "entity_type": "stock",
+                "sector": "Technology"
+            },
+            {
+                "ticker": "SCHD",
+                "weight": 35,
+                "entity_type": "etf",
+                "etf_context": {
+                    "sector_weightings": {
+                        "financialServices": 0.40,
+                        "technology": 0.20
+                    }
+                }
+            }
+        ])
+
+        self.assertIn("Technology 65.00%", result)
+        self.assertIn("SCHD: financialServices 40.0%", result)
+        self.assertIn("not added to portfolio stock-sector weights", result)
 
     def test_etf_snapshot_uses_fund_metrics_not_company_valuation_fields(self):
         provider = PortfolioContextProvider.__new__(PortfolioContextProvider)
@@ -141,6 +178,51 @@ class PortfolioSummaryTests(unittest.TestCase):
         self.assertIn("Expense ratio: no retrieved values.", result)
         self.assertIn("Distribution yield: no retrieved values.", result)
         self.assertIn("Beta: no retrieved values.", result)
+
+    def test_allocation_chart_shows_each_holding_and_type_colors(self):
+        result = PortfolioAllocationChartProvider().generate([
+            {"ticker": "SCHD", "weight": 35, "entity_type": "etf"},
+            {"ticker": "META", "weight": 30, "entity_type": "stock"},
+            {"ticker": "GE", "weight": 25, "entity_type": "stock"},
+            {"ticker": "QS", "weight": 10, "entity_type": "stock"}
+        ])
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["total_weight"], 100)
+        self.assertTrue(Path(result["path"]).is_file())
+        self.assertTrue(
+            Path(result["path"]).resolve().parent
+            == Path(gettempdir()).resolve()
+        )
+        Path(result["path"]).unlink()
+
+    def test_allocation_chart_marks_unbalanced_weights_as_not_normalized(self):
+        result = PortfolioAllocationChartProvider().generate([
+            {"ticker": "SCHD", "weight": 35, "entity_type": "etf"},
+            {"ticker": "META", "weight": 30, "entity_type": "stock"}
+        ])
+
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("not normalized", result["caption"])
+        Path(result["path"]).unlink()
+
+    def test_etf_update_marks_eps_and_dividend_changes_by_direction(self):
+        self.assertEqual(
+            format_change_direction("EPS", "1.25", "1.50"),
+            "🟢 increase"
+        )
+        self.assertEqual(
+            format_change_direction("Dividend Yield", "3.5%", "3.0%"),
+            "🔴 decrease"
+        )
+        self.assertEqual(
+            format_change_direction("Dividend Yield", "0.035", "3.5%"),
+            "⚪ unchanged"
+        )
+        self.assertEqual(
+            format_change_direction("EPS", "1.25", "1.25"),
+            "⚪ unchanged"
+        )
 
 
 if __name__ == "__main__":

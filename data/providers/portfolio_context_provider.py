@@ -91,9 +91,8 @@ class PortfolioContextProvider:
                     "price"
                 ),
             "sector":
-                market_snapshot.get(
-                    "sector"
-                ),
+                holding.get("sector")
+                or market_snapshot.get("sector"),
             "market_cap":
                 market_snapshot.get(
                     "market_cap"
@@ -210,6 +209,7 @@ class PortfolioContextProvider:
                 for key in (
                     "fund_overview",
                     "asset_classes",
+                    "sector_weightings",
                     "sector_weightings",
                     "top_holdings",
                     "status"

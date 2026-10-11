@@ -7,6 +7,12 @@ import yfinance as yf
 
 class ETFFundProvider:
 
+    KNOWN_ETF_TICKERS = {
+        "DIA", "EEM", "EFA", "GLD", "IWM", "QQQ", "SCHD",
+        "SLV", "SPY", "TLT", "VOO", "VTI", "XLE", "XLF",
+        "XLK", "XLP", "XLU", "XLV", "XLY", "XLI", "SOXX"
+    }
+
     ETF_REQUEST_PATTERN = re.compile(
         r"\b(?:ETF|exchange[- ]traded fund)\b",
         re.IGNORECASE
@@ -42,20 +48,40 @@ class ETFFundProvider:
         try:
             quote_info = yf_ticker.info or {}
             quote_type = str(
-                quote_info.get("quoteType", "")
+                quote_info.get("quoteType") or ""
             ).upper()
         except Exception as exc:
             quote_type = ""
             classification_error = str(exc)
 
+        etf_context = None
+        if quote_type == "ETF" or not quote_type:
+            etf_context = self.get_fund_context(
+                ticker,
+                yf_ticker=yf_ticker
+            )
+            fund_quote_type = str(
+                etf_context.get("quote_type") or ""
+            ).upper()
+            if fund_quote_type:
+                quote_type = fund_quote_type
+
         if quote_type == "ETF":
             entity_type = "etf"
             classification_status = "resolved"
-            classification_source = "Yahoo Finance quote type"
+            classification_source = (
+                "Yahoo Finance fund quote type"
+                if etf_context
+                else "Yahoo Finance quote type"
+            )
         elif quote_type == "EQUITY":
             entity_type = "stock"
             classification_status = "resolved"
             classification_source = "Yahoo Finance quote type"
+        elif ticker in self.KNOWN_ETF_TICKERS and not quote_type:
+            entity_type = "etf"
+            classification_status = "resolved"
+            classification_source = "curated ETF ticker registry"
         elif quote_type:
             return {
                 "entity_type": "security",
@@ -95,20 +121,19 @@ class ETFFundProvider:
         if classification_error:
             result["classification_error"] = classification_error
         if entity_type == "etf":
-            etf_context = self.get_fund_context(
-                ticker,
-                yf_ticker=yf_ticker
-            )
+            if not isinstance(etf_context, dict):
+                etf_context = self.get_fund_context(
+                    ticker,
+                    yf_ticker=yf_ticker
+                )
             fund_quote_type = str(
-                etf_context.get("quote_type", "")
+                etf_context.get("quote_type") or ""
             ).upper()
             if fund_quote_type and fund_quote_type != "ETF":
                 return {
                     "entity_type": "security",
                     "classification_status": "unsupported",
-                    "classification_source": (
-                        "Yahoo Finance fund quote type"
-                    ),
+                    "classification_source": "Yahoo Finance fund quote type",
                     "quote_type": fund_quote_type
                 }
             if fund_quote_type == "ETF":
@@ -117,6 +142,8 @@ class ETFFundProvider:
                     "Yahoo Finance fund quote type"
                 )
                 result.pop("classification_error", None)
+            if classification_source == "curated ETF ticker registry":
+                result["classification_status"] = "resolved"
             result["etf_context"] = etf_context
         return result
 

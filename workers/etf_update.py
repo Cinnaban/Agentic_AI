@@ -31,6 +31,7 @@ from agents.ollama_client import (
     OllamaClient
 )
 from workers.etf_portfolio_evaluation import (
+    format_change_direction,
     generate_etf_portfolio_appendix
 )
 
@@ -108,12 +109,23 @@ def generate_summary(results):
 		lines.append("")
 
 		for change in results["changes"]:
+			direction = format_change_direction(
+				change.get("field"),
+				change.get("old"),
+				change.get("new")
+			)
+			direction_label = (
+				f" | {direction}"
+				if direction
+				else ""
+			)
 
 			lines.append(
 				f"{change['ticker']} | "
 				f"{change['field']} | "
 				f"{change['old']} -> "
 				f"{change['new']}"
+				f"{direction_label}"
 			)
 
 	else:

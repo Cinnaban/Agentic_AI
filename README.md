@@ -195,13 +195,17 @@ ETF model outputs.
 ### Portfolio Evaluation
 
 Portfolio holdings with percentage weights are classified individually using
-Yahoo Finance quote metadata before quant evaluation. Confirmed stocks and ETFs
+Yahoo Finance quote/fund metadata and a small curated fallback for common ETF
+tickers (including SCHD) before quant evaluation. Classified stocks and ETFs
 are sent through their respective analysis paths; unresolved instruments are
 identified as unclassified and are not silently treated as stocks. Portfolio
-summaries report the stock/ETF mix, stated allocation totals, holding-level
-coverage, and ETF fund profile data when available. ETF holdings are not
-described with company operating or valuation metrics, and any allocation
-whose supplied weights do not total 100% is reported without normalization.
+summaries report the stock/ETF mix, stated allocation totals, stock sector
+classifications, separate ETF sector exposures, holding-level coverage, and
+ETF fund profile data when available. Each portfolio response includes an
+allocation bar chart by holding, colored by instrument type. ETF holdings are
+not described with company operating or valuation metrics, and allocations
+whose supplied weights do not total 100% are charted as stated rather than
+normalized.
 Supply holdings one per line, for example:
 
 ```text
@@ -363,7 +367,9 @@ launchd
 The appended evaluation reports unweighted averages and coverage for retrieved
 expense-ratio, distribution-yield, and beta data. Since the current sheet
 process does not read holding weights, it explicitly does not present these
-averages as portfolio-weighted exposure.
+averages as portfolio-weighted exposure. EPS and dividend-yield changes in the
+sheet-change summary are marked green for increases and red for decreases;
+direction is not inferred when either value is unavailable.
 
 The job is scheduled on the Mac Mini through `launchd` for:
 

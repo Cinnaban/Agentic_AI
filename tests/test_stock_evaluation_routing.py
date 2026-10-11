@@ -44,6 +44,8 @@ class InstrumentTypeProvider:
             "entity_type": entity_type,
             "classification_status": "resolved",
             "classification_source": "test",
+            "sector": "Technology",
+            "industry": "Semiconductors",
             "etf_context": {
                 "status": "available"
             } if entity_type == "etf" else None
@@ -61,7 +63,9 @@ class PortfolioInstrumentTypeProvider:
         if ticker == "NVDA":
             return {
                 "entity_type": "stock",
-                "classification_status": "resolved"
+                "classification_status": "resolved",
+                "sector": "Technology",
+                "industry": "Semiconductors"
             }
         return {
             "entity_type": "security",
@@ -117,6 +121,8 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         workflow = self.hermes.build_workflow("Analyze Nvidia")
 
         self.assertEqual(workflow.companies[0]["entity_type"], "stock")
+        self.assertEqual(workflow.companies[0]["sector"], "Technology")
+        self.assertEqual(workflow.companies[0]["industry"], "Semiconductors")
         self.assertTrue(workflow.required_agents["quant"])
 
     def test_portfolio_evaluation_keeps_portfolio_route(self):
@@ -151,6 +157,8 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         result = self.hermes._classify_portfolio_holdings(holdings)
 
         self.assertEqual(result[0]["entity_type"], "stock")
+        self.assertEqual(result[0]["sector"], "Technology")
+        self.assertEqual(result[0]["industry"], "Semiconductors")
         self.assertEqual(result[1]["entity_type"], "etf")
         self.assertEqual(result[1]["etf_context"]["status"], "available")
         self.assertEqual(result[2]["entity_type"], "unresolved")

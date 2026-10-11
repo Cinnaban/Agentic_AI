@@ -26,6 +26,7 @@ class PortfolioEvaluationAgent:
             "etf": 0.0,
             "unresolved": 0.0
         }
+        stock_sector_weights = {}
         has_weight = False
 
         for holding in holdings:
@@ -43,6 +44,13 @@ class PortfolioEvaluationAgent:
             ):
                 weights[entity_type] += weight
                 has_weight = True
+                sector = holding.get("sector")
+                if entity_type == "stock" and isinstance(sector, str):
+                    sector = sector.strip()
+                    if sector:
+                        stock_sector_weights[sector] = (
+                            stock_sector_weights.get(sector, 0.0) + weight
+                        )
 
         lines = [
             "Portfolio Composition",
@@ -78,6 +86,68 @@ class PortfolioEvaluationAgent:
             lines.append(
                 "- Unclassified holdings are excluded from stock/ETF "
                 "comparisons until their instrument type can be verified."
+            )
+        if stock_sector_weights:
+            sector_summary = ", ".join(
+                f"{sector} {weight:.2f}%"
+                for sector, weight in sorted(
+                    stock_sector_weights.items(),
+                    key=lambda item: item[1],
+                    reverse=True
+                )
+            )
+            lines.append(
+                "- Stock sector classification by stated portfolio weight: "
+                + sector_summary
+                + "."
+            )
+        elif counts["stock"]:
+            lines.append(
+                "- Stock sector classification is unavailable from the "
+                "retrieved instrument metadata."
+            )
+
+        etf_sector_summaries = []
+        for holding in holdings:
+            if (
+                not isinstance(holding, dict)
+                or holding.get("entity_type") != "etf"
+            ):
+                continue
+            fund_data = holding.get("etf_context", {})
+            if not isinstance(fund_data, dict):
+                continue
+            sector_weightings = fund_data.get("sector_weightings", {})
+            if not isinstance(sector_weightings, dict) or not sector_weightings:
+                continue
+            sector_parts = []
+            for sector, value in sorted(
+                sector_weightings.items(),
+                key=lambda item: (
+                    item[1] if isinstance(item[1], (int, float)) else -1
+                ),
+                reverse=True
+            )[:4]:
+                if isinstance(value, (int, float)):
+                    sector_parts.append(f"{sector} {value * 100:.1f}%")
+                elif value not in (None, ""):
+                    sector_parts.append(f"{sector} {value}")
+            if sector_parts:
+                ticker = str(holding.get("ticker", "")).upper()
+                etf_sector_summaries.append(
+                    f"{ticker}: " + ", ".join(sector_parts)
+                )
+        if etf_sector_summaries:
+            lines.append(
+                "- ETF reported sector exposures (per fund; not added to "
+                "portfolio stock-sector weights): "
+                + "; ".join(etf_sector_summaries)
+                + "."
+            )
+        elif counts["etf"]:
+            lines.append(
+                "- ETF sector exposures are unavailable from the retrieved "
+                "fund profiles."
             )
         return "\n".join(lines)
 
@@ -277,6 +347,10 @@ class PortfolioEvaluationAgent:
                     etf_context = {}
                 fund_overview = etf_context.get("fund_overview", {})
                 asset_classes = etf_context.get("asset_classes", {})
+                sector_weightings = etf_context.get(
+                    "sector_weightings",
+                    {}
+                )
                 top_holdings = etf_context.get("top_holdings", [])
                 profile_items = []
                 if isinstance(asset_classes, dict):
@@ -285,6 +359,16 @@ class PortfolioEvaluationAgent:
                         for name, value in asset_classes.items()
                         if value not in (None, "", 0, 0.0)
                     )
+                if isinstance(sector_weightings, dict):
+                    sectors = []
+                    for sector, weight in sector_weightings.items():
+                        if not isinstance(weight, (int, float)):
+                            continue
+                        sectors.append(f"{sector} {weight * 100:.1f}%")
+                    if sectors:
+                        profile_items.append(
+                            "sector exposures: " + ", ".join(sectors[:4])
+                        )
                 if isinstance(fund_overview, dict):
                     for key in ("category", "legalType", "family"):
                         value = fund_overview.get(key)
