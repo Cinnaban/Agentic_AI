@@ -157,13 +157,33 @@ class RiskAgent:
             in risk_context.items()
             if value is not None
         ]
+        is_etf = (
+            isinstance(company, dict)
+            and company.get("entity_type") == "etf"
+        )
+        instrument_risk_guidance = (
+            """
+For this ETF, ground concentration and sector risk in supplied
+holdings and sector weights. Discuss fees only when supplied.
+Do not infer liquidity, tracking error, counterparty exposure, or
+fund structure risks without evidence. Company-level business,
+competitive, and technology risks are not fund-issuer risks.
+"""
+            if is_etf
+            else ""
+        )
         
         prompt = f"""
 You are the Hermes Market Risk Analyst.
 
-Evaluate investment-related risks for the company below.
+Evaluate investment-related risks for the instrument below.
+If the instrument is an ETF, focus on fund-level market,
+holdings-concentration, sector, liquidity, and fee risks.
+Do not describe an ETF as an operating company or use its
+holdings as evidence of the fund issuer's operating results.
+{instrument_risk_guidance}
 
-Company:
+Instrument:
 {json.dumps(company, indent=2)}
 
 Quantitative Analysis: 

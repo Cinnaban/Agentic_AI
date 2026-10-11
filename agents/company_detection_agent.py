@@ -279,9 +279,11 @@ class CompanyDetectionAgent:
             dict
         ):
             return {
-                "is_company_request": False,
+                "is_company_request": bool(
+                    explicit_entities
+                ),
                 "intent": "general_information",
-                "companies": []
+                "companies": explicit_entities
             }
 
         model_response = response.get(
@@ -291,9 +293,11 @@ class CompanyDetectionAgent:
 
         if not model_response:
             return {
-                "is_company_request": False,
+                "is_company_request": bool(
+                    explicit_entities
+                ),
                 "intent": "general_information",
-                "companies": []
+                "companies": explicit_entities
             }
 
         print(model_response)

@@ -494,6 +494,28 @@ class AgentExecutor:
                     company
                 )
             )
+        if company.get("entity_type") == "etf":
+            if not isinstance(market_context, dict):
+                market_context = {}
+            etf_context = company.get("etf_context")
+            if not isinstance(etf_context, dict):
+                etf_context = {
+                    "status": "unavailable",
+                    "source": "Yahoo Finance",
+                    "error": (
+                        "ETF fund data was not supplied "
+                        "during instrument classification."
+                    )
+                }
+            market_context["etf_fund_data"] = etf_context
+            source_status = market_context.get("source_status")
+            if not isinstance(source_status, dict):
+                source_status = {}
+                market_context["source_status"] = source_status
+            source_status["etf_fund_data"] = etf_context.get(
+                "status",
+                "unavailable"
+            )
 # RESEARCH
         if required_agents.get(
             "research",

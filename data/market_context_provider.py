@@ -264,19 +264,27 @@ class MarketContextProvider:
             )
         )
 
-        sec_filings = (
-            self.sec_provider
-            .normalize_recent_filings(
-                company=company,
-                limit=5
-            )
+        is_etf = (
+            isinstance(company, dict)
+            and company.get("entity_type") == "etf"
         )
-        raw_sec_facts = (
-            self.sec_provider
-            .get_company_facts(
-                company
+        if is_etf:
+            sec_filings = []
+            raw_sec_facts = {}
+        else:
+            sec_filings = (
+                self.sec_provider
+                .normalize_recent_filings(
+                    company=company,
+                    limit=5
+                )
             )
-        )
+            raw_sec_facts = (
+                self.sec_provider
+                .get_company_facts(
+                    company
+                )
+            )
 
         sec_facts = (
             self.sec_fact_builder.build(
@@ -383,14 +391,22 @@ class MarketContextProvider:
                         else "unavailable"
                     ),
                 "sec_facts": (
-                    "available"
-                    if has_sec_facts
-                    else "unavailable"
+                    "not_applicable"
+                    if is_etf
+                    else (
+                        "available"
+                        if has_sec_facts
+                        else "unavailable"
+                    )
                 ),
                 "sec_filings": (
-                    "available"
-                    if sec_filings
-                    else "unavailable"
+                    "not_applicable"
+                    if is_etf
+                    else (
+                        "available"
+                        if sec_filings
+                        else "unavailable"
+                    )
                 ),
                 "macro": (
                     "available"

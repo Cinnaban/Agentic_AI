@@ -92,6 +92,12 @@ class FinancialMetricBuilder:
             dict
         ):
             sec_fact_values = {}
+
+        company = market_context.get("company", {})
+        is_etf = (
+            isinstance(company, dict)
+            and company.get("entity_type") == "etf"
+        )
         
 
         quant_analysis = {}
@@ -217,47 +223,47 @@ class FinancialMetricBuilder:
             "number",
             "market"
         )
-        revenue_fact = self._get_sec_fact(
+        revenue_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "revenue"
         )
 
-        net_income_fact = self._get_sec_fact(
+        net_income_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "net_income"
         )
 
-        operating_income_fact = self._get_sec_fact(
+        operating_income_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "operating_income"
         )
 
-        assets_fact = self._get_sec_fact(
+        assets_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "assets"
         )
 
-        liabilities_fact = self._get_sec_fact(
+        liabilities_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "liabilities"
         )
 
-        equity_fact = self._get_sec_fact(
+        equity_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "stockholders_equity"
         )
 
-        cash_fact = self._get_sec_fact(
+        cash_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "cash"
         )
 
-        receivable_fact = self._get_sec_fact(
+        receivable_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "accounts_receivable"
         )
 
-        payable_fact = self._get_sec_fact(
+        payable_fact = None if is_etf else self._get_sec_fact(
             sec_fact_values,
             "accounts_payable"
         )

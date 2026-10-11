@@ -134,6 +134,12 @@ class ResearchAgent:
                     {}
                 ),
 
+            "etf_fund_data":
+                market_context.get(
+                    "etf_fund_data",
+                    {}
+                ),
+
             "news":
                 market_context.get(
                     "news",
@@ -155,6 +161,16 @@ class ResearchAgent:
                     )
                     .get(
                         "financial_data"
+                    ),
+
+                "etf_fund_data":
+                    market_context
+                    .get(
+                        "source_status",
+                        {}
+                    )
+                    .get(
+                        "etf_fund_data"
                     ),
 
                 "sec_facts":
@@ -226,9 +242,53 @@ class ResearchAgent:
             }
         }        
         
-        prompt = f"""
-You are a professional market research analyst.
+        is_etf = (
+            isinstance(company, dict)
+            and company.get("entity_type") == "etf"
+        )
+        if is_etf:
+            sec_fact_guidance = """
+- SEC company facts are not operating-fund financial statements.
+- No issuer revenue, earnings, or balance-sheet claim may be
+  inferred from an ETF's holdings or from unavailable SEC facts.
+- Use only supplied ETF fund profile data for fund-level evidence.
+"""
+            current_subject = "fund"
+            financial_interpretation_guidance = """
+- SEC company financial facts are not applicable to this ETF
+  evaluation unless explicitly supplied and identified as belonging
+  to the fund itself.
+- Distinguish fund-level profile and exposure data from the
+  operating-company fundamentals of underlying holdings.
+"""
+            analysis_instructions = """
+Provide:
 
+1. Fund Profile and Stated Strategy
+2. Portfolio and Sector Exposure
+3. Fees and Fund Structure
+4. Performance or Risk Characteristics only when supplied
+5. Material Risks and Evidence Limitations
+
+Treat this instrument as an ETF, not as an operating company.
+Use the supplied fund profile, holdings, asset classes, and
+sector weights as fund-level evidence. Do not describe ETF
+holdings as the fund issuer's revenue, earnings, or business
+segments. Do not infer missing fund characteristics.
+"""
+        else:
+            sec_fact_guidance = """
+- Treat SEC facts as authoritative reported company financial evidence.
+- These values come from company filings reported through the SEC.
+- When SEC facts and model-derived financial ratings differ, clearly
+  distinguish the two instead of silently choosing one.
+"""
+            current_subject = "company"
+            financial_interpretation_guidance = """
+- If SEC-reported evidence directly supports a financial statement,
+  prefer that evidence and identify it as SEC-reported.
+"""
+            analysis_instructions = """
 Provide:
 
 1. Company Overview
@@ -237,13 +297,20 @@ Provide:
 4. Major Risks
 5. Key Strengths
 6. Social Considerations
+"""
+
+        prompt = f"""
+You are a professional market research analyst.
+
+{analysis_instructions}
+
 - Discuss only when materially relevant.
 - Do not repeat discussion volume.
 - Do not repeat discussion platforms.
 - Do not repeat discussion themes verbatim.
 - Interpret significance instead.
 
-Company:
+Instrument:
 
 {company}
 
@@ -264,13 +331,7 @@ SOCIAL DISCUSSION SUMMARY:
 EVIDENCE HIERARCHY:
 
 SEC Facts
-   - Treat SEC facts as authoritative reported company
-     financial evidence.
-   - These values come from company filings reported
-     through the SEC.
-   - When SEC facts and model-derived financial ratings
-     differ, clearly distinguish the two instead of
-     silently choosing one.
+{sec_fact_guidance}
 
 SEC Filings
    - SEC filing metadata proves that a filing occurred.
@@ -328,10 +389,9 @@ CURRENT INFORMATION RULES:
   "this month", or another time-sensitive request,
   current-event claims must be grounded in supplied
   timestamped evidence.
-- For current company developments, prefer supplied
+- For current {current_subject} developments, prefer supplied
   Live Market Context over model memory.
-- SEC remains authoritative for supplied
-  company-reported financial facts.
+- {("SEC remains authoritative for supplied company-reported financial facts." if not is_etf else "Do not treat underlying holdings' SEC filings as facts about the ETF itself.")}
 - FRED remains authoritative for supplied
   macroeconomic observations.
 - Gaming PC quantitative fields remain model-derived
@@ -415,9 +475,7 @@ FINANCIAL INTERPRETATION RULES:
   quantitative model assessments,
   and qualitative background context.
 
-- If SEC-reported evidence directly supports a financial
-  statement, prefer that evidence and identify it as
-  SEC-reported.
+{financial_interpretation_guidance}
 
 MACRO INTERPRETATION RULES:
 

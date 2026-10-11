@@ -25,6 +25,20 @@ class AssignmentAgent:
         }
 
 
+class InstrumentTypeProvider:
+
+    def resolve(self, ticker, message):
+        entity_type = "etf" if "ETF" in message.upper() else "stock"
+        return {
+            "entity_type": entity_type,
+            "classification_status": "resolved",
+            "classification_source": "test",
+            "etf_context": {
+                "status": "available"
+            } if entity_type == "etf" else None
+        }
+
+
 class StockEvaluationRoutingTests(unittest.TestCase):
 
     def setUp(self):
@@ -45,14 +59,18 @@ class StockEvaluationRoutingTests(unittest.TestCase):
             ]
         })
         self.hermes.assignment_agent = AssignmentAgent()
+        self.hermes.etf_fund_provider = InstrumentTypeProvider()
 
-    def test_explicit_single_ticker_evaluation_requires_quant(self):
+    def test_explicit_single_etf_evaluation_requires_quant_research_and_risk(self):
         workflow = self.hermes.build_workflow(
             "Evaluate the ETF EUV"
         )
 
         self.assertEqual(workflow.companies[0]["ticker"], "EUV")
+        self.assertEqual(workflow.companies[0]["entity_type"], "etf")
         self.assertTrue(workflow.required_agents["quant"])
+        self.assertTrue(workflow.required_agents["research"])
+        self.assertTrue(workflow.required_agents["risk"])
 
     def test_portfolio_evaluation_keeps_portfolio_route(self):
         workflow = self.hermes.build_workflow(

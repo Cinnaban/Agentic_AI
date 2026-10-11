@@ -165,6 +165,33 @@ Hermes
  -> response
 ```
 
+### Single ETF Evaluation
+
+Example:
+
+```text
+Evaluate SOXX
+```
+
+An explicit ETF request is kept separate from portfolio evaluation. The
+orchestrator resolves an instrument type from the user's explicit wording or
+Yahoo Finance quote metadata, preserves `entity_type: "etf"` in the Gaming PC
+compute payload, and retrieves fund-level evidence such as expense ratio, net
+assets, top holdings, asset classes, and sector weights. ETF research and risk
+prompts focus on fund exposures and do not treat the ETF as an operating
+company; issuer-level SEC financial statements are marked not applicable.
+
+If type metadata cannot be resolved, the request remains a security evaluation
+and the classification uncertainty is retained rather than silently claiming
+the ticker is an equity or ETF. ETF fund evidence can also be unavailable; that
+limitation is surfaced in the response.
+
+The Gaming PC service implementation is maintained separately from this
+repository. The Mac-side request now includes the ETF type and fund evidence,
+but ETF-specific remote quant calculations require the Gaming PC service to
+consume those fields; validate that service contract before relying on remote
+ETF model outputs.
+
 ### Current Company Analysis
 
 Example:
@@ -200,6 +227,7 @@ The project intentionally separates evidence by source and purpose.
 | SEC | Company-reported financial facts and filing metadata |
 | FRED | Macroeconomic observations |
 | Gaming PC | Quantitative/model-derived financial analysis |
+| Yahoo Finance ETF metadata | ETF quote type, fund profile, fees, assets, holdings, and sector weights |
 | DDGS | Current web/news discovery |
 | Firecrawl | Retrieval and extraction of selected web pages |
 | Model knowledge | Background context only, not authoritative current evidence |
@@ -378,6 +406,7 @@ The GitHub Actions workflow compiles application modules and runs a selected det
 .venv/bin/python -m compileall -q agents configs data financial_engine integrations job_queue memory orchestrator security shared_storage utils workers
 .venv/bin/python -m unittest discover -s tests -p 'test_evidence_provenance.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_stock_evaluation_routing.py'
+.venv/bin/python -m unittest discover -s tests -p 'test_etf_evaluation.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_quant_priority.py'
 .venv/bin/python tests/test_freshness_detector.py
 .venv/bin/python tests/test_followup_resolver.py

@@ -127,7 +127,8 @@ class EvidenceProvenance:
                 "macro": "FRED macroeconomic data",
                 "live_market_context": "current news sources",
                 "news": "company news feeds",
-                "social": "public social discussion"
+                "social": "public social discussion",
+                "etf_fund_data": "ETF fund profile and holdings"
             }
 
             available = []
@@ -176,6 +177,8 @@ class EvidenceProvenance:
                         )
                         if not social_sources:
                             available.append(label)
+                    elif key == "etf_fund_data":
+                        available.append(label)
                     else:
                         available.append(label)
                 elif status == "unavailable":

@@ -55,6 +55,7 @@ from agents.portfolio_evaluation_agent import (
 from data.providers.portfolio_context_provider import (
     PortfolioContextProvider
 )
+from data.providers.etf_fund_provider import ETFFundProvider
 from orchestrator.comparison_intent import (
     ComparisonIntent
 )
@@ -133,6 +134,7 @@ class Hermes:
         self.portfolio_context_provider = (
             PortfolioContextProvider()
         )
+        self.etf_fund_provider = ETFFundProvider()
         self.financial_table_formatter = (
             FinancialTableFormatter()
         )
@@ -407,6 +409,32 @@ class Hermes:
 
         if is_explicit_security_evaluation:
             intent = "evaluation"
+            if len(companies) == 1:
+                company = dict(companies[0])
+                classification = (
+                    self.etf_fund_provider.resolve(
+                        company["ticker"],
+                        message
+                    )
+                )
+                company["entity_type"] = classification.get(
+                    "entity_type",
+                    "security"
+                )
+                company["instrument_classification"] = {
+                    key: value
+                    for key, value in classification.items()
+                    if key not in {
+                        "entity_type",
+                        "etf_context"
+                    }
+                }
+                if classification.get("etf_context") is not None:
+                    company["etf_context"] = classification[
+                        "etf_context"
+                    ]
+                companies = [company]
+                company_result["companies"] = companies
         
         evaluation_keywords = {
             "evaluate",
@@ -495,6 +523,9 @@ class Hermes:
 
         if is_explicit_security_evaluation:
             assignment_result["quant"] = True
+            if companies[0].get("entity_type") == "etf":
+                assignment_result["research"] = True
+                assignment_result["risk"] = True
 
         work_package = (
             self.job_factory
@@ -2944,6 +2975,12 @@ class Hermes:
             sections.append(
                 financial_table
             )
+
+        etf_section = self._build_etf_fund_section(
+            market_context
+        )
+        if etf_section:
+            sections.append(etf_section)
             
         if evidence_section:
             sections.append(
@@ -3041,4 +3078,145 @@ class Hermes:
 
         return "\n\n".join(
             sections
-        )   
+        )
+
+    def _build_etf_fund_section(self, market_context):
+        if not isinstance(market_context, dict):
+            return ""
+        company = market_context.get("company")
+        if (
+            not isinstance(company, dict)
+            or company.get("entity_type") != "etf"
+        ):
+            return ""
+
+        classification = company.get(
+            "instrument_classification"
+        )
+        classification_status = (
+            classification.get("classification_status")
+            if isinstance(classification, dict)
+            else None
+        )
+        context = market_context.get("etf_fund_data")
+        if not isinstance(context, dict):
+            warning = (
+                "\nInstrument type was not verified against "
+                "fund metadata."
+                if classification_status == "unverified"
+                else ""
+            )
+            return (
+                "ETF Fund Profile:\n"
+                "Fund profile and holdings data were unavailable."
+                + warning
+            )
+        if context.get("status") != "available":
+            message = "Fund profile and holdings data were unavailable"
+            if context.get("error"):
+                message += f": {context['error']}"
+            else:
+                message += "."
+            if classification_status == "unverified":
+                message += (
+                    "\nInstrument type was not verified against "
+                    "fund metadata."
+                )
+            return "ETF Fund Profile:\n" + message
+
+        lines = ["ETF Fund Profile:"]
+        if classification_status == "unverified":
+            lines.append(
+                "- Instrument type: ETF (explicit user label; "
+                "metadata unverified)"
+            )
+        overview = context.get("fund_overview")
+        if isinstance(overview, dict):
+            labels = {
+                "categoryName": "Category",
+                "family": "Fund family",
+                "legalType": "Legal structure"
+            }
+            lines.extend(
+                f"- {label}: {overview[key]}"
+                for key, label in labels.items()
+                if overview.get(key) not in (None, "")
+            )
+
+        operations = context.get("fund_operations")
+        if isinstance(operations, list):
+            operation_labels = {
+                "Annual Report Expense Ratio": "Expense ratio",
+                "Annual Holdings Turnover": "Holdings turnover",
+                "Total Net Assets": "Net assets"
+            }
+            for operation in operations:
+                if not isinstance(operation, dict):
+                    continue
+                label = operation_labels.get(
+                    operation.get("key")
+                )
+                value = operation.get(company.get("ticker"))
+                if label and value is not None:
+                    if isinstance(value, (int, float)):
+                        if label == "Net assets":
+                            value = f"${value:,.0f}"
+                        else:
+                            value = f"{value * 100:.2f}%"
+                    lines.append(f"- {label}: {value}")
+
+        asset_classes = context.get("asset_classes")
+        if isinstance(asset_classes, dict) and asset_classes:
+            class_summary = ", ".join(
+                f"{asset_class}: {weight * 100:.2f}%"
+                if isinstance(weight, (int, float))
+                else f"{asset_class}: {weight}"
+                for asset_class, weight in asset_classes.items()
+                if weight is not None
+            )
+            if class_summary:
+                lines.append(f"- Asset classes: {class_summary}")
+
+        holdings = context.get("top_holdings")
+        if isinstance(holdings, list) and holdings:
+            lines.append("- Top holdings:")
+            for holding in holdings:
+                if not isinstance(holding, dict):
+                    continue
+                name = holding.get("Name")
+                symbol = holding.get("key")
+                weight = holding.get("Holding Percent")
+                if name or symbol:
+                    label = " ".join(
+                        str(value)
+                        for value in (
+                            name,
+                            f"({symbol})" if symbol else ""
+                        )
+                        if value
+                    )
+                    if weight is not None:
+                        if isinstance(weight, (int, float)):
+                            weight = f"{weight * 100:.2f}%"
+                        label += f": {weight}"
+                    lines.append(f"  - {label}")
+
+        sectors = context.get("sector_weightings")
+        if isinstance(sectors, dict) and sectors:
+            sector_summary = ", ".join(
+                (
+                    f"{sector}: {weight * 100:.2f}%"
+                    if isinstance(weight, (int, float))
+                    else f"{sector}: {weight}"
+                )
+                for sector, weight in sectors.items()
+                if weight is not None
+            )
+            if sector_summary:
+                lines.append(f"- Sector weightings: {sector_summary}")
+
+        if len(lines) == 1:
+            lines.append(
+                "Fund profile and holdings data were unavailable."
+            )
+        return "\n".join(lines)
