@@ -951,6 +951,10 @@ Agentic_AI validates the service through its Firecrawl health/scrape tests.
 - Gaming PC outputs are explicitly model-derived quantitative evidence.
 - Search engines discover material but are not the publishers of claims.
 - Firecrawl retrieves pages but is not the publisher.
+- General factual responses prioritize a discovered official homepage,
+  retrieve it through Firecrawl, and label any interpretation as based on
+  that organization's own public-facing content. Retrieved claims remain
+  source-cited; unsupported current-project claims are not inferred.
 - The original publisher/page remains the web evidence source.
 - Private or unresolved companies must not be assigned invented public tickers.
 - No usable public ticker means no Gaming PC financial-model request.

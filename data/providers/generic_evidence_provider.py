@@ -446,6 +446,9 @@ class GenericEvidenceProvider:
             deduplicated,
             subject
         )
+        deduplicated = self._add_official_homepage_candidate(
+            deduplicated
+        )
         deduplicated = self._select_diverse_sources(
             deduplicated,
             limit=8
@@ -454,7 +457,8 @@ class GenericEvidenceProvider:
         enriched = (
             self._enrich(
                 deduplicated,
-                page_limit=page_limit
+                page_limit=page_limit,
+                subject=subject
             )
         )
         social_context = {
@@ -522,6 +526,7 @@ class GenericEvidenceProvider:
                         "publisher": result.get("source"),
                         "url": result.get("url"),
                         "source_role": result.get("source_role"),
+                        "page_kind": result.get("page_kind"),
                         "evidence_level": result.get(
                             "evidence_level",
                             "search_snippet"
@@ -684,10 +689,47 @@ class GenericEvidenceProvider:
             result["source_id"] = f"S{index}"
         return selected
 
+    def _add_official_homepage_candidate(self, results):
+        for result in results:
+            if result.get("source_role") != "official_candidate":
+                continue
+            try:
+                parsed = urlsplit(result.get("url", ""))
+            except (TypeError, ValueError):
+                continue
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+            ):
+                continue
+
+            homepage_url = urlunsplit((
+                parsed.scheme,
+                parsed.netloc,
+                "/",
+                "",
+                ""
+            ))
+            normalized_homepage = self._normalize_url(homepage_url)
+            for existing in results:
+                if self._normalize_url(existing.get("url")) == normalized_homepage:
+                    existing["page_kind"] = "official_homepage"
+                    return results
+
+            homepage = dict(result)
+            homepage.update({
+                "url": homepage_url,
+                "page_kind": "official_homepage",
+                "search_query": "Official website homepage"
+            })
+            return [homepage] + results
+        return results
+
     def _enrich(
         self,
         results,
-        page_limit=None
+        page_limit=None,
+        subject=None
     ):
 
 
@@ -801,6 +843,36 @@ class GenericEvidenceProvider:
 
                     continue
 
+                metadata = scraped.get("metadata")
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                scraped_title = metadata.get("title")
+                original_title_terms = set(
+                    self._subject_terms(result.get("title"))
+                )
+                scraped_title_terms = set(
+                    self._subject_terms(scraped_title)
+                )
+                title_matches_result = (
+                    not original_title_terms
+                    or not scraped_title_terms
+                    or bool(original_title_terms & scraped_title_terms)
+                )
+                content_matches_subject = (
+                    not subject
+                    or self._is_relevant_to_subject(
+                        {
+                            "title": scraped_title or "",
+                            "summary": markdown
+                        },
+                        subject
+                    )
+                )
+                if not title_matches_result or not content_matches_subject:
+                    result.pop("content", None)
+                    result["evidence_level"] = "search_snippet"
+                    continue
+
 
                 result[
                     "content"
@@ -811,30 +883,16 @@ class GenericEvidenceProvider:
                     "content_retrieved_by"
                 ] = "Firecrawl"
                 result["evidence_level"] = "retrieved_webpage"
-                metadata = scraped.get("metadata")
-                if isinstance(metadata, dict):
-                    scraped_title = metadata.get("title")
-                    if (
-                        isinstance(scraped_title, str)
-                        and scraped_title.strip()
-                    ):
-                        original_title_terms = set(
-                            self._subject_terms(result.get("title"))
-                        )
-                        scraped_title_terms = set(
-                            self._subject_terms(scraped_title)
-                        )
-                        shared_title_terms = (
-                            original_title_terms & scraped_title_terms
-                        )
-                        if (
-                            original_title_terms
-                            and not shared_title_terms
-                        ):
-                            result.pop("content", None)
-                            result["evidence_level"] = "search_snippet"
-                            continue
-                        result["title"] = scraped_title.strip()
+                result["content_retrieved_by"] = (
+                    scraped.get("retrieved_by", "Firecrawl")
+                )
+                result["page_title"] = (
+                    scraped_title.strip()
+                    if isinstance(scraped_title, str)
+                    else ""
+                )
+                if isinstance(scraped_title, str) and scraped_title.strip():
+                    result["title"] = scraped_title.strip()
 
 
                 enriched_count += 1
