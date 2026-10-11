@@ -206,6 +206,13 @@ class TelegramBot:
                     part
                 )
 
+            for attachment in self.formatter.get_attachments(result):
+                with open(attachment["path"], "rb") as chart:
+                    await message.reply_photo(
+                        photo=chart,
+                        caption=attachment.get("caption") or None
+                    )
+
             await status_message.delete()
             
         except Exception as exc:
@@ -228,6 +235,10 @@ class TelegramBot:
             except Exception:
 
                 pass
+        finally:
+            self.formatter.cleanup_attachments(
+                locals().get("result")
+            )
     
     def run(
         self

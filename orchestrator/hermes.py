@@ -56,6 +56,9 @@ from data.providers.portfolio_context_provider import (
     PortfolioContextProvider
 )
 from data.providers.etf_fund_provider import ETFFundProvider
+from data.providers.performance_chart_provider import (
+    PerformanceChartProvider
+)
 from orchestrator.comparison_intent import (
     ComparisonIntent
 )
@@ -135,6 +138,9 @@ class Hermes:
             PortfolioContextProvider()
         )
         self.etf_fund_provider = ETFFundProvider()
+        self.performance_chart_provider = (
+            PerformanceChartProvider()
+        )
         self.financial_table_formatter = (
             FinancialTableFormatter()
         )
@@ -409,32 +415,6 @@ class Hermes:
 
         if is_explicit_security_evaluation:
             intent = "evaluation"
-            if len(companies) == 1:
-                company = dict(companies[0])
-                classification = (
-                    self.etf_fund_provider.resolve(
-                        company["ticker"],
-                        message
-                    )
-                )
-                company["entity_type"] = classification.get(
-                    "entity_type",
-                    "security"
-                )
-                company["instrument_classification"] = {
-                    key: value
-                    for key, value in classification.items()
-                    if key not in {
-                        "entity_type",
-                        "etf_context"
-                    }
-                }
-                if classification.get("etf_context") is not None:
-                    company["etf_context"] = classification[
-                        "etf_context"
-                    ]
-                companies = [company]
-                company_result["companies"] = companies
         
         evaluation_keywords = {
             "evaluate",
@@ -523,7 +503,41 @@ class Hermes:
 
         if is_explicit_security_evaluation:
             assignment_result["quant"] = True
-            if companies[0].get("entity_type") == "etf":
+
+        if assignment_result.get("quant"):
+            classified_companies = []
+            for company in company_result["companies"]:
+                company = dict(company)
+                classification = self.etf_fund_provider.resolve(
+                    company["ticker"],
+                    message
+                )
+                company["entity_type"] = classification.get(
+                    "entity_type",
+                    "security"
+                )
+                company["instrument_classification"] = {
+                    key: value
+                    for key, value in classification.items()
+                    if key not in {
+                        "entity_type",
+                        "etf_context"
+                    }
+                }
+                for field in ("industry", "sector"):
+                    if classification.get(field):
+                        company[field] = classification[field]
+                if classification.get("etf_context") is not None:
+                    company["etf_context"] = classification[
+                        "etf_context"
+                    ]
+                classified_companies.append(company)
+            company_result["companies"] = classified_companies
+
+            if any(
+                company.get("entity_type") == "etf"
+                for company in classified_companies
+            ):
                 assignment_result["research"] = True
                 assignment_result["risk"] = True
 
@@ -2053,6 +2067,11 @@ class Hermes:
                         execution_results
                 }
 
+                self._add_performance_charts(
+                    final_response,
+                    execution_results,
+                    work_package
+                )
 
                 safe_response = (
                     self.outbound_gate
@@ -2238,6 +2257,12 @@ class Hermes:
                     final_response[
                         "response"
                     ] = response_text
+
+                self._add_performance_charts(
+                    final_response,
+                    execution_results,
+                    work_package
+                )
 
             else:
 
@@ -3220,3 +3245,102 @@ class Hermes:
                 "Fund profile and holdings data were unavailable."
             )
         return "\n".join(lines)
+
+    def _add_performance_charts(
+        self,
+        response,
+        execution_results,
+        work_package
+    ):
+        if not isinstance(execution_results, dict):
+            return
+
+        quant = execution_results.get("quant")
+        quant_results = (
+            quant.get("results", [])
+            if isinstance(quant, dict)
+            else []
+        )
+        if not isinstance(quant_results, list) or not quant_results:
+            return
+
+        quantified_tickers = set()
+        for result in quant_results:
+            if not isinstance(result, dict):
+                continue
+            company = result.get("company")
+            if not isinstance(company, dict):
+                continue
+            ticker = str(company.get("ticker") or "").strip().upper()
+            if ticker:
+                quantified_tickers.add(ticker)
+
+        attachments = []
+        status_lines = [
+            "Performance charts (trailing 1 year):"
+        ]
+        companies = getattr(work_package, "companies", [])
+        if not isinstance(companies, list):
+            return
+        for company in companies:
+            if not isinstance(company, dict):
+                continue
+            ticker = str(company.get("ticker") or "").strip().upper()
+            if ticker not in quantified_tickers:
+                continue
+
+            try:
+                chart = self.performance_chart_provider.generate(company)
+            except Exception as exc:
+                chart = {
+                    "status": "failed",
+                    "ticker": ticker,
+                    "error": (
+                        "Chart generation encountered an error: "
+                        f"{exc}"
+                    )
+                }
+
+            if (
+                isinstance(chart, dict)
+                and chart.get("status") == "completed"
+                and chart.get("path")
+            ):
+                attachments.append({
+                    "path": chart["path"],
+                    "filename": f"{ticker}_performance_1y.png",
+                    "caption": chart.get("caption", "")
+                })
+                status_lines.append(
+                    f"- {ticker}: chart attached."
+                )
+                if (
+                    chart.get("industry_status") == "unavailable"
+                    and chart.get("industry_error")
+                ):
+                    status_lines.append(
+                        f"  Industry peer average unavailable: "
+                        f"{chart['industry_error']}"
+                    )
+            else:
+                error = (
+                    chart.get("error")
+                    if isinstance(chart, dict)
+                    else None
+                )
+                status_lines.append(
+                    f"- {ticker}: performance chart unavailable"
+                    + (f": {error}" if error else ".")
+                )
+
+        if not status_lines[1:]:
+            return
+        if attachments:
+            response["attachments"] = attachments
+        response_text = response.get("response")
+        if isinstance(response_text, str) and response_text.strip():
+            response["response"] = (
+                response_text.rstrip()
+                + "\n\n"
+                + "\n".join(status_lines)
+            )

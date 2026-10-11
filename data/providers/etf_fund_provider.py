@@ -38,9 +38,11 @@ class ETFFundProvider:
         )
 
         classification_error = None
+        quote_info = {}
         try:
+            quote_info = yf_ticker.info or {}
             quote_type = str(
-                (yf_ticker.info or {}).get("quoteType", "")
+                quote_info.get("quoteType", "")
             ).upper()
         except Exception as exc:
             quote_type = ""
@@ -86,6 +88,10 @@ class ETFFundProvider:
             "classification_status": classification_status,
             "classification_source": classification_source
         }
+        for field in ("industry", "sector"):
+            value = quote_info.get(field)
+            if isinstance(value, str) and value.strip():
+                result[field] = value.strip()
         if classification_error:
             result["classification_error"] = classification_error
         if entity_type == "etf":

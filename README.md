@@ -192,6 +192,17 @@ but ETF-specific remote quant calculations require the Gaming PC service to
 consume those fields; validate that service contract before relying on remote
 ETF model outputs.
 
+### Quant Performance Chart
+
+After a completed stock or ETF quant evaluation, Hermes attaches a chart of
+trailing one-year total return using Yahoo Finance adjusted daily prices.
+Stocks are compared with the S&P 500 (`SPY`) and an equal-weighted average of
+at least three Yahoo Finance equities verified to share the stock's reported
+industry. ETFs are compared with the S&P 500 only. If the industry peer group
+cannot be verified or there is not enough price history, the chart reports
+that limitation rather than substituting a sector index or unverified peers.
+The image is delivered after the written evaluation in Telegram and Discord.
+
 ### Current Company Analysis
 
 Example:
@@ -407,6 +418,7 @@ The GitHub Actions workflow compiles application modules and runs a selected det
 .venv/bin/python -m unittest discover -s tests -p 'test_evidence_provenance.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_stock_evaluation_routing.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_etf_evaluation.py'
+.venv/bin/python -m unittest discover -s tests -p 'test_performance_chart.py'
 .venv/bin/python -m unittest discover -s tests -p 'test_quant_priority.py'
 .venv/bin/python tests/test_freshness_detector.py
 .venv/bin/python tests/test_followup_resolver.py

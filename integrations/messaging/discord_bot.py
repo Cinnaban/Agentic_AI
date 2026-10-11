@@ -224,6 +224,14 @@ class DiscordBot:
                         part
                     )
 
+                for attachment in self.formatter.get_attachments(result):
+                    await message.channel.send(
+                        content=attachment.get("caption") or None,
+                        file=discord.File(
+                            attachment["path"],
+                            filename=attachment.get("filename")
+                        )
+                    )
 
                 await status_message.delete()
                 
@@ -249,6 +257,10 @@ class DiscordBot:
             except Exception:
 
                 pass
+        finally:
+            self.formatter.cleanup_attachments(
+                locals().get("result")
+            )
         
     def run(
         self

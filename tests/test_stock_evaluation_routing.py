@@ -25,6 +25,17 @@ class AssignmentAgent:
         }
 
 
+class QuantAssignmentAgent:
+
+    def analyze(self, companies, message):
+        return {
+            "research": True,
+            "sentiment": False,
+            "quant": True,
+            "risk": True
+        }
+
+
 class InstrumentTypeProvider:
 
     def resolve(self, ticker, message):
@@ -71,6 +82,23 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         self.assertTrue(workflow.required_agents["quant"])
         self.assertTrue(workflow.required_agents["research"])
         self.assertTrue(workflow.required_agents["risk"])
+
+    def test_quant_stock_analysis_is_classified_before_worker_submission(self):
+        self.hermes.company_agent = CompanyAgent({
+            "is_company_request": True,
+            "intent": "analysis",
+            "companies": [{
+                "name": "NVIDIA",
+                "ticker": "NVDA",
+                "entity_type": "security"
+            }]
+        })
+        self.hermes.assignment_agent = QuantAssignmentAgent()
+
+        workflow = self.hermes.build_workflow("Analyze Nvidia")
+
+        self.assertEqual(workflow.companies[0]["entity_type"], "stock")
+        self.assertTrue(workflow.required_agents["quant"])
 
     def test_portfolio_evaluation_keeps_portfolio_route(self):
         workflow = self.hermes.build_workflow(

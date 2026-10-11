@@ -1,3 +1,8 @@
+import os
+import tempfile
+from pathlib import Path
+
+
 class ResponseFormatter:
 
     def format(
@@ -97,3 +102,36 @@ class ResponseFormatter:
                 max_length
             )
         ]
+
+    @staticmethod
+    def get_attachments(result):
+        if not isinstance(result, dict):
+            return []
+        attachments = result.get("attachments", [])
+        if not isinstance(attachments, list):
+            return []
+        return [
+            attachment
+            for attachment in attachments
+            if (
+                isinstance(attachment, dict)
+                and isinstance(attachment.get("path"), str)
+                and attachment.get("path")
+            )
+        ]
+
+    @staticmethod
+    def cleanup_attachments(result):
+        temp_directory = Path(tempfile.gettempdir()).resolve()
+        for attachment in ResponseFormatter.get_attachments(result):
+            path = Path(attachment["path"])
+            try:
+                resolved_path = path.resolve()
+                if (
+                    resolved_path.parent == temp_directory
+                    and resolved_path.name.startswith("performance_")
+                    and resolved_path.suffix.lower() == ".png"
+                ):
+                    os.unlink(resolved_path)
+            except FileNotFoundError:
+                continue

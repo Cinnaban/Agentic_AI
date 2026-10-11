@@ -1,0 +1,46 @@
+{
+  "job_id": "45580f65-bdd0-4263-a24c-6e3edd2c5784",
+  "status": "completed",
+  "created_at": "2026-10-10T22:15:19.535960",
+  "updated_at": "2026-10-10T22:18:26.365935",
+  "data": {
+    "message": "Evaluate META",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "META",
+        "ticker": "META",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": false,
+      "confidence": 0,
+      "issues": [
+        "Risk conflicts do not match Signal Reconciliation",
+        "Risk failed to acknowledge quantitative uncertainty"
+      ],
+      "strengths": [],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete",
+        "Independent challenger review incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}
