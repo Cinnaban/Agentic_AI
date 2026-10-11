@@ -675,6 +675,29 @@ social or community discussion.
             re.IGNORECASE
         ))
 
+    @staticmethod
+    def _subject_terms(subject):
+        ignored = {
+            "about", "company", "corporation", "corp", "inc",
+            "incorporated", "limited", "llc", "ltd", "organization",
+            "what", "who"
+        }
+        return [
+            term
+            for term in re.findall(r"[a-z0-9]+", str(subject or "").lower())
+            if term not in ignored
+        ]
+
+    @classmethod
+    def _content_matches_subject(cls, content, subject):
+        terms = cls._subject_terms(subject)
+        if not terms:
+            return True
+        introductory_text = " ".join(
+            cls._retrieved_sentences(content)[:5]
+        ).lower()
+        return all(term in introductory_text for term in terms)
+
     @classmethod
     def _build_direct_factual_response(
         cls,
@@ -725,7 +748,10 @@ social or community discussion.
             ):
                 continue
             sentences = cls._retrieved_sentences(result.get("content"))
-            if not sentences:
+            if not sentences or not cls._content_matches_subject(
+                result.get("content"),
+                subject
+            ):
                 continue
             pages.append({
                 "source_id": source_id,

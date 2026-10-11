@@ -323,6 +323,44 @@ class GenericFactualSourceTests(unittest.TestCase):
         )
         self.assertNotIn("Sources:", result["response"])
 
+    def test_direct_factual_answer_rejects_page_text_for_another_subject(self):
+        agent = GenericEvidenceAgent()
+        evidence = {
+            "subject": "Piranha Games Inc",
+            "results": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "source_role": "reference",
+                "evidence_level": "retrieved_reference",
+                "content": (
+                    "The Wikimedia Foundation is a nonprofit, tax-exempt "
+                    "organization. It operates Wikipedia and other "
+                    "collaborative knowledge projects. "
+                    "We have earned the Platinum Seal of Transparency "
+                    "from Candid."
+                ),
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "publisher": "en.wikipedia.org",
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }]
+        }
+
+        result = agent.analyze(
+            message="What can you tell me about Piranha Games Inc?",
+            evidence=evidence
+        )
+
+        self.assertIn(
+            "couldn't verify a factual summary",
+            result["response"]
+        )
+        self.assertNotIn("Wikimedia Foundation", result["response"])
+        self.assertNotIn("Sources:", result["response"])
+
     def test_direct_factual_answer_separates_active_and_past_projects(self):
         agent = GenericEvidenceAgent()
         content = (
@@ -366,6 +404,59 @@ class GenericFactualSourceTests(unittest.TestCase):
         self.assertNotIn("MechWarrior Online", current_section)
         self.assertIn("MechWarrior Online", past_section)
         self.assertIn("past two decades", past_section)
+
+    def test_firecrawl_does_not_replace_direct_reference_article_text(self):
+        provider = GenericEvidenceProvider.__new__(GenericEvidenceProvider)
+        provider.firecrawl = SimpleNamespace(
+            health_check=Mock(return_value=True),
+            retrieve=Mock()
+        )
+        result = {
+            "title": "Piranha Games",
+            "url": "https://en.wikipedia.org/wiki/Piranha_Games",
+            "source_role": "reference",
+            "evidence_level": "retrieved_reference",
+            "content": "Verified Wikipedia article text.",
+            "search_query": "Direct Wikipedia article lookup"
+        }
+
+        enriched = provider._enrich([result], page_limit=1)
+
+        self.assertEqual(
+            enriched[0]["content"],
+            "Verified Wikipedia article text."
+        )
+        provider.firecrawl.retrieve.assert_not_called()
+
+    def test_firecrawl_content_with_unrelated_page_title_is_discarded(self):
+        provider = GenericEvidenceProvider.__new__(GenericEvidenceProvider)
+        provider.firecrawl = SimpleNamespace(
+            health_check=Mock(return_value=True),
+            retrieve=Mock(return_value={
+                "markdown": (
+                    "The Wikimedia Foundation is a nonprofit organization."
+                ),
+                "metadata": {
+                    "title": "Wikimedia Foundation"
+                }
+            })
+        )
+        result = {
+            "title": "Piranha Games",
+            "url": "https://piranha-games.com/about",
+            "source_role": "official_candidate",
+            "evidence_level": "search_snippet",
+            "summary": "Piranha Games developer",
+            "search_query": '"Piranha Games" official website'
+        }
+
+        enriched = provider._enrich([result], page_limit=1)
+
+        self.assertNotIn("content", enriched[0])
+        self.assertEqual(
+            enriched[0]["evidence_level"],
+            "search_snippet"
+        )
 
 
 if __name__ == "__main__":

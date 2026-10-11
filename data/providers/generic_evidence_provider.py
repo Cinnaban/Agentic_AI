@@ -769,6 +769,8 @@ class GenericEvidenceProvider:
                     "url"
                 )
 
+                if result.get("evidence_level") == "retrieved_reference":
+                    continue
 
                 if not url:
 
@@ -816,6 +818,22 @@ class GenericEvidenceProvider:
                         isinstance(scraped_title, str)
                         and scraped_title.strip()
                     ):
+                        original_title_terms = set(
+                            self._subject_terms(result.get("title"))
+                        )
+                        scraped_title_terms = set(
+                            self._subject_terms(scraped_title)
+                        )
+                        shared_title_terms = (
+                            original_title_terms & scraped_title_terms
+                        )
+                        if (
+                            original_title_terms
+                            and not shared_title_terms
+                        ):
+                            result.pop("content", None)
+                            result["evidence_level"] = "search_snippet"
+                            continue
                         result["title"] = scraped_title.strip()
 
 
