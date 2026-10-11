@@ -15,7 +15,8 @@ class PortfolioContextProvider:
         self,
         ticker,
         weight,
-        context
+        context,
+        holding
     ):
         if not isinstance(
             context,
@@ -58,6 +59,11 @@ class PortfolioContextProvider:
             dict
         ):
             social_summary = {}
+
+        entity_type = holding.get("entity_type", "unresolved")
+        etf_context = holding.get("etf_context", {})
+        if not isinstance(etf_context, dict):
+            etf_context = {}
 
         market_snapshot = (
             context.get(
@@ -133,6 +139,15 @@ class PortfolioContextProvider:
                     "momentum_rating"
                 )
         }
+        if entity_type == "etf":
+            financial_summary = {
+                key: financial_summary[key]
+                for key in (
+                    "price",
+                    "dividend_yield",
+                    "beta"
+                )
+            }
         
         available_financial_fields = [
             key
@@ -149,6 +164,10 @@ class PortfolioContextProvider:
         ]
         
         financial_availability = {
+            "status":
+                "available"
+                if available_financial_fields
+                else "unavailable",
             "available_fields":
                 available_financial_fields,
             "missing_fields":
@@ -158,6 +177,15 @@ class PortfolioContextProvider:
         return {
             "ticker":
                 ticker,
+            "entity_type":
+                entity_type,
+            "classification_status":
+                holding.get(
+                    "classification_status",
+                    "unavailable"
+                ),
+            "classification_error":
+                holding.get("classification_error"),
             "company_name":(
                 company_data.get(
                     "company_name"
@@ -172,71 +200,22 @@ class PortfolioContextProvider:
             "source_status":
                 source_status,
             "financial_summary": {
-                "price":
-                    market_snapshot.get(
-                        "price"
-                    ),
-
-                "sector":
-                    market_snapshot.get(
-                        "sector"
-                    ),
-
-                "market_cap":
-                    market_snapshot.get(
-                        "market_cap"
-                    ),
-
-                "trailing_pe":
-                    market_snapshot.get(
-                        "trailing_pe"
-                    ),
-
-                "forward_pe":
-                    market_snapshot.get(
-                        "forward_pe"
-                    ),
-
-                "dividend_yield":
-                    market_snapshot.get(
-                        "dividend_yield"
-                    ),
-
-                "beta":
-                    market_snapshot.get(
-                        "beta"
-                    ),
-
-                "valuation_rating":
-                    market_snapshot.get(
-                        "valuation_rating"
-                    ),
-
-                "growth_rating":
-                    market_snapshot.get(
-                        "growth_rating"
-                    ),
-
-                "profitability_rating":
-                    market_snapshot.get(
-                        "profitability_rating"
-                    ),
-
-                "financial_strength_rating":
-                    market_snapshot.get(
-                        "financial_strength_rating"
-                    ),
-
-                "stability_rating":
-                    market_snapshot.get(
-                        "stability_rating"
-                    ),
-
-                "momentum_rating":
-                    market_snapshot.get(
-                        "momentum_rating"
-                    )
+                key: financial_summary.get(key)
+                for key in financial_summary
             },
+            "financial_availability":
+                financial_availability,
+            "etf_context": {
+                key: etf_context.get(key)
+                for key in (
+                    "fund_overview",
+                    "asset_classes",
+                    "sector_weightings",
+                    "top_holdings",
+                    "status"
+                )
+                if etf_context.get(key) not in (None, [], {})
+            } if entity_type == "etf" else {},
             "social": {
                 "status":
                     social_summary.get(
@@ -317,6 +296,28 @@ class PortfolioContextProvider:
             weight = holding.get(
                 "weight"
             )
+            entity_type = holding.get("entity_type", "unresolved")
+            if entity_type not in {"stock", "etf"}:
+                snapshots.append({
+                    "ticker": ticker,
+                    "weight": weight,
+                    "entity_type": "unresolved",
+                    "classification_status": holding.get(
+                        "classification_status",
+                        "unavailable"
+                    ),
+                    "classification_error": holding.get(
+                        "classification_error"
+                    ),
+                    "financial_summary": {},
+                    "financial_availability": {
+                        "status": "unavailable",
+                        "available_fields": [],
+                        "missing_fields": []
+                    },
+                    "social": {"status": "unavailable"}
+                })
+                continue
 
             quant_data = (
                 quant_data_by_ticker.get(
@@ -334,7 +335,9 @@ class PortfolioContextProvider:
                             "ticker":
                                 ticker,
                             "entity_type":
-                                "security"
+                                entity_type,
+                            "etf_context":
+                                holding.get("etf_context")
                         },
                         quant_data=quant_data,
                         original_message=(
@@ -350,6 +353,8 @@ class PortfolioContextProvider:
                     {
                         "ticker":
                             ticker,
+                        "entity_type":
+                            entity_type,
                         "weight":
                             weight,
                         "status":
@@ -364,7 +369,8 @@ class PortfolioContextProvider:
                 self._brief_snapshot(
                     ticker=ticker,
                     weight=weight,
-                    context=context
+                    context=context,
+                    holding=holding
                 )
             )
 
@@ -384,18 +390,26 @@ class PortfolioContextProvider:
                 ) == "available"
             )
         )
+        market_context_count = sum(
+            1
+            for snapshot in snapshots
+            if (
+                snapshot.get("entity_type") in {"stock", "etf"}
+                and snapshot.get("status") != "failed"
+            )
+        )
         
         return {
             "status":
                 "available"
-                if snapshots
+                if market_context_count
                 else "unavailable",
 
             "holding_count":
                 len(holdings),
 
             "researched_count":
-                len(snapshots),
+                market_context_count,
 
             "context_limited":
                 was_truncated,
@@ -407,6 +421,6 @@ class PortfolioContextProvider:
                 "available_count":
                     financial_snapshots_available,
                 "researched_count":
-                    len(snapshots)
+                    market_context_count
             },
         }

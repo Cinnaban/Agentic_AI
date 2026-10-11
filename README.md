@@ -192,6 +192,23 @@ but ETF-specific remote quant calculations require the Gaming PC service to
 consume those fields; validate that service contract before relying on remote
 ETF model outputs.
 
+### Portfolio Evaluation
+
+Portfolio holdings with percentage weights are classified individually using
+Yahoo Finance quote metadata before quant evaluation. Confirmed stocks and ETFs
+are sent through their respective analysis paths; unresolved instruments are
+identified as unclassified and are not silently treated as stocks. Portfolio
+summaries report the stock/ETF mix, stated allocation totals, holding-level
+coverage, and ETF fund profile data when available. ETF holdings are not
+described with company operating or valuation metrics, and any allocation
+whose supplied weights do not total 100% is reported without normalization.
+Supply holdings one per line, for example:
+
+```text
+NVDA 60%
+SOXX 40%
+```
+
 ### Quant Performance Chart
 
 After a completed stock or ETF quant evaluation, Hermes attaches a chart of
@@ -257,10 +274,12 @@ ordinary factual answers; Reddit/X evidence is retrieved only for explicit
 community-discussion questions. Answers stay anchored to the user's question,
 distinguish retrieved pages from search snippets, cite supplied source IDs,
 and include direct source links so claims can be checked.
-For direct "what/who/tell me about" questions, the bot presents short
-attributed excerpts from retrieved pages instead of asking a language model to
-rewrite factual details. If it has only search snippets and no readable page
-text, it declines to assert a summary.
+For direct "what/who/tell me about" questions, the bot builds a concise
+summary from complete sentences copied from retrieved pages, including
+notable games, projects, and achievements when the page explicitly names
+them. Each point cites its source; the bot does not infer or invent missing
+details. If it has only search snippets or incomplete page text, it says
+which details it could not verify.
 
 ## Firecrawl
 
@@ -337,8 +356,14 @@ launchd
  -> yfinance maintenance data
  -> DDGS current headlines
  -> Hermes summary
+ -> appended ETF portfolio metrics and coverage
  -> Discord Updates
 ```
+
+The appended evaluation reports unweighted averages and coverage for retrieved
+expense-ratio, distribution-yield, and beta data. Since the current sheet
+process does not read holding weights, it explicitly does not present these
+averages as portfolio-weighted exposure.
 
 The job is scheduled on the Mac Mini through `launchd` for:
 

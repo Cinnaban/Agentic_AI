@@ -30,6 +30,9 @@ from configs.config import (
 from agents.ollama_client import (
     OllamaClient
 )
+from workers.etf_portfolio_evaluation import (
+    generate_etf_portfolio_appendix
+)
 
 
 GOOGLE_SHEET_NAME = os.getenv(
@@ -377,6 +380,7 @@ pending_updates = []
 etf_count = 0
 errors = []
 beta_values = []
+portfolio_evaluation_holdings = []
 ai_summary = ""
 
 # Result Variables
@@ -457,6 +461,16 @@ for row_num, row in enumerate(rows[1:], start=2):
 
 	print(f"Checking {ticker}")
 
+	evaluation_record = {
+		"ticker": ticker,
+		"expense_ratio": None,
+		"dividend_yield": None,
+		"beta": None
+	}
+	portfolio_evaluation_holdings.append(
+		evaluation_record
+	)
+
 	try: 
 		fund = yf.Ticker(ticker)
 		info = fund.info
@@ -465,6 +479,11 @@ for row_num, row in enumerate(rows[1:], start=2):
 		eps = info.get("epsTrailingTwelveMonths")
 		TPE = info.get("trailingPE")
 		beta = info.get("beta")
+		evaluation_record.update({
+			"expense_ratio": expense_ratio,
+			"dividend_yield": dividend_yield,
+			"beta": beta
+		})
 
 		# Format values
 		if expense_ratio is not None:
@@ -679,6 +698,14 @@ print("=" * 60)
 ai_summary = ai_summarize(
     research_prompt,
     beta_analysis
+)
+
+ai_summary = (
+    ai_summary.rstrip()
+    + "\n\n"
+    + generate_etf_portfolio_appendix(
+        portfolio_evaluation_holdings
+    )
 )
 
 

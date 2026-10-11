@@ -232,8 +232,12 @@ class GenericFactualSourceTests(unittest.TestCase):
         agent.ollama = Mock()
         text = (
             "Piranha Games Inc. is a Canadian video game developer "
-            "based in Burnaby, British Columbia. The company was "
-            "founded by Russ Bullock and Bryan Ekman."
+            "based in Burnaby, British Columbia. "
+            "Notable titles developed by the studio include "
+            "MechWarrior Online and MechWarrior 5: Mercenaries. "
+            "Piranha Games is one of the oldest game developers in "
+            "the Greater Vancouver area.\\[2\\] "
+            "This final fragment should not be included"
         )
         evidence = {
             "query": "What can you tell me about Piranha Games Inc?",
@@ -263,11 +267,16 @@ class GenericFactualSourceTests(unittest.TestCase):
 
         agent.ollama.generate.assert_not_called()
         self.assertIn("Burnaby, British Columbia", result["response"])
-        self.assertIn("Russ Bullock and Bryan Ekman", result["response"])
+        self.assertIn("MechWarrior Online", result["response"])
+        self.assertIn("MechWarrior 5: Mercenaries", result["response"])
+        self.assertIn("oldest game developers", result["response"])
+        self.assertNotIn("\\[2\\]", result["response"])
+        self.assertNotIn("This final fragment", result["response"])
         self.assertNotIn("Edmonton", result["response"])
         self.assertNotIn("Cliff Bleszinski", result["response"])
         self.assertNotIn("official website", result["response"].lower())
         self.assertIn("[S1]", result["response"])
+        self.assertIn("Notable games, projects, and achievements", result["response"])
 
     def test_direct_factual_answer_fails_closed_when_only_snippets_exist(self):
         agent = GenericEvidenceAgent()

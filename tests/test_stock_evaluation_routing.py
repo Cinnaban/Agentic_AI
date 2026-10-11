@@ -49,6 +49,25 @@ class InstrumentTypeProvider:
             } if entity_type == "etf" else None
         }
 
+class PortfolioInstrumentTypeProvider:
+
+    def resolve(self, ticker, message):
+        if ticker == "SOXX":
+            return {
+                "entity_type": "etf",
+                "classification_status": "resolved",
+                "etf_context": {"status": "available"}
+            }
+        if ticker == "NVDA":
+            return {
+                "entity_type": "stock",
+                "classification_status": "resolved"
+            }
+        return {
+            "entity_type": "security",
+            "classification_status": "unresolved"
+        }
+
 
 class StockEvaluationRoutingTests(unittest.TestCase):
 
@@ -120,6 +139,21 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         )
 
         self.assertEqual(workflow["route"], "general_evaluation")
+
+    def test_portfolio_holding_classification_distinguishes_stocks_and_etfs(self):
+        self.hermes.etf_fund_provider = PortfolioInstrumentTypeProvider()
+        holdings = [
+            {"ticker": "NVDA", "weight": 60},
+            {"ticker": "SOXX", "weight": 30},
+            {"ticker": "UNKNOWN", "weight": 10}
+        ]
+
+        result = self.hermes._classify_portfolio_holdings(holdings)
+
+        self.assertEqual(result[0]["entity_type"], "stock")
+        self.assertEqual(result[1]["entity_type"], "etf")
+        self.assertEqual(result[1]["etf_context"]["status"], "available")
+        self.assertEqual(result[2]["entity_type"], "unresolved")
 
 
 if __name__ == "__main__":

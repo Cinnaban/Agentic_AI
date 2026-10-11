@@ -341,6 +341,71 @@ class Hermes:
 
         return True
 
+    def _classify_portfolio_holdings(self, holdings):
+        max_holdings = int(getattr(
+            Config,
+            "PORTFOLIO_CONTEXT_MAX_HOLDINGS",
+            50
+        ))
+        for index, holding in enumerate(holdings):
+            if not isinstance(holding, dict):
+                continue
+
+            ticker = str(
+                holding.get("ticker", "") or ""
+            ).strip().upper()
+            if not ticker:
+                continue
+            if index >= max_holdings:
+                holding["entity_type"] = "unresolved"
+                holding["classification_status"] = (
+                    "not_evaluated_limit"
+                )
+                continue
+
+            try:
+                classification = self.etf_fund_provider.resolve(
+                    ticker,
+                    message=f"Classify portfolio holding {ticker}"
+                )
+            except Exception as error:
+                classification = {
+                    "entity_type": "security",
+                    "classification_status": "unavailable",
+                    "classification_error": str(error)
+                }
+                print(
+                    "PORTFOLIO CLASSIFICATION FAILED:",
+                    ticker,
+                    error
+                )
+
+            if not isinstance(classification, dict):
+                classification = {
+                    "entity_type": "security",
+                    "classification_status": "unavailable"
+                }
+
+            entity_type = classification.get("entity_type")
+            if entity_type not in {"stock", "etf"}:
+                entity_type = "unresolved"
+
+            holding["entity_type"] = entity_type
+            holding["classification_status"] = classification.get(
+                "classification_status",
+                "unavailable"
+            )
+            if classification.get("classification_error"):
+                holding["classification_error"] = classification[
+                    "classification_error"
+                ]
+
+            etf_context = classification.get("etf_context")
+            if entity_type == "etf" and isinstance(etf_context, dict):
+                holding["etf_context"] = etf_context
+
+        return holdings
+
         
     def build_workflow(
         self,
@@ -1144,6 +1209,10 @@ class Hermes:
                         list
                     ):
                         holdings = []
+                    else:
+                        holdings = self._classify_portfolio_holdings(
+                            holdings
+                        )
 
                     minimum_holdings = int(
                         getattr(
@@ -1206,14 +1275,22 @@ class Hermes:
                             if not ticker:
                                 continue
 
+                            entity_type = holding.get("entity_type")
+                            if entity_type == "unresolved":
+                                continue
+
                             company = {
                                 "name":
                                     ticker,
                                 "ticker":
                                     ticker,
                                 "entity_type":
-                                    "security"
+                                    entity_type
                             }
+                            if entity_type == "etf":
+                                company["etf_context"] = holding.get(
+                                    "etf_context"
+                                )
 
                             quant_work_package = (
                                 self.job_factory

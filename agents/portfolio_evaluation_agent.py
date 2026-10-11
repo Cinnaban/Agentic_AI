@@ -11,6 +11,76 @@ class PortfolioEvaluationAgent:
     def __init__(self):
         self.ollama = OllamaClient()
 
+    @staticmethod
+    def _build_portfolio_overview(holdings):
+        if not isinstance(holdings, list) or not holdings:
+            return ""
+
+        counts = {
+            "stock": 0,
+            "etf": 0,
+            "unresolved": 0
+        }
+        weights = {
+            "stock": 0.0,
+            "etf": 0.0,
+            "unresolved": 0.0
+        }
+        has_weight = False
+
+        for holding in holdings:
+            if not isinstance(holding, dict):
+                continue
+            entity_type = holding.get("entity_type", "unresolved")
+            if entity_type not in counts:
+                entity_type = "unresolved"
+            counts[entity_type] += 1
+
+            weight = holding.get("weight")
+            if isinstance(weight, (int, float)) and not isinstance(
+                weight,
+                bool
+            ):
+                weights[entity_type] += weight
+                has_weight = True
+
+        lines = [
+            "Portfolio Composition",
+            (
+                f"- Holding mix: {counts['stock']} "
+                f"{'stock' if counts['stock'] == 1 else 'stocks'}, "
+                f"{counts['etf']} "
+                f"{'ETF' if counts['etf'] == 1 else 'ETFs'}, "
+                f"{counts['unresolved']} unclassified."
+            )
+        ]
+        if has_weight:
+            total_weight = sum(weights.values())
+            lines.append(
+                "- Stated allocation: "
+                f"stocks {weights['stock']:.2f}%, "
+                f"ETFs {weights['etf']:.2f}%, "
+                f"unclassified {weights['unresolved']:.2f}% "
+                f"(total {total_weight:.2f}%)."
+            )
+            if abs(total_weight - 100.0) > 0.01:
+                lines.append(
+                    "- Listed weights do not total 100%; "
+                    "allocation percentages are not normalized."
+                )
+        else:
+            lines.append(
+                "- Allocation weights were not supplied, so "
+                "portfolio-wide allocation percentages cannot be "
+                "calculated."
+            )
+        if counts["unresolved"]:
+            lines.append(
+                "- Unclassified holdings are excluded from stock/ETF "
+                "comparisons until their instrument type can be verified."
+            )
+        return "\n".join(lines)
+
     def _build_holding_coverage(
         self,
         portfolio_context
@@ -70,6 +140,10 @@ class PortfolioEvaluationAgent:
             weight = holding.get(
                 "weight"
             )
+            entity_type = holding.get(
+                "entity_type",
+                "unresolved"
+            )
 
             financial_summary = (
                 holding.get(
@@ -107,6 +181,13 @@ class PortfolioEvaluationAgent:
                 )
 
             heading = f"- {identity}"
+            heading += (
+                " (ETF)"
+                if entity_type == "etf"
+                else " (Stock)"
+                if entity_type == "stock"
+                else " (Type unverified)"
+            )
 
             if weight is not None:
                 heading += (
@@ -116,6 +197,11 @@ class PortfolioEvaluationAgent:
             lines.append(
                 heading
             )
+
+            if holding.get("status") == "failed":
+                lines.append(
+                    "  Market-context retrieval failed for this holding."
+                )
 
             financial_labels = {
                 "price":
@@ -145,6 +231,12 @@ class PortfolioEvaluationAgent:
                 "momentum_rating":
                     "Momentum"
             }
+            if entity_type == "etf":
+                financial_labels = {
+                    "price": "Price",
+                    "dividend_yield": "Distribution Yield",
+                    "beta": "Beta"
+                }
 
             financial_items = []
 
@@ -179,10 +271,55 @@ class PortfolioEvaluationAgent:
                     "were unavailable."
                 )
 
-            social_status = social.get(
-                "status",
-                "unavailable"
+            if entity_type == "etf":
+                etf_context = holding.get("etf_context", {})
+                if not isinstance(etf_context, dict):
+                    etf_context = {}
+                fund_overview = etf_context.get("fund_overview", {})
+                asset_classes = etf_context.get("asset_classes", {})
+                top_holdings = etf_context.get("top_holdings", [])
+                profile_items = []
+                if isinstance(asset_classes, dict):
+                    profile_items.extend(
+                        str(name)
+                        for name, value in asset_classes.items()
+                        if value not in (None, "", 0, 0.0)
+                    )
+                if isinstance(fund_overview, dict):
+                    for key in ("category", "legalType", "family"):
+                        value = fund_overview.get(key)
+                        if value:
+                            profile_items.append(f"{key}: {value}")
+                if isinstance(top_holdings, list):
+                    names = []
+                    for item in top_holdings[:3]:
+                        if not isinstance(item, dict):
+                            continue
+                        name = item.get("holdingName") or item.get("symbol")
+                        if name:
+                            names.append(str(name))
+                    if names:
+                        profile_items.append(
+                            "reported top holdings: " + ", ".join(names)
+                        )
+                if profile_items:
+                    lines.append(
+                        "  ETF profile (Yahoo Finance): "
+                        + "; ".join(profile_items[:4])
+                    )
+
+            classification_status = holding.get(
+                "classification_status"
             )
+            if classification_status == "not_evaluated_limit":
+                lines.append(
+                    "  Instrument classification skipped at the "
+                    "configured holding limit."
+                )
+            elif classification_status in {"unavailable", "unresolved"}:
+                lines.append(
+                    "  Instrument type could not be verified."
+                )
 
             social_themes = social.get(
                 "discussion_themes",
@@ -208,18 +345,6 @@ class PortfolioEvaluationAgent:
                         clean_themes
                     )
                 )
-            elif social_status in {
-                "available",
-                "limited"
-            }:
-                lines.append(
-                    "  Social evidence was retrieved, "
-                    "but no reliable themes were found."
-                )
-            else:
-                lines.append(
-                    "  Social evidence was unavailable."
-                )
 
         holding_count = portfolio_context.get(
             "holding_count",
@@ -235,9 +360,9 @@ class PortfolioEvaluationAgent:
 
         lines.append("")
         lines.append(
-            "Coverage: "
+            "Market-context coverage: "
             f"{researched_count} of "
-            f"{holding_count} holdings researched."
+            f"{holding_count} holdings."
         )
 
         if portfolio_context.get(
@@ -265,6 +390,20 @@ class PortfolioEvaluationAgent:
         ):
             holdings = []
 
+        if not any(
+            isinstance(holding, dict)
+            and str(holding.get("ticker", "")).strip()
+            for holding in holdings
+        ):
+            return {
+                "status": "completed",
+                "response": (
+                    "I couldn't identify portfolio holdings. Please provide "
+                    "one ticker and its portfolio weight per line, for "
+                    "example: NVDA 60%."
+                )
+            }
+
         if not isinstance(
             portfolio_context,
             dict
@@ -284,6 +423,7 @@ characteristics and plausible selection patterns.
 Discuss when supported by the supplied information:
 
 - concentration and weight distribution
+- the split between stock and ETF exposure
 - recurring business or market themes
 - possible sector or industry exposure
 - diversification characteristics
@@ -295,6 +435,16 @@ Discuss when supported by the supplied information:
 Never claim that an inferred selection process is
 certain. Clearly label selection explanations as
 hypotheses.
+
+Treat stocks and ETFs as different instruments.
+Do not treat an ETF as an operating company or apply
+company-level profitability, valuation, or growth
+conclusions to the fund itself. ETF profile and
+underlying holdings may only be described when those
+fields are explicitly present in the supplied data.
+Do not infer diversification merely from holding
+multiple ETFs; overlapping exposure must be supported
+by the supplied holdings or sector data.
 
 Do not provide personalized financial advice.
 
@@ -326,8 +476,8 @@ PORTFOLIO NARRATIVE:
 A complete deterministic holding-by-holding
 coverage section will be added separately.
 
-Do not create a ticker table and do not repeat
-the entire holding list.
+Do not create a ticker table or repeat holding-level
+metrics; the coverage section is included separately.
 
 Use the supplied holding-level context to
 produce portfolio-wide observations about:
@@ -345,35 +495,6 @@ produce portfolio-wide observations about:
 
 Mention individual holdings only when they
 materially support a portfolio-wide conclusion.
-
-Use this format when data exists:
-
-TICKER
-- Price:
-- Sector:
-- Market Cap:
-- Trailing P/E:
-- Forward P/E:
-- Dividend Yield:
-- Valuation:
-- Growth:
-- Financial Strength:
-- Momentum:
-
-In a compact coverage table.
-
-Do not show fields whose values are null,
-missing, unavailable, or empty.
-
-If some financial fields are missing, add
-one short sentence under that holding:
-
-"Additional valuation or operating metrics
-were not available in the retrieved snapshot."
-
-Do not repeat a long list of every missing
-field unless the absence materially affects
-the portfolio conclusion.
 
 After the holding snapshots, discuss:
 
@@ -459,6 +580,12 @@ BRIEF MARKET AND SOCIAL CONTEXT:
         )
 
         response_sections = []
+
+        portfolio_overview = self._build_portfolio_overview(
+            holdings
+        )
+        if portfolio_overview:
+            response_sections.append(portfolio_overview)
 
         if holding_coverage:
             response_sections.append(

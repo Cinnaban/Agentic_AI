@@ -606,9 +606,9 @@ social or community discussion.
         }
 
     @staticmethod
-    def _readable_excerpt(content, subject):
+    def _retrieved_sentences(content):
         if not isinstance(content, str) or not content.strip():
-            return ""
+            return []
 
         text = re.sub(
             r"\[([^\]]+)\]\((?:https?://[^)]+)\)",
@@ -619,74 +619,47 @@ social or community discussion.
         text = re.sub(r"`{1,3}", "", text)
         text = re.sub(r"\*\*|__|[*_]", "", text)
         text = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", text)
-        text = re.sub(r"\[\d+\]", "", text)
+        text = re.sub(r"\\?\[\d+\\?\]", "", text)
 
-        subject_terms = [
-            term.lower()
-            for term in re.findall(
-                r"[a-z0-9]+",
-                str(subject or "").lower()
-            )
-            if term.lower() not in {
-                "about", "company", "corporation", "corp", "inc",
-                "incorporated", "limited", "llc", "ltd", "what", "who",
-                "can", "tell", "me", "you", "the", "is", "are", "of"
-            }
-        ]
-        paragraphs = [
-            re.sub(r"\s+", " ", paragraph).strip(" -|")
-            for paragraph in re.split(r"\n\s*\n", text)
-        ]
-        paragraphs = [
-            paragraph
-            for paragraph in paragraphs
-            if (
-                len(paragraph) >= 80
-                and not paragraph.startswith(("Contents", "From Wikipedia"))
-                and not paragraph.lower().startswith(
-                    ("jump to", "navigation menu", "search")
-                )
-            )
-        ]
-        if subject_terms:
-            matching = [
+        sentences = []
+        for paragraph in re.split(r"\n\s*\n", text):
+            paragraph = re.sub(r"\s+", " ", paragraph).strip(" -|")
+            if not paragraph or paragraph.lower().startswith(
+                ("contents", "from wikipedia", "jump to", "navigation menu")
+            ):
+                continue
+            for sentence in re.split(
+                r"(?<=[.!?])\s+(?=[A-Z0-9])",
                 paragraph
-                for paragraph in paragraphs
-                if sum(
-                    bool(
-                        re.search(
-                            r"\b" + re.escape(term) + r"\b",
-                            paragraph.lower()
-                        )
-                    )
-                    for term in subject_terms
-                ) >= min(2, len(subject_terms))
-            ]
-            paragraphs = matching
+            ):
+                sentence = sentence.strip()
+                if (
+                    50 <= len(sentence) <= 360
+                    and sentence[-1] in ".!?"
+                    and sentence not in sentences
+                ):
+                    sentences.append(sentence)
+        return sentences
 
-        if not paragraphs:
-            return ""
-
-        sentences = re.split(
-            r"(?<=[.!?])\s+(?=[A-Z0-9])",
-            paragraphs[0]
+    @staticmethod
+    def _sentence_highlight_type(sentence):
+        text = sentence.lower()
+        achievement_terms = (
+            "award", "awarded", "won ", "winner", "nominated",
+            "recognition", "recognized", "acclaimed", "best-selling",
+            "bestselling", "oldest", "first "
         )
-        excerpt = ""
-        for sentence in sentences:
-            candidate = (
-                sentence.strip()
-                if not excerpt
-                else excerpt + " " + sentence.strip()
-            )
-            if len(candidate) > 420:
-                break
-            excerpt = candidate
-            if len(excerpt) >= 160:
-                break
-
-        if not excerpt:
-            excerpt = paragraphs[0][:420].rsplit(" ", 1)[0]
-        return excerpt
+        project_terms = (
+            "game", "games", "project", "projects", "title", "titles",
+            "franchise", "series", "developed", "co-developed",
+            "published", "released", "created", "worked on",
+            "contributed to", "developer of"
+        )
+        if any(term in text for term in achievement_terms):
+            return "achievement"
+        if any(term in text for term in project_terms):
+            return "project"
+        return None
 
     @classmethod
     def _build_direct_factual_response(
@@ -706,7 +679,7 @@ social or community discussion.
             )
         } if isinstance(sources, list) else {}
 
-        excerpts = []
+        pages = []
         seen_source_ids = set()
         for result in results:
             if not isinstance(result, dict):
@@ -737,13 +710,10 @@ social or community discussion.
                 ("https://", "http://")
             ):
                 continue
-            excerpt = cls._readable_excerpt(
-                result.get("content"),
-                subject
-            )
-            if not excerpt:
+            sentences = cls._retrieved_sentences(result.get("content"))
+            if not sentences:
                 continue
-            excerpts.append({
+            pages.append({
                 "source_id": source_id,
                 "title": (
                     result.get("title")
@@ -757,13 +727,13 @@ social or community discussion.
                     or result.get("source")
                 ),
                 "url": url,
-                "excerpt": excerpt
+                "sentences": sentences
             })
             seen_source_ids.add(source_id)
-            if len(excerpts) >= 2:
+            if len(pages) >= 3:
                 break
 
-        if not excerpts:
+        if not pages:
             return {
                 "status": "completed",
                 "response": (
@@ -774,39 +744,90 @@ social or community discussion.
                 "sources": []
             }
 
-        lines = [
-            f"Retrieved source text for: {message.strip()}",
-            "",
-            "These are brief excerpts from the retrieved pages; "
-            "they are not independently verified claims."
+        overview_terms = (
+            " is a ", " is an ", " is the ", " was founded ",
+            " was established ", " based in "
+        )
+        overview = None
+        highlights = []
+        for page in pages:
+            for sentence in page["sentences"]:
+                tagged = {
+                    "sentence": sentence,
+                    "source_id": page["source_id"],
+                    "type": cls._sentence_highlight_type(sentence)
+                }
+                if (
+                    overview is None
+                    and any(term in sentence.lower() for term in overview_terms)
+                ):
+                    overview = tagged
+                if tagged["type"]:
+                    highlights.append(tagged)
+
+        achievement_highlights = [
+            item for item in highlights
+            if item["type"] == "achievement"
         ]
-        for item in excerpts:
+        project_highlights = [
+            item for item in highlights
+            if item["type"] == "project"
+        ]
+        selected_highlights = (achievement_highlights + project_highlights)[:5]
+        selected_items = (
+            ([overview] if overview else []) + selected_highlights
+        )
+        used_source_ids = {
+            item["source_id"] for item in selected_items
+        }
+
+        lines = [
+            f"Source-grounded summary: {subject or message.strip()}",
+            "Each point below is an unrewritten statement from a retrieved "
+            "page; the source is identified beside it."
+        ]
+        if overview:
             lines.extend([
                 "",
+                "**About:**",
                 (
-                    f"**{item['title']} "
-                    f"({item['publisher']}) [{item['source_id']}]**"
-                ),
-                f"> {item['excerpt']}"
+                    f"- {overview['sentence']} "
+                    f"[{overview['source_id']}]"
+                )
+            ])
+        if selected_highlights:
+            lines.extend([
+                "",
+                "**Notable games, projects, and achievements stated by "
+                "the sources:**"
+            ])
+            lines.extend(
+                f"- {item['sentence']} [{item['source_id']}]"
+                for item in selected_highlights
+            )
+        else:
+            lines.extend([
+                "",
+                "The retrieved readable pages did not provide a complete "
+                "sentence supporting a specific game, project, or "
+                "achievement."
             ])
 
-        source_lines = [
-            "",
-            "Sources:"
-        ]
-        for item in excerpts:
-            if item["url"]:
-                source_lines.append(
-                    f"- [{item['source_id']}] {item['title']} "
-                    f"({item['publisher']}): {item['url']}"
-                )
+        source_lines = ["", "Sources:"]
+        for page in pages:
+            if page["source_id"] not in used_source_ids:
+                continue
+            source_lines.append(
+                f"- [{page['source_id']}] {page['title']} "
+                f"({page['publisher']}): {page['url']}"
+            )
 
         return {
             "status": "completed",
             "response": "\n".join(lines + source_lines),
             "sources": [
-                source_by_id[item["source_id"]]
-                for item in excerpts
-                if item["source_id"] in source_by_id
+                source_by_id[page["source_id"]]
+                for page in pages
+                if page["source_id"] in used_source_ids
             ]
         }
