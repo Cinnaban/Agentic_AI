@@ -1,4 +1,5 @@
 import sys
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +32,8 @@ from data.providers.social.social_evidence_provider import (
 from data.providers.social.social_summary_builder import (
     SocialSummaryBuilder
 )
+from configs.config import Config
+from shared_storage.storage_manager import StorageManager
 
 class MarketContextProvider:
     
@@ -59,6 +62,91 @@ class MarketContextProvider:
         self.social_summary_builder = (
                 SocialSummaryBuilder()
         )
+        self.storage = StorageManager()
+
+    def get_context(
+        self,
+        company,
+        quant_data=None,
+        original_message=None,
+        requires_live_data=False
+    ):
+        if requires_live_data:
+            return self._get_context_uncached(
+                company,
+                quant_data,
+                original_message,
+                requires_live_data
+            )
+
+        cache_key = self.storage.build_cache_key({
+            "company": company,
+            "quant_data": quant_data,
+            "request": " ".join(
+                str(original_message or "").lower().split()
+            )
+        })
+        try:
+            cached = self.storage.get_cached_data(
+                "financial",
+                cache_key
+            )
+        except (OSError, ValueError, TypeError) as error:
+            logging.warning("Financial context cache read failed: %s", error)
+        else:
+            if cached is not None:
+                return cached
+
+        context = self._get_context_uncached(
+            company,
+            quant_data,
+            original_message,
+            requires_live_data
+        )
+        cacheable_context = self._cacheable_context(context)
+        if cacheable_context is not None:
+            ttl = (
+                Config.FINANCIAL_CONTEXT_CACHE_TTL_HOURS
+                * 60
+                * 60
+            )
+            try:
+                self.storage.set_cached_data(
+                    "financial",
+                    cache_key,
+                    cacheable_context,
+                    ttl
+                )
+            except (OSError, ValueError, TypeError) as error:
+                logging.warning("Financial context cache write failed: %s", error)
+        return context
+
+    @staticmethod
+    def _cacheable_context(context):
+        if not isinstance(context, dict):
+            return None
+
+        cacheable = dict(context)
+        for key in (
+            "news",
+            "social_context",
+            "social_summary",
+            "live_market_context"
+        ):
+            cacheable.pop(key, None)
+        has_cacheable_evidence = bool(
+            cacheable.get("financial_data")
+            or cacheable.get("sec_filings")
+            or (
+                isinstance(cacheable.get("sec_facts"), dict)
+                and cacheable["sec_facts"].get("facts")
+            )
+            or (
+                isinstance(cacheable.get("macro_facts"), dict)
+                and any(cacheable["macro_facts"].values())
+            )
+        )
+        return cacheable if has_cacheable_evidence else None
 
     def _build_financial_context(
         self,
@@ -151,7 +239,7 @@ class MarketContextProvider:
             if value is not None
         }
             
-    def get_context(
+    def _get_context_uncached(
         self,
         company,
         quant_data=None,

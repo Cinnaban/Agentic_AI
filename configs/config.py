@@ -203,6 +203,11 @@ class Config:
         / "temp"
     )
 
+    CACHE_DIRECTORY = (
+        SHARED_STORAGE_DIRECTORY
+        / "cache"
+    )
+
 
     LOG_DIRECTORY = (
         ROOT_DIR
@@ -272,6 +277,12 @@ class Config:
     FAILED_JOB_RETENTION_DAYS = 30
     ARCHIVE_RETENTION_DAYS = 180
     TEMP_RETENTION_DAYS = 7
+    CACHE_MAX_RETENTION_DAYS = 90
+    CACHE_CLEANUP_INTERVAL_HOURS = 24
+    QUANT_CACHE_TTL_HOURS = 24
+    FINANCIAL_CONTEXT_CACHE_TTL_HOURS = 12
+    PORTFOLIO_CONTEXT_CACHE_TTL_HOURS = 12
+    ETF_PROFILE_CACHE_TTL_DAYS = 30
 
     ENABLE_STORAGE_CLEANUP = True
     # ==========================================
@@ -311,4 +322,3 @@ class Config:
     - Be concise and useful.
     - Format responses for Discord.
     """
-

@@ -1,8 +1,11 @@
 import math
+import logging
 import re
 from datetime import datetime, timezone
 
 import yfinance as yf
+from configs.config import Config
+from shared_storage.storage_manager import StorageManager
 
 
 class ETFFundProvider:
@@ -12,6 +15,9 @@ class ETFFundProvider:
         "SLV", "SPY", "TLT", "VOO", "VTI", "XLE", "XLF",
         "XLK", "XLP", "XLU", "XLV", "XLY", "XLI", "SOXX"
     }
+
+    def __init__(self):
+        self.storage = StorageManager()
 
     ETF_REQUEST_PATTERN = re.compile(
         r"\b(?:ETF|exchange[- ]traded fund)\b",
@@ -148,6 +154,44 @@ class ETFFundProvider:
         return result
 
     def get_fund_context(self, ticker, yf_ticker=None):
+        normalized_ticker = str(ticker or "").strip().upper()
+        try:
+            cached = self.storage.get_cached_data(
+                "etf_profile",
+                normalized_ticker
+            )
+        except (OSError, ValueError, TypeError) as error:
+            logging.warning("ETF profile cache read failed: %s", error)
+        else:
+            if cached is not None:
+                return cached
+
+        result = self._get_fund_context_uncached(
+            normalized_ticker,
+            yf_ticker
+        )
+        if (
+            isinstance(result, dict)
+            and result.get("status") == "available"
+        ):
+            ttl = (
+                Config.ETF_PROFILE_CACHE_TTL_DAYS
+                * 24
+                * 60
+                * 60
+            )
+            try:
+                self.storage.set_cached_data(
+                    "etf_profile",
+                    normalized_ticker,
+                    result,
+                    ttl
+                )
+            except (OSError, ValueError, TypeError) as error:
+                logging.warning("ETF profile cache write failed: %s", error)
+        return result
+
+    def _get_fund_context_uncached(self, ticker, yf_ticker=None):
         if yf_ticker is None:
             yf_ticker = yf.Ticker(ticker)
 

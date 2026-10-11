@@ -82,6 +82,11 @@ class PortfolioSummaryTests(unittest.TestCase):
         provider.market_context_provider = SimpleNamespace(
             get_context=get_context
         )
+        provider.storage = SimpleNamespace(
+            build_cache_key=lambda value: "test-portfolio-key",
+            get_cached_data=lambda namespace, key: None,
+            set_cached_data=lambda *args: None
+        )
         etf_context = {
             "status": "available",
             "asset_classes": {"equity": 1.0},

@@ -1,13 +1,20 @@
 import json
+import hashlib
+import logging
+import os
+import re
+import tempfile
+import threading
 
 from pathlib import Path
 from configs.config import Config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class StorageManager:
 
     def __init__(self):
 
+        self._cache_lock = threading.RLock()
         self.directories = {
             "incoming":
                 Path(
@@ -37,10 +44,16 @@ class StorageManager:
             "temp":
                 Path(
                     Config.JOB_TEMP_DIRECTORY
+                ),
+            "cache":
+                Path(
+                    Config.CACHE_DIRECTORY
                 )
         }
 
         self._ensure_directories()
+        self.cleanup_expired_cache()
+        self._last_cache_cleanup = datetime.now(timezone.utc)
 
     def _ensure_directories(self):
 
@@ -52,6 +65,7 @@ class StorageManager:
                 parents=True,
                 exist_ok=True
             )
+        self.directories["cache"].chmod(0o700)
     
     def create_job_record(
         self,
@@ -387,3 +401,186 @@ class StorageManager:
             "archived": archived,
             "deleted": deleted
         }
+
+    @staticmethod
+    def _cache_path(directory, namespace, key):
+        if not isinstance(namespace, str) or not re.fullmatch(
+            r"[a-z][a-z0-9_-]{0,63}",
+            namespace
+        ):
+            raise ValueError("Cache namespace must be a lowercase identifier")
+        if not isinstance(key, str) or not key:
+            raise ValueError("Cache key must be a non-empty string")
+        key_hash = hashlib.sha256(
+            key.encode("utf-8")
+        ).hexdigest()
+        return directory / f"{namespace}-{key_hash}.json"
+
+    @staticmethod
+    def build_cache_key(value):
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            default=str
+        )
+
+    def get_cached_data(self, namespace, key):
+        self._maybe_cleanup_expired_cache()
+        path = self._cache_path(
+            self.directories["cache"],
+            namespace,
+            key
+        )
+        with self._cache_lock:
+            if not path.is_file():
+                return None
+            try:
+                with path.open("r", encoding="utf-8") as cache_file:
+                    record = json.load(cache_file)
+                expires_at = datetime.fromisoformat(
+                    record["expires_at"]
+                )
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                logging.warning(
+                    "Removing unreadable cache record %s: %s",
+                    path.name,
+                    error
+                )
+                path.unlink(missing_ok=True)
+                return None
+
+            if expires_at <= datetime.now(timezone.utc):
+                path.unlink(missing_ok=True)
+                return None
+            return record.get("value")
+
+    def set_cached_data(
+        self,
+        namespace,
+        key,
+        value,
+        ttl_seconds
+    ):
+        self._maybe_cleanup_expired_cache()
+        path = self._cache_path(
+            self.directories["cache"],
+            namespace,
+            key
+        )
+        if (
+            not isinstance(ttl_seconds, (int, float))
+            or ttl_seconds <= 0
+        ):
+            raise ValueError("Cache TTL must be a positive number of seconds")
+        max_ttl = (
+            Config.CACHE_MAX_RETENTION_DAYS
+            * 24
+            * 60
+            * 60
+        )
+        ttl_seconds = min(ttl_seconds, max_ttl)
+        now = datetime.now(timezone.utc)
+        record = {
+            "namespace": namespace,
+            "created_at": now.isoformat(),
+            "expires_at": (
+                now + timedelta(seconds=ttl_seconds)
+            ).isoformat(),
+            "value": value
+        }
+
+        with self._cache_lock:
+            temp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    encoding="utf-8",
+                    dir=path.parent,
+                    prefix=".cache-write-",
+                    suffix=".tmp",
+                    delete=False
+                ) as cache_file:
+                    temp_path = Path(cache_file.name)
+                    json.dump(
+                        record,
+                        cache_file,
+                        ensure_ascii=False,
+                        allow_nan=False
+                    )
+                    cache_file.flush()
+                    os.fsync(cache_file.fileno())
+                os.replace(temp_path, path)
+            except (OSError, TypeError, ValueError):
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
+                raise
+        return path
+
+    def _maybe_cleanup_expired_cache(self):
+        now = datetime.now(timezone.utc)
+        last_cleanup = getattr(self, "_last_cache_cleanup", None)
+        interval = timedelta(
+            hours=Config.CACHE_CLEANUP_INTERVAL_HOURS
+        )
+        if last_cleanup is None or now - last_cleanup >= interval:
+            self.cleanup_expired_cache()
+            self._last_cache_cleanup = now
+
+    def cleanup_expired_cache(self):
+        cache_directory = self.directories["cache"]
+        now = datetime.now(timezone.utc)
+        deleted = 0
+        with self._cache_lock:
+            for path in cache_directory.iterdir():
+                if not path.is_file():
+                    continue
+                if path.suffix == ".tmp":
+                    if self.is_older_than(
+                        path,
+                        Config.TEMP_RETENTION_DAYS
+                    ):
+                        path.unlink()
+                        deleted += 1
+                    continue
+                if path.suffix != ".json":
+                    continue
+                try:
+                    with path.open("r", encoding="utf-8") as cache_file:
+                        record = json.load(cache_file)
+                    expires_at = datetime.fromisoformat(
+                        record["expires_at"]
+                    )
+                    created_at = datetime.fromisoformat(
+                        record["created_at"]
+                    )
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(
+                            tzinfo=timezone.utc
+                        )
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(
+                            tzinfo=timezone.utc
+                        )
+                except (OSError, ValueError, KeyError, TypeError) as error:
+                    logging.warning(
+                        "Removing unreadable cache record %s: %s",
+                        path.name,
+                        error
+                    )
+                    path.unlink(missing_ok=True)
+                    deleted += 1
+                    continue
+                max_age = timedelta(
+                    days=Config.CACHE_MAX_RETENTION_DAYS
+                )
+                if (
+                    expires_at <= now
+                    or created_at + max_age <= now
+                ):
+                    path.unlink()
+                    deleted += 1
+        return {"deleted": deleted}

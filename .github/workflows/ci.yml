@@ -29,6 +29,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_performance_chart.py'
           python -m unittest discover -s tests -p 'test_generic_factual_sources.py'
           python -m unittest discover -s tests -p 'test_portfolio_summary.py'
+          python -m unittest discover -s tests -p 'test_shared_storage_cache.py'
           python -m unittest discover -s tests -p 'test_quant_priority.py'
           python tests/test_freshness_detector.py
           python tests/test_followup_resolver.py

@@ -622,10 +622,21 @@ runtime/hermes/
 ├── completed/
 ├── failed/
 ├── archive/
-└── temp/
+├── temp/
+└── cache/
 ```
 
 This avoids managed background-process permission problems on external volumes.
+The local cache stores successful quant results (24 hours), financial context
+(12 hours), exact portfolio snapshots (12 hours), and available ETF fund
+profiles (30 days). Requests marked current/latest bypass quant and financial
+context caches. Cache lifetimes are capped at 90 days, and expired records are
+removed at startup and when accessed. Portfolio cache files remain local,
+under `runtime/hermes/cache/`, are excluded from Git, and are created with
+owner-only directory permissions. Expired entries are swept at startup and
+at least every 24 hours while the cache is in use. Volatile news, social, and
+live-market evidence is not retained in reusable financial-context cache
+entries.
 
 ## Daily ETF Update
 

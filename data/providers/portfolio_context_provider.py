@@ -1,7 +1,11 @@
+import logging
+
 from configs.config import Config
 from data.market_context_provider import (
     MarketContextProvider
 )
+from orchestrator.freshness_detector import FreshnessDetector
+from shared_storage.storage_manager import StorageManager
 
 
 class PortfolioContextProvider:
@@ -10,6 +14,7 @@ class PortfolioContextProvider:
         self.market_context_provider = (
             MarketContextProvider()
         )
+        self.storage = StorageManager()
 
     def _brief_snapshot(
         self,
@@ -242,7 +247,63 @@ class PortfolioContextProvider:
     def get_context(
         self,
         holdings,
-        quant_data_by_ticker=None
+        quant_data_by_ticker=None,
+        original_message=None
+    ):
+        requires_live_data = FreshnessDetector().requires_live_data(
+            str(original_message or "")
+        )
+        cache_key = self.storage.build_cache_key({
+            "holdings": holdings,
+            "quant_data_by_ticker": quant_data_by_ticker,
+            "request": " ".join(
+                str(original_message or "").lower().split()
+            )
+        })
+        if not requires_live_data:
+            try:
+                cached = self.storage.get_cached_data(
+                    "portfolio",
+                    cache_key
+                )
+            except (OSError, ValueError, TypeError) as error:
+                logging.warning("Portfolio cache read failed: %s", error)
+            else:
+                if cached is not None:
+                    return cached
+
+        result = self._get_context_uncached(
+            holdings,
+            quant_data_by_ticker,
+            requires_live_data
+        )
+        if (
+            not requires_live_data
+            and
+            isinstance(result, dict)
+            and result.get("status") == "available"
+        ):
+            ttl = (
+                Config.PORTFOLIO_CONTEXT_CACHE_TTL_HOURS
+                * 60
+                * 60
+            )
+            try:
+                self.storage.set_cached_data(
+                    "portfolio",
+                    cache_key,
+                    result,
+                    ttl
+                )
+            except (OSError, ValueError, TypeError) as error:
+                logging.warning("Portfolio cache write failed: %s", error)
+        return result
+
+    def _get_context_uncached(
+        self,
+        holdings,
+        quant_data_by_ticker=None,
+        requires_live_data=False
     ):
         
         if not isinstance(
@@ -344,7 +405,7 @@ class PortfolioContextProvider:
                             "Brief portfolio financial "
                             f"context for {ticker}"
                         ),
-                        requires_live_data=False
+                        requires_live_data=requires_live_data
                     )
                 )
                 

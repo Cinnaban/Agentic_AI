@@ -1370,7 +1370,8 @@ class Hermes:
                                 holdings=holdings,
                                 quant_data_by_ticker=(
                                     quant_data_by_ticker
-                                )
+                                ),
+                                original_message=effective_message
                             )
                         )
 
