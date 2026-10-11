@@ -377,6 +377,7 @@ The GitHub Actions workflow compiles application modules and runs a selected det
 ```bash
 .venv/bin/python -m compileall -q agents configs data financial_engine integrations job_queue memory orchestrator security shared_storage utils workers
 .venv/bin/python -m unittest discover -s tests -p 'test_evidence_provenance.py'
+.venv/bin/python -m unittest discover -s tests -p 'test_stock_evaluation_routing.py'
 .venv/bin/python tests/test_freshness_detector.py
 .venv/bin/python tests/test_followup_resolver.py
 .venv/bin/python tests/test_message_router.py

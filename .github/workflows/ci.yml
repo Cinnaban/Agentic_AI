@@ -24,6 +24,7 @@ jobs:
       - name: Run deterministic offline tests
         run: |
           python -m unittest discover -s tests -p 'test_evidence_provenance.py'
+          python -m unittest discover -s tests -p 'test_stock_evaluation_routing.py'
           python tests/test_freshness_detector.py
           python tests/test_followup_resolver.py
           python tests/test_message_router.py

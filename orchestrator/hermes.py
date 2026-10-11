@@ -1,3 +1,4 @@
+import re
 import sys
 import traceback 
 
@@ -377,6 +378,35 @@ class Hermes:
                 "general_information"
             )
         )
+
+        companies = company_result.get(
+            "companies",
+            []
+        )
+        if not isinstance(companies, list):
+            companies = []
+
+        is_explicit_security_evaluation = (
+            len(companies) == 1
+            and isinstance(companies[0], dict)
+            and isinstance(companies[0].get("ticker"), str)
+            and bool(companies[0]["ticker"].strip())
+            and any(
+                re.search(
+                    rf"\b{re.escape(term)}\b",
+                    normalized
+                )
+                for term in (
+                    "evaluate",
+                    "evaluation",
+                    "assess",
+                    "rate"
+                )
+            )
+        )
+
+        if is_explicit_security_evaluation:
+            intent = "evaluation"
         
         evaluation_keywords = {
             "evaluate",
@@ -459,6 +489,12 @@ class Hermes:
                 message
             )
         )
+
+        if not isinstance(assignment_result, dict):
+            assignment_result = {}
+
+        if is_explicit_security_evaluation:
+            assignment_result["quant"] = True
 
         work_package = (
             self.job_factory
