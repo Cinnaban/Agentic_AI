@@ -2394,7 +2394,8 @@ class Hermes:
                 self.storage_manager.fail_job(
                     job_id=work_package.job_id,
                     updates={
-                        "final_status": "failed"
+                        "final_status": "failed",
+                        "error": str(e)
                     }
                 )
                 job_id = (
@@ -2404,6 +2405,23 @@ class Hermes:
             else:
                 job_id = None
 
+            if job_id is not None:
+                failure_message = (
+                    "I couldn't complete the requested analysis. "
+                    "No verified result was produced; please try "
+                    "again later."
+                )
+                return self.outbound_gate.prepare({
+                    "approved": False,
+                    "confidence": 0,
+                    "status": "failed",
+                    "job_id": job_id,
+                    "error": failure_message,
+                    "issues": [
+                        "No verified analysis result was produced."
+                    ],
+                    "response": failure_message
+                })
 
             try:
                 fallback_message = str(

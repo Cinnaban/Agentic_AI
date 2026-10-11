@@ -1,0 +1,24 @@
+{
+  "job_id": "10121a59-3e02-4635-9fc4-4705f4d41662",
+  "status": "failed",
+  "created_at": "2026-10-10T21:39:55.404363",
+  "updated_at": "2026-10-10T21:42:40.657287",
+  "data": {
+    "message": "Evaluate SOXX",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "SOXX",
+        "ticker": "SOXX",
+        "entity_type": "security"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}

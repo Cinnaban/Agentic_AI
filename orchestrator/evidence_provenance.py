@@ -44,21 +44,22 @@ class EvidenceProvenance:
     def _latest_date_for_keys(cls, value, keys):
         found = []
 
-        if isinstance(value, dict):
-            for key, item in value.items():
-                if key in keys:
-                    date_value = cls._format_publication_date(item)
-                    if date_value:
-                        found.append(date_value)
-                else:
-                    found.extend(
-                        cls._latest_date_for_keys(item, keys)
-                    )
-        elif isinstance(value, list):
-            for item in value:
-                found.extend(
-                    cls._latest_date_for_keys(item, keys)
-                )
+        def collect(item):
+            if isinstance(item, dict):
+                for key, nested_value in item.items():
+                    if key in keys:
+                        date_value = cls._format_publication_date(
+                            nested_value
+                        )
+                        if date_value:
+                            found.append(date_value)
+                    else:
+                        collect(nested_value)
+            elif isinstance(item, list):
+                for nested_value in item:
+                    collect(nested_value)
+
+        collect(value)
 
         return max(found) if found else None
 

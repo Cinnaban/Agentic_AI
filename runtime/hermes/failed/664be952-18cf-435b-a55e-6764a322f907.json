@@ -1,0 +1,24 @@
+{
+  "job_id": "664be952-18cf-435b-a55e-6764a322f907",
+  "status": "failed",
+  "created_at": "2026-10-10T21:45:45.507639",
+  "updated_at": "2026-10-10T21:48:32.858384",
+  "data": {
+    "message": "Evaluate Nvidia",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "NVIDIA",
+        "ticker": "NVDA",
+        "entity_type": "company"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed"
+  }
+}

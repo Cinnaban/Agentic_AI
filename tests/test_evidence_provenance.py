@@ -65,6 +65,36 @@ class EvidenceProvenanceTests(unittest.TestCase):
         self.assertIn("FRED macroeconomic data", note)
         self.assertIn("Current information could not be verified", note)
 
+    def test_company_data_dates_ignore_null_nested_values(self):
+        note = EvidenceProvenance.format_note({
+            "sec_filings": [
+                {
+                    "filing_date": "2026-09-30",
+                    "metadata": None
+                },
+                None
+            ],
+            "sec_facts": {
+                "facts": None,
+                "other": [
+                    {
+                        "filed": "2026-09-15"
+                    },
+                    None
+                ]
+            },
+            "macro_facts": {
+                "series": None
+            },
+            "source_status": {
+                "sec_filings": "available",
+                "sec_facts": "available"
+            }
+        })
+
+        self.assertIn("SEC filing: 2026-09-30", note)
+        self.assertIn("SEC facts filed: 2026-09-15", note)
+
 
 if __name__ == "__main__":
     unittest.main()

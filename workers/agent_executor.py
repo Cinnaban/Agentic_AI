@@ -445,11 +445,6 @@ class AgentExecutor:
             )
         )
         
-        market_context = (
-            self.market_context_provider.get_context(
-                company
-            )
-        )
 # QUANT 
         if required_agents.get(
             "quant",
@@ -493,6 +488,12 @@ class AgentExecutor:
                         )
                     )
                 )
+        else:
+            market_context = (
+                self.market_context_provider.get_context(
+                    company
+                )
+            )
 # RESEARCH
         if required_agents.get(
             "research",
