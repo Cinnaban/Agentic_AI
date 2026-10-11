@@ -87,6 +87,11 @@ RULES:
 - For descriptive questions, prefer organization pages
   and reputable reference material.
 
+- For a studio, developer, or company known for creative
+  work, search separately for current or upcoming projects
+  and for its notable past work. Do not treat a past release
+  as an active project.
+
 - Do not invent facts.
 
 Return ONLY valid JSON:

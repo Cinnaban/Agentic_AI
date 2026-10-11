@@ -84,6 +84,14 @@ class GenericFactualSourceTests(unittest.TestCase):
         )
         self.assertNotIn("unrelated subreddit discussion", queries)
         self.assertIn("Piranha Games Inc games", queries)
+        self.assertTrue(any(
+            "current projects upcoming in development" in query
+            for query in queries
+        ))
+        self.assertTrue(any(
+            "video game franchise projects history" in query
+            for query in queries
+        ))
 
     def test_factual_context_filters_irrelevant_and_social_results(self):
         provider = GenericEvidenceProvider()
@@ -270,6 +278,10 @@ class GenericFactualSourceTests(unittest.TestCase):
         self.assertIn("MechWarrior Online", result["response"])
         self.assertIn("MechWarrior 5: Mercenaries", result["response"])
         self.assertIn("oldest game developers", result["response"])
+        self.assertIn(
+            "did not verify a project currently in development",
+            result["response"]
+        )
         self.assertNotIn("\\[2\\]", result["response"])
         self.assertNotIn("This final fragment", result["response"])
         self.assertNotIn("Edmonton", result["response"])
@@ -310,6 +322,50 @@ class GenericFactualSourceTests(unittest.TestCase):
             result["response"]
         )
         self.assertNotIn("Sources:", result["response"])
+
+    def test_direct_factual_answer_separates_active_and_past_projects(self):
+        agent = GenericEvidenceAgent()
+        content = (
+            "Piranha Games is a Canadian video game developer based in "
+            "Burnaby, British Columbia. "
+            "The studio is currently developing a new MechWarrior project, "
+            "according to its official project page. "
+            "Piranha Games developed MechWarrior Online and MechWarrior 5: "
+            "Clans across the past two decades."
+        )
+        evidence = {
+            "subject": "Piranha Games",
+            "results": [{
+                "source_id": "S1",
+                "title": "Piranha Games Projects",
+                "source_role": "official_candidate",
+                "evidence_level": "retrieved_webpage",
+                "content": content,
+                "url": "https://piranha-games.com/projects"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Piranha Games Projects",
+                "publisher": "piranha-games.com",
+                "url": "https://piranha-games.com/projects"
+            }]
+        }
+
+        result = agent.analyze(
+            message="What can you tell me about Piranha Games?",
+            evidence=evidence
+        )
+        response = result["response"]
+        current_section, past_section = response.split(
+            "**Notable games, projects, and achievements stated by the "
+            "sources:**"
+        )
+
+        self.assertIn("**Current projects stated by the sources:**", response)
+        self.assertIn("currently developing a new MechWarrior project", current_section)
+        self.assertNotIn("MechWarrior Online", current_section)
+        self.assertIn("MechWarrior Online", past_section)
+        self.assertIn("past two decades", past_section)
 
 
 if __name__ == "__main__":

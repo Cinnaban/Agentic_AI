@@ -652,14 +652,28 @@ social or community discussion.
         project_terms = (
             "game", "games", "project", "projects", "title", "titles",
             "franchise", "series", "developed", "co-developed",
-            "published", "released", "created", "worked on",
-            "contributed to", "developer of"
+            "developing", "in development", "published", "released",
+            "created", "worked on", "contributed to", "developer of"
         )
         if any(term in text for term in achievement_terms):
             return "achievement"
         if any(term in text for term in project_terms):
             return "project"
         return None
+
+    @staticmethod
+    def _is_current_project_statement(sentence):
+        return bool(re.search(
+            r"\b(?:currently\s+(?:developing|working\s+on|producing)|"
+            r"(?:is|are)\s+(?:currently\s+)?"
+            r"(?:developing|working\s+on|producing)|"
+            r"(?:is|are|was|were)\s+in\s+development|"
+            r"upcoming|under\s+development|"
+            r"next\s+(?:game|project|title)|"
+            r"active\s+development)\b",
+            sentence,
+            re.IGNORECASE
+        ))
 
     @classmethod
     def _build_direct_factual_response(
@@ -773,9 +787,35 @@ social or community discussion.
             item for item in highlights
             if item["type"] == "project"
         ]
-        selected_highlights = (achievement_highlights + project_highlights)[:5]
+        current_projects = [
+            item for item in project_highlights
+            if cls._is_current_project_statement(item["sentence"])
+        ][:3]
+        past_highlights = [
+            item for item in achievement_highlights + project_highlights
+            if item not in current_projects
+        ][:max(0, 5 - len(current_projects))]
+        selected_highlights = current_projects + past_highlights
+        unique_highlights = []
+        seen_sentences = set()
+        for item in selected_highlights:
+            normalized_sentence = item["sentence"].casefold()
+            if normalized_sentence in seen_sentences:
+                continue
+            seen_sentences.add(normalized_sentence)
+            unique_highlights.append(item)
+        current_projects = [
+            item for item in unique_highlights
+            if item in current_projects
+        ]
+        past_highlights = [
+            item for item in unique_highlights
+            if item not in current_projects
+        ]
         selected_items = (
-            ([overview] if overview else []) + selected_highlights
+            ([overview] if overview else [])
+            + current_projects
+            + past_highlights
         )
         used_source_ids = {
             item["source_id"] for item in selected_items
@@ -795,7 +835,21 @@ social or community discussion.
                     f"[{overview['source_id']}]"
                 )
             ])
-        if selected_highlights:
+        lines.extend([
+            "",
+            "**Current projects stated by the sources:**"
+        ])
+        if current_projects:
+            lines.extend(
+                f"- {item['sentence']} [{item['source_id']}]"
+                for item in current_projects
+            )
+        else:
+            lines.append(
+                "- The retrieved sources did not verify a project "
+                "currently in development or identified as upcoming."
+            )
+        if past_highlights:
             lines.extend([
                 "",
                 "**Notable games, projects, and achievements stated by "
@@ -803,9 +857,9 @@ social or community discussion.
             ])
             lines.extend(
                 f"- {item['sentence']} [{item['source_id']}]"
-                for item in selected_highlights
+                for item in past_highlights
             )
-        else:
+        elif not current_projects:
             lines.extend([
                 "",
                 "The retrieved readable pages did not provide a complete "

@@ -180,12 +180,26 @@ class GenericEvidenceProvider:
     ):
         target = str(subject or query or "").strip()
         candidates = []
+        target_terms = set(self._subject_terms(target))
+        is_game_related = bool(target_terms.intersection({
+            "game",
+            "games",
+            "developer",
+            "developers",
+            "studio",
+            "studios"
+        }))
         if target:
             candidates.extend([
                 f'"{target}" official website',
                 f'"{target}" Wikipedia',
-                f'"{target}"'
+                f'"{target}"',
+                f'"{target}" current projects upcoming in development'
             ])
+            if is_game_related:
+                candidates.append(
+                    f'"{target}" video game franchise projects history'
+                )
 
         if isinstance(search_queries, list):
             candidates.extend(search_queries)
@@ -203,7 +217,10 @@ class GenericEvidenceProvider:
                 if not all(term in query_terms for term in target_terms):
                     continue
             cleaned.append(candidate)
-            if len(cleaned) >= self.max_search_queries:
+            query_limit = self.max_search_queries + (
+                2 if is_game_related else 1
+            )
+            if len(cleaned) >= query_limit:
                 break
         return cleaned
 
