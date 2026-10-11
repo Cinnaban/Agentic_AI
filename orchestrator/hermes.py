@@ -468,27 +468,47 @@ class Hermes:
         if not isinstance(companies, list):
             companies = []
 
-        is_explicit_security_evaluation = (
+        is_single_public_security_request = (
             len(companies) == 1
             and isinstance(companies[0], dict)
             and isinstance(companies[0].get("ticker"), str)
             and bool(companies[0]["ticker"].strip())
+        )
+        explicit_evaluation_terms = (
+            "evaluate",
+            "evaluation",
+            "assess",
+            "rate"
+        )
+        explicit_analysis_terms = (
+            "analyze",
+            "analyse",
+            "analysis",
+            "valuation",
+            "value",
+            "forecast",
+            "outlook",
+            "risk analysis"
+        )
+        is_explicit_security_evaluation = (
+            is_single_public_security_request
             and any(
-                re.search(
-                    rf"\b{re.escape(term)}\b",
-                    normalized
-                )
-                for term in (
-                    "evaluate",
-                    "evaluation",
-                    "assess",
-                    "rate"
-                )
+                re.search(rf"\b{re.escape(term)}\b", normalized)
+                for term in explicit_evaluation_terms
+            )
+        )
+        is_explicit_security_analysis = (
+            is_single_public_security_request
+            and any(
+                re.search(rf"\b{re.escape(term)}\b", normalized)
+                for term in explicit_analysis_terms
             )
         )
 
         if is_explicit_security_evaluation:
             intent = "evaluation"
+        elif is_explicit_security_analysis:
+            intent = "analysis"
         
         evaluation_keywords = {
             "evaluate",
@@ -575,7 +595,10 @@ class Hermes:
         if not isinstance(assignment_result, dict):
             assignment_result = {}
 
-        if is_explicit_security_evaluation:
+        if (
+            is_explicit_security_evaluation
+            or is_explicit_security_analysis
+        ):
             assignment_result["quant"] = True
 
         if assignment_result.get("quant"):

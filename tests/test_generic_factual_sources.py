@@ -284,6 +284,8 @@ class GenericFactualSourceTests(unittest.TestCase):
 
         self.assertIn("Do not reinterpret it", prompt)
         self.assertIn("Do not fill gaps from model memory", prompt)
+        self.assertIn("Context:", prompt)
+        self.assertNotIn("Interpreted question:", prompt)
         self.assertIn("[S1]", prompt)
         self.assertIn("https://en.wikipedia.org/wiki/Piranha_Games", result["response"])
         self.assertIn("Sources:", result["response"])

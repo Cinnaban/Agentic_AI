@@ -331,15 +331,20 @@ when useful retrieved evidence exists.
 
 Instead:
 
-1. Briefly state how the user's question was
-   interpreted.
+1. Preserve and answer the user's original question
+   without rewording it as an "interpreted question".
 
 2. Give a one-word Assessment based only on the
    supplied evidence.
 
-3. Explain what the evidence supports.
+3. Provide a separate Context section containing only
+   explicit scope or background supported by the user's
+   request or retrieved evidence. Clearly label any
+   inference as an inference. If none is available, say
+   "No additional context stated."
 
-4. Explain what important evidence is missing.
+4. Explain what the evidence supports and what
+   important evidence is missing.
 
 Allowed Assessment labels should be short and
 appropriate to the question, for example:
@@ -363,13 +368,14 @@ Assessment.
 RESPONSE FORMAT FOR AMBIGUOUS OR LOW-CONFIDENCE
 QUESTIONS:
 
-Interpreted question:
-"<brief descriptive rewording of the user's question>"
+Context:
+<brief explicit scope/background, or "No additional context stated">
 
 Assessment: <one-word assessment>
 
-Then answer in 2-4 short sections using the retrieved
-evidence.
+Answer the original question in 2-4 short sections
+using the retrieved evidence. Do not replace it with a
+rephrased question.
 
 Conclude with one brief limitation when important
 information could not be verified.

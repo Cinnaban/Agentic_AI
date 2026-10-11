@@ -125,6 +125,23 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         self.assertEqual(workflow.companies[0]["industry"], "Semiconductors")
         self.assertTrue(workflow.required_agents["quant"])
 
+    def test_explicit_analyze_ticker_forces_quant_even_if_classifier_says_information(self):
+        self.hermes.company_agent = CompanyAgent({
+            "is_company_request": True,
+            "intent": "general_information",
+            "companies": [{
+                "name": "Alphabet",
+                "ticker": "GOOGL",
+                "entity_type": "security"
+            }]
+        })
+        self.hermes.assignment_agent = AssignmentAgent()
+
+        workflow = self.hermes.build_workflow("Analyze GOOGL")
+
+        self.assertEqual(workflow.companies[0]["ticker"], "GOOGL")
+        self.assertTrue(workflow.required_agents["quant"])
+
     def test_portfolio_evaluation_keeps_portfolio_route(self):
         workflow = self.hermes.build_workflow(
             "Evaluate my portfolio"
