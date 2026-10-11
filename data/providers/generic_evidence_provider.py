@@ -470,6 +470,9 @@ class GenericEvidenceProvider:
             "query":
                 query,
 
+            "subject":
+                subject,
+
             "results":
                 enriched,
                 

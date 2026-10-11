@@ -257,6 +257,10 @@ ordinary factual answers; Reddit/X evidence is retrieved only for explicit
 community-discussion questions. Answers stay anchored to the user's question,
 distinguish retrieved pages from search snippets, cite supplied source IDs,
 and include direct source links so claims can be checked.
+For direct "what/who/tell me about" questions, the bot presents short
+attributed excerpts from retrieved pages instead of asking a language model to
+rewrite factual details. If it has only search snippets and no readable page
+text, it declines to assert a summary.
 
 ## Firecrawl
 

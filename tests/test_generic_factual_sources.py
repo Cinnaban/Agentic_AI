@@ -212,7 +212,10 @@ class GenericFactualSourceTests(unittest.TestCase):
         }
 
         result = agent.analyze(
-            message="What can you tell me about Piranha Games Inc?",
+            message=(
+                "Compare independent coverage and available evidence "
+                "about Piranha Games Inc"
+            ),
             evidence=evidence,
             research_plan={}
         )
@@ -223,6 +226,81 @@ class GenericFactualSourceTests(unittest.TestCase):
         self.assertIn("[S1]", prompt)
         self.assertIn("https://en.wikipedia.org/wiki/Piranha_Games", result["response"])
         self.assertIn("Sources:", result["response"])
+
+    def test_direct_factual_answer_uses_page_text_without_model_synthesis(self):
+        agent = GenericEvidenceAgent()
+        agent.ollama = Mock()
+        text = (
+            "Piranha Games Inc. is a Canadian video game developer "
+            "based in Burnaby, British Columbia. The company was "
+            "founded by Russ Bullock and Bryan Ekman."
+        )
+        evidence = {
+            "query": "What can you tell me about Piranha Games Inc?",
+            "subject": "Piranha Games Inc",
+            "results": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "source": "en.wikipedia.org",
+                "source_host": "en.wikipedia.org",
+                "source_role": "reference",
+                "evidence_level": "retrieved_reference",
+                "content": text,
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "publisher": "en.wikipedia.org",
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }]
+        }
+
+        result = agent.analyze(
+            message="What can you tell me about Piranha Games Inc?",
+            evidence=evidence
+        )
+
+        agent.ollama.generate.assert_not_called()
+        self.assertIn("Burnaby, British Columbia", result["response"])
+        self.assertIn("Russ Bullock and Bryan Ekman", result["response"])
+        self.assertNotIn("Edmonton", result["response"])
+        self.assertNotIn("Cliff Bleszinski", result["response"])
+        self.assertNotIn("official website", result["response"].lower())
+        self.assertIn("[S1]", result["response"])
+
+    def test_direct_factual_answer_fails_closed_when_only_snippets_exist(self):
+        agent = GenericEvidenceAgent()
+        agent.ollama = Mock()
+        evidence = {
+            "subject": "Piranha Games",
+            "results": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "summary": "A video game developer",
+                "source_role": "reference",
+                "evidence_level": "search_snippet",
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "publisher": "en.wikipedia.org",
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }]
+        }
+
+        result = agent.analyze(
+            message="What can you tell me about Piranha Games?",
+            evidence=evidence
+        )
+
+        agent.ollama.generate.assert_not_called()
+        self.assertIn(
+            "Search-result snippets alone are not enough",
+            result["response"]
+        )
+        self.assertNotIn("Sources:", result["response"])
 
 
 if __name__ == "__main__":

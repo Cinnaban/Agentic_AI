@@ -1,3 +1,4 @@
+import re
 import json
 
 from agents.ollama_client import (
@@ -10,6 +11,13 @@ from configs.config import (
 
 
 class GenericEvidenceAgent:
+
+    DIRECT_FACTUAL_REQUEST = re.compile(
+        r"\b(?:what\s+is|who\s+is|tell\s+me\s+about|"
+        r"what\s+can\s+you\s+tell\s+me\s+about|"
+        r"describe|give\s+me\s+(?:an?\s+)?overview\s+of)\b",
+        re.IGNORECASE
+    )
 
     def __init__(
         self
@@ -68,6 +76,15 @@ class GenericEvidenceAgent:
                         "a useful answer."
                     )
             }
+
+        if self.DIRECT_FACTUAL_REQUEST.search(
+            str(message or "")
+        ):
+            return self._build_direct_factual_response(
+                message,
+                evidence,
+                results
+            )
 
 
         prompt = f"""
@@ -586,4 +603,210 @@ social or community discussion.
                     "sources",
                     []
                 )
+        }
+
+    @staticmethod
+    def _readable_excerpt(content, subject):
+        if not isinstance(content, str) or not content.strip():
+            return ""
+
+        text = re.sub(
+            r"\[([^\]]+)\]\((?:https?://[^)]+)\)",
+            r"\1",
+            content
+        )
+        text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)
+        text = re.sub(r"`{1,3}", "", text)
+        text = re.sub(r"\*\*|__|[*_]", "", text)
+        text = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", text)
+        text = re.sub(r"\[\d+\]", "", text)
+
+        subject_terms = [
+            term.lower()
+            for term in re.findall(
+                r"[a-z0-9]+",
+                str(subject or "").lower()
+            )
+            if term.lower() not in {
+                "about", "company", "corporation", "corp", "inc",
+                "incorporated", "limited", "llc", "ltd", "what", "who",
+                "can", "tell", "me", "you", "the", "is", "are", "of"
+            }
+        ]
+        paragraphs = [
+            re.sub(r"\s+", " ", paragraph).strip(" -|")
+            for paragraph in re.split(r"\n\s*\n", text)
+        ]
+        paragraphs = [
+            paragraph
+            for paragraph in paragraphs
+            if (
+                len(paragraph) >= 80
+                and not paragraph.startswith(("Contents", "From Wikipedia"))
+                and not paragraph.lower().startswith(
+                    ("jump to", "navigation menu", "search")
+                )
+            )
+        ]
+        if subject_terms:
+            matching = [
+                paragraph
+                for paragraph in paragraphs
+                if sum(
+                    bool(
+                        re.search(
+                            r"\b" + re.escape(term) + r"\b",
+                            paragraph.lower()
+                        )
+                    )
+                    for term in subject_terms
+                ) >= min(2, len(subject_terms))
+            ]
+            paragraphs = matching
+
+        if not paragraphs:
+            return ""
+
+        sentences = re.split(
+            r"(?<=[.!?])\s+(?=[A-Z0-9])",
+            paragraphs[0]
+        )
+        excerpt = ""
+        for sentence in sentences:
+            candidate = (
+                sentence.strip()
+                if not excerpt
+                else excerpt + " " + sentence.strip()
+            )
+            if len(candidate) > 420:
+                break
+            excerpt = candidate
+            if len(excerpt) >= 160:
+                break
+
+        if not excerpt:
+            excerpt = paragraphs[0][:420].rsplit(" ", 1)[0]
+        return excerpt
+
+    @classmethod
+    def _build_direct_factual_response(
+        cls,
+        message,
+        evidence,
+        results
+    ):
+        subject = evidence.get("subject") or evidence.get("query") or ""
+        sources = evidence.get("sources", [])
+        source_by_id = {
+            source.get("source_id"): source
+            for source in sources
+            if (
+                isinstance(source, dict)
+                and isinstance(source.get("source_id"), str)
+            )
+        } if isinstance(sources, list) else {}
+
+        excerpts = []
+        seen_source_ids = set()
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            if result.get("evidence_level") not in {
+                "retrieved_webpage",
+                "retrieved_reference"
+            }:
+                continue
+            if result.get("source_role") not in {
+                "official_candidate",
+                "reference",
+                "government_or_academic",
+                "independent_or_other"
+            }:
+                continue
+
+            source_id = result.get("source_id")
+            if (
+                not isinstance(source_id, str)
+                or source_id not in source_by_id
+                or source_id in seen_source_ids
+            ):
+                continue
+            source = source_by_id.get(source_id, {})
+            url = result.get("url") or source.get("url")
+            if not isinstance(url, str) or not url.startswith(
+                ("https://", "http://")
+            ):
+                continue
+            excerpt = cls._readable_excerpt(
+                result.get("content"),
+                subject
+            )
+            if not excerpt:
+                continue
+            excerpts.append({
+                "source_id": source_id,
+                "title": (
+                    result.get("title")
+                    or source.get("title")
+                    or result.get("source_host")
+                    or "Retrieved webpage"
+                ),
+                "publisher": (
+                    source.get("publisher")
+                    or result.get("source_host")
+                    or result.get("source")
+                ),
+                "url": url,
+                "excerpt": excerpt
+            })
+            seen_source_ids.add(source_id)
+            if len(excerpts) >= 2:
+                break
+
+        if not excerpts:
+            return {
+                "status": "completed",
+                "response": (
+                    "I couldn't verify a factual summary from readable, "
+                    "subject-matched source pages. Search-result snippets "
+                    "alone are not enough to support a reliable answer."
+                ),
+                "sources": []
+            }
+
+        lines = [
+            f"Retrieved source text for: {message.strip()}",
+            "",
+            "These are brief excerpts from the retrieved pages; "
+            "they are not independently verified claims."
+        ]
+        for item in excerpts:
+            lines.extend([
+                "",
+                (
+                    f"**{item['title']} "
+                    f"({item['publisher']}) [{item['source_id']}]**"
+                ),
+                f"> {item['excerpt']}"
+            ])
+
+        source_lines = [
+            "",
+            "Sources:"
+        ]
+        for item in excerpts:
+            if item["url"]:
+                source_lines.append(
+                    f"- [{item['source_id']}] {item['title']} "
+                    f"({item['publisher']}): {item['url']}"
+                )
+
+        return {
+            "status": "completed",
+            "response": "\n".join(lines + source_lines),
+            "sources": [
+                source_by_id[item["source_id"]]
+                for item in excerpts
+                if item["source_id"] in source_by_id
+            ]
         }
