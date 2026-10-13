@@ -675,6 +675,11 @@ weights are not read from the sheet, so any aggregate metrics remain
 unweighted. EPS and dividend-yield changes in the sheet summary are marked
 green for increases and red for decreases.
 
+The updater reads tickers from column A of the configured asset worksheet;
+it does not use a separate hard-coded portfolio list. Cell A1 must be
+`Ticker` or `Symbol`. Numeric-only values and malformed symbols are skipped,
+and the report identifies the source worksheet and exact accepted ticker set.
+
 The job is scheduled on the Mac Mini through `launchd` for:
 
 ```text

@@ -1,5 +1,6 @@
 import math
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
@@ -29,6 +30,49 @@ ETF_METRIC_LABELS = (
     ("dividend_yield", "Distribution yield"),
     ("beta", "Beta")
 )
+
+TICKER_SYMBOL_PATTERN = re.compile(
+    r"^[A-Za-z][A-Za-z0-9.-]{0,9}$"
+)
+
+
+def parse_asset_rows(rows):
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("Asset worksheet is empty or unavailable")
+
+    header = rows[0]
+    first_header_cell = (
+        str(header[0]).strip().casefold()
+        if isinstance(header, (list, tuple)) and header
+        else ""
+    )
+    if first_header_cell not in {"ticker", "symbol"}:
+        raise ValueError(
+            "Configured asset worksheet must have Ticker or Symbol in cell A1"
+        )
+
+    holdings = []
+    skipped = []
+    for row_number, row in enumerate(rows[1:], start=2):
+        if not isinstance(row, (list, tuple)) or not row:
+            continue
+        raw_ticker = str(row[0] or "").strip()
+        if not raw_ticker:
+            continue
+        if raw_ticker.casefold() in {"ticker", "symbol"}:
+            continue
+        if not TICKER_SYMBOL_PATTERN.fullmatch(raw_ticker):
+            skipped.append({
+                "row": row_number,
+                "reason": "invalid ticker symbol"
+            })
+            continue
+        holdings.append({
+            "row": row_number,
+            "ticker": raw_ticker.upper(),
+            "values": row
+        })
+    return holdings, skipped
 
 
 def _number(value):
@@ -397,8 +441,15 @@ def _format_metric(key, value):
 def format_holding_insights(holdings, news_by_ticker, now=None):
     now = now or datetime.now(timezone.utc)
     generated_at = now.astimezone(timezone.utc).isoformat()
+    symbols = [
+        holding.get("ticker")
+        for holding in holdings
+        if holding.get("ticker")
+    ]
     lines = [
         f"Portfolio insights retrieved at {generated_at}.",
+        f"Included worksheet tickers ({len(symbols)}): "
+        + (", ".join(symbols) if symbols else "none"),
         "News below is limited to stories with a parseable publication "
         "timestamp within the preceding 48 hours."
     ]

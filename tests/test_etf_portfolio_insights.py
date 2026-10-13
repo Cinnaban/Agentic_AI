@@ -9,11 +9,38 @@ from workers.etf_portfolio_insights import (
     collect_holding_insights,
     filter_recent_news,
     format_holding_insights,
+    parse_asset_rows,
     retrieve_holding_insights
 )
 
 
 class ETFPortfolioInsightsTests(unittest.TestCase):
+
+    def test_asset_rows_only_accept_valid_ticker_symbols(self):
+        holdings, skipped = parse_asset_rows([
+            ["Ticker", "Account", "Classification"],
+            ["VXUS", "Brokerage", "ETF"],
+            ["042600002", "Brokerage", "ETF"],
+            ["BRK.B", "Brokerage", "Stock"],
+            ["", "", ""]
+        ])
+
+        self.assertEqual(
+            [item["ticker"] for item in holdings],
+            ["VXUS", "BRK.B"]
+        )
+        self.assertEqual(skipped, [{
+            "row": 3,
+            "reason": "invalid ticker symbol"
+        }])
+        self.assertNotIn("042600002", repr(skipped))
+
+    def test_asset_rows_fail_closed_for_wrong_worksheet_header(self):
+        with self.assertRaisesRegex(ValueError, "Ticker or Symbol in cell A1"):
+            parse_asset_rows([
+                ["Account Number", "Name"],
+                ["042600002", "Example"]
+            ])
 
     def test_stock_insights_include_quarterly_and_fundamental_metrics(self):
         newest = datetime(2026, 9, 30)
@@ -173,6 +200,18 @@ class ETFPortfolioInsightsTests(unittest.TestCase):
         self.assertIn("Expense ratio: 0.35%.", output)
         self.assertIn("ETF operating-company ratios not applicable.", output)
         self.assertIn("No timestamp-verified relevant headlines retrieved.", output)
+
+    def test_report_discloses_the_exact_included_ticker_set(self):
+        output = format_holding_insights(
+            [
+                {"ticker": "VXUS", "entity_type": "etf", "metrics": {}},
+                {"ticker": "VB", "entity_type": "etf", "metrics": {}}
+            ],
+            {}
+        )
+
+        self.assertIn("Included worksheet tickers (2): VXUS, VB", output)
+        self.assertNotIn("042600002", output)
 
     def test_stock_peer_context_is_limited_to_same_industry_portfolio_holdings(self):
         output = format_holding_insights(

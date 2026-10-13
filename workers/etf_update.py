@@ -38,6 +38,7 @@ from workers.etf_portfolio_evaluation import (
 from workers.etf_portfolio_insights import (
     filter_recent_news,
     format_holding_insights,
+    parse_asset_rows,
     retrieve_holding_insights
 )
 
@@ -104,12 +105,21 @@ def generate_summary(results):
 	lines.append("===== MIXED STOCK / ETF UPDATE SUMMARY =====")
 	lines.append(f"Run Date: {results['run_date']}")
 	lines.append(f"Holdings Checked: {results['holdings_checked']}")
+	lines.append(f"Source Worksheet: {results['source_worksheet']}")
 	lines.append(
 		f"Classified stocks: {results['stock_count']} | "
 		f"Classified ETFs: {results['etf_count']} | "
 		f"Unresolved: {results['unresolved_count']}"
 	)
 	lines.append(f"Updates Applied: {results['updates_applied']}")
+	if results["skipped_rows"]:
+		lines.append(
+			f"Skipped invalid ticker cells at worksheet rows: "
+			+ ", ".join(
+				str(item["row"])
+				for item in results["skipped_rows"]
+			)
+		)
 	lines.append("")
 
 	if results["changes"]:
@@ -421,11 +431,17 @@ worksheet = google_client.open(
 
 # Read all rows
 rows = worksheet.get_all_values()
+sheet_holdings, skipped_rows = parse_asset_rows(rows)
+for skipped_row in skipped_rows:
+	logging.warning(
+		"Skipping invalid ticker value in worksheet row %s",
+		skipped_row["row"]
+	)
 
 # Set up change variables
 changes = []
 pending_updates = []
-holdings_checked = 0
+holdings_checked = len(sheet_holdings)
 errors = []
 beta_values = []
 portfolio_evaluation_holdings = []
@@ -499,16 +515,13 @@ news_headlines = (
 )
 
 # Skip header row
-for row_num, row in enumerate(rows[1:], start=2):
+for holding in sheet_holdings:
 	
+	row_num = holding["row"]
+	row = holding["values"]
 	row_changed = False
 
-	ticker = row[0].strip()
-
-	if not ticker:
-		continue
-	
-	holdings_checked += 1
+	ticker = holding["ticker"]
 
 	print(f"Checking {ticker}")
 
@@ -770,6 +783,8 @@ if pending_updates:
 results = {
 	"run_date": today,
 	"holdings_checked": holdings_checked,
+	"source_worksheet": GOOGLE_ASSET_TAB,
+	"skipped_rows": skipped_rows,
 	"stock_count": sum(
 		1 for item in holding_insights
 		if item.get("entity_type") == "stock"
@@ -811,6 +826,12 @@ beta_analysis = generate_beta_analysis(
 holding_insights_text = format_holding_insights(
     holding_insights,
     news_by_ticker
+)
+holding_insights_text = (
+    f"Source worksheet: {GOOGLE_ASSET_TAB}. "
+    f"Valid ticker cells: {holdings_checked}. "
+    f"Skipped invalid ticker cells: {len(skipped_rows)}.\n\n"
+    + holding_insights_text
 )
 
 research_prompt = (
