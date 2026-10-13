@@ -641,12 +641,13 @@ entries.
 ### Public Reference Archive
 
 The public-reference archive is separate from the short-lived cache and can
-live on the mounted Gaming PC share. Set
-`PUBLIC_REFERENCE_ARCHIVE_DIRECTORY` to a directory on that mounted share;
-for example, point it to a `reference_archive` folder under the share's
-existing `hermes` directory. The archive stays disabled until this path is
-explicitly configured, preventing data from silently accumulating on the
-local disk instead of the intended share.
+live on the mounted Gaming PC share. On this Mac, the share
+`smb://192.168.50.1/AIProjects/hermes` is mounted at
+`/Volumes/AIProjects/hermes`; set
+`PUBLIC_REFERENCE_ARCHIVE_DIRECTORY=/Volumes/AIProjects/hermes/reference_archive`
+in `.env`. The archive stays disabled until this path is explicitly
+configured, preventing data from silently accumulating on the local disk
+instead of the intended share.
 
 For non-current factual queries, the archive stores retrieved public webpage
 text and a hashed lookup for an exact normalized query. The original query
