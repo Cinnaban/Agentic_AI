@@ -196,23 +196,56 @@ class GamingPCBridge:
                     response.json()
                 )
 
+                if not isinstance(response_data, dict):
+                    raise ValueError(
+                        "Gaming PC returned an invalid response; "
+                        "expected a JSON object"
+                    )
 
                 remote_results = (
                     response_data.get(
                         "results",
-                        []
+                        None
                     )
                 )
 
-
-                if isinstance(
-                    remote_results,
-                    list
-                ):
-
-                    combined_results.extend(
-                        remote_results
+                if not isinstance(remote_results, list):
+                    response_error = response_data.get("error")
+                    detail = (
+                        f": {response_error}"
+                        if isinstance(response_error, str)
+                        and response_error.strip()
+                        else ""
                     )
+                    raise ValueError(
+                        "Gaming PC response did not include a valid "
+                        f"results list{detail}"
+                    )
+
+                if not remote_results:
+                    response_error = response_data.get("error")
+                    detail = (
+                        f": {response_error}"
+                        if isinstance(response_error, str)
+                        and response_error.strip()
+                        else ""
+                    )
+                    raise ValueError(
+                        "Gaming PC returned no quant results"
+                        f"{detail}"
+                    )
+
+                if any(
+                    not isinstance(item, dict)
+                    for item in remote_results
+                ):
+                    raise ValueError(
+                        "Gaming PC returned malformed quant results"
+                    )
+
+                combined_results.extend(
+                    remote_results
+                )
 
 
                 print(

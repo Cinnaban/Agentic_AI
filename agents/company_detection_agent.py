@@ -6,8 +6,34 @@ from configs.config import Config
 
 class CompanyDetectionAgent:
 
+    KNOWN_PUBLIC_COMPANY_ALIASES = {
+        "intel": {
+            "name": "Intel",
+            "ticker": "INTC",
+            "entity_type": "stock"
+        },
+        "intel corporation": {
+            "name": "Intel",
+            "ticker": "INTC",
+            "entity_type": "stock"
+        }
+    }
+
     def __init__(self):
         self.ollama = OllamaClient()
+
+    @classmethod
+    def _extract_known_company_entities(cls, message):
+        normalized = str(message or "").lower()
+        entities = []
+        for alias, entity in cls.KNOWN_PUBLIC_COMPANY_ALIASES.items():
+            if re.search(
+                rf"\b{re.escape(alias)}\b",
+                normalized
+            ):
+                entities.append(dict(entity))
+        return entities
+
     def _extract_explicit_tickers(
             self,
             message
@@ -77,6 +103,9 @@ class CompanyDetectionAgent:
             for ticker
             in explicit_tickers
         ]
+        known_company_entities = (
+            self._extract_known_company_entities(message)
+        )
         
         explicit_ticker_context = (
             ", ".join(
@@ -278,12 +307,13 @@ class CompanyDetectionAgent:
             response,
             dict
         ):
+            fallback_entities = explicit_entities + known_company_entities
             return {
                 "is_company_request": bool(
-                    explicit_entities
+                    fallback_entities
                 ),
                 "intent": "general_information",
-                "companies": explicit_entities
+                "companies": fallback_entities
             }
 
         model_response = response.get(
@@ -292,12 +322,13 @@ class CompanyDetectionAgent:
         )
 
         if not model_response:
+            fallback_entities = explicit_entities + known_company_entities
             return {
                 "is_company_request": bool(
-                    explicit_entities
+                    fallback_entities
                 ),
                 "intent": "general_information",
-                "companies": explicit_entities
+                "companies": fallback_entities
             }
 
         print(model_response)
@@ -405,6 +436,7 @@ class CompanyDetectionAgent:
 
             for company in (
                 explicit_entities
+                + known_company_entities
                 + normalized_companies
             ):
 
@@ -435,33 +467,27 @@ class CompanyDetectionAgent:
 
                     continue
 
-
-                ticker = company.get(
-                    "ticker"
-                )
-
-
-                if isinstance(
-                    ticker,
-                    str
-                ):
-
-                    ticker = (
-                        ticker
-                        .strip()
-                        .upper()
-                    )
-
-
-                    if not ticker:
-
-                        ticker = None
-
-
+                ticker = company.get("ticker")
+                if isinstance(ticker, str):
+                    ticker = ticker.strip().upper() or None
                 else:
-
                     ticker = None
 
+                if known_company_entities:
+                    mentioned = any(
+                        re.search(
+                            rf"\b{re.escape(candidate)}\b",
+                            str(message or ""),
+                            re.IGNORECASE
+                        )
+                        for candidate in (
+                            name,
+                            ticker or ""
+                        )
+                        if candidate
+                    )
+                    if not mentioned:
+                        continue
 
                 entity_type = str(
                     company.get(
@@ -535,12 +561,13 @@ class CompanyDetectionAgent:
             )
 
 
-            if explicit_entities:
+            fallback_entities = explicit_entities + known_company_entities
+            if fallback_entities:
 
                 return {
                     "is_company_request": True,
                     "intent": "general_information",
-                    "companies": explicit_entities,
+                    "companies": fallback_entities,
                     "error": str(e)
                 }
 

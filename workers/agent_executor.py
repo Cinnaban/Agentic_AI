@@ -100,6 +100,18 @@ class AgentExecutor:
                     work_package
                 )
             )
+            if (
+                isinstance(quant_result, dict)
+                and quant_result.get("status") == "failed"
+            ):
+                return {
+                    "status": "failed",
+                    "error": quant_result.get(
+                        "error",
+                        "Quantitative analysis failed"
+                    ),
+                    "quant": quant_result
+                }
 
 
         quant_by_ticker = {}
@@ -450,11 +462,22 @@ class AgentExecutor:
             "quant",
             False
         ):
-            results["quant"] = (
-                self.quant_agent.analyze(
-                    work_package
-                )
+            quant_result = self.quant_agent.analyze(
+                work_package
             )
+            results["quant"] = quant_result
+            if (
+                isinstance(quant_result, dict)
+                and quant_result.get("status") == "failed"
+            ):
+                return {
+                    "status": "failed",
+                    "error": quant_result.get(
+                        "error",
+                        "Quantitative analysis failed"
+                    ),
+                    "quant": quant_result
+                }
             
             market_context = (
                 self.market_context_provider.get_context(

@@ -354,7 +354,11 @@ class ETFEvaluationTests(unittest.TestCase):
         result = bridge.submit_job(work_package)
         payload = bridge.session.post.call_args.kwargs["json"]
 
-        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["status"], "failed")
+        self.assertIn(
+            "no quant results",
+            result["failed_companies"][0]["error"]
+        )
         self.assertEqual(payload["companies"][0]["entity_type"], "etf")
         self.assertEqual(
             payload["companies"][0]["etf_context"]["status"],

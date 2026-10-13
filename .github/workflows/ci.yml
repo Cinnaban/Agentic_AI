@@ -29,6 +29,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_performance_chart.py'
           python -m unittest discover -s tests -p 'test_generic_factual_sources.py'
           python -m unittest discover -s tests -p 'test_reference_archive.py'
+          python -m unittest discover -s tests -p 'test_gaming_pc_bridge_responses.py'
           python -m unittest discover -s tests -p 'test_portfolio_summary.py'
           python -m unittest discover -s tests -p 'test_etf_portfolio_insights.py'
           python -m unittest discover -s tests -p 'test_shared_storage_cache.py'

@@ -1,5 +1,9 @@
 import unittest
+from unittest.mock import Mock
+import json
 
+from agents.company_detection_agent import CompanyDetectionAgent
+from workers.agent_executor import AgentExecutor
 from orchestrator.hermes import Hermes
 from orchestrator.portfolio_request_parser import PortfolioRequestParser
 from job_queue.job_factory import JobFactory
@@ -141,6 +145,66 @@ class StockEvaluationRoutingTests(unittest.TestCase):
 
         self.assertEqual(workflow.companies[0]["ticker"], "GOOGL")
         self.assertTrue(workflow.required_agents["quant"])
+
+    def test_lowercase_intel_analysis_resolves_to_quant_instead_of_model_drift(self):
+        detector = CompanyDetectionAgent()
+        detector.ollama = Mock()
+        detector.ollama.generate.return_value = {
+            "response": json.dumps({
+                "is_company_request": True,
+                "intent": "general_information",
+                "companies": [{
+                    "name": "KeyCorp",
+                    "ticker": "KEY"
+                }]
+            })
+        }
+        self.hermes.company_agent = detector
+        self.hermes.assignment_agent = AssignmentAgent()
+        self.hermes.etf_fund_provider = InstrumentTypeProvider()
+
+        workflow = self.hermes.build_workflow("Analyze intel")
+
+        self.assertEqual(
+            [company["ticker"] for company in workflow.companies],
+            ["INTC"]
+        )
+        self.assertEqual(workflow.companies[0]["name"], "Intel")
+        self.assertTrue(workflow.required_agents["quant"])
+
+    def test_quant_failure_is_propagated_without_attempting_market_context(self):
+        executor = AgentExecutor.__new__(AgentExecutor)
+        executor.freshness_detector = type(
+            "FreshnessDetectorMock",
+            (),
+            {"requires_live_data": lambda self, message: False}
+        )()
+        executor.quant_agent = type(
+            "QuantAgentMock",
+            (),
+            {
+                "analyze": lambda self, package: {
+                    "status": "failed",
+                    "error": "Gaming PC returned no quant results"
+                }
+            }
+        )()
+        executor.market_context_provider = Mock()
+        work_package = type(
+            "WorkPackage",
+            (),
+            {
+                "companies": [{"name": "Intel", "ticker": "INTC"}],
+                "required_agents": {"quant": True},
+                "original_message": "Evaluate INTC"
+            }
+        )()
+
+        result = executor.execute(work_package)
+
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("no quant results", result["error"])
+        executor.market_context_provider.get_context.assert_not_called()
 
     def test_portfolio_evaluation_keeps_portfolio_route(self):
         workflow = self.hermes.build_workflow(

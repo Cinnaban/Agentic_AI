@@ -1,0 +1,30 @@
+{
+  "job_id": "02aa7dfb-f63e-43d8-b41b-b3bfb19380f2",
+  "status": "failed",
+  "created_at": "2026-10-13T16:19:29.774533",
+  "updated_at": "2026-10-13T16:20:49.615180",
+  "data": {
+    "message": "Evaluate INTC",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "INTC",
+        "ticker": "INTC",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "quant": true
+    },
+    "final_status": "failed",
+    "error": "'NoneType' object has no attribute 'get'"
+  }
+}
