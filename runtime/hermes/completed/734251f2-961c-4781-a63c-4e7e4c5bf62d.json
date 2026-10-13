@@ -1,0 +1,53 @@
+{
+  "job_id": "734251f2-961c-4781-a63c-4e7e4c5bf62d",
+  "status": "completed",
+  "created_at": "2026-10-12T15:05:34.281916",
+  "updated_at": "2026-10-12T15:08:23.640891",
+  "data": {
+    "message": "Analyze SONY ticker",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "SONY",
+        "ticker": "SONY",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Consumer Electronics",
+          "sector": "Technology"
+        },
+        "industry": "Consumer Electronics",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "confidence": 20,
+      "issues": [],
+      "strengths": [
+        "Signal reconciliation is internally consistent"
+      ],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete",
+        "Independent challenger review incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}

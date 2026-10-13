@@ -1,0 +1,202 @@
+{
+  "job_id": "ab0e32a4-aea1-4f75-bcca-c00598435283",
+  "status": "completed",
+  "created_at": "2026-10-11T20:24:30.153675",
+  "updated_at": "2026-10-11T20:26:41.313538",
+  "data": {
+    "message": "Evaluate SPYI",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "SPYI",
+        "ticker": "SPYI",
+        "entity_type": "etf",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-10-12T03:24:30.129355+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Derivative Income",
+            "family": "Neos Funds",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "SPYI": 0.0068,
+              "Category Average": 0.008784
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "SPYI": 0.0,
+              "Category Average": 0.6808
+            },
+            {
+              "key": "Total Net Assets",
+              "SPYI": 549560.1,
+              "Category Average": 549560.1
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.018,
+            "stockPosition": 0.9821,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": -0.0001
+          },
+          "top_holdings": [
+            {
+              "key": "NVDA",
+              "Name": "NVIDIA Corp",
+              "Holding Percent": 0.0838842
+            },
+            {
+              "key": "AAPL",
+              "Name": "Apple Inc",
+              "Holding Percent": 0.0735031
+            },
+            {
+              "key": "MSFT",
+              "Name": "Microsoft Corp",
+              "Holding Percent": 0.057581
+            },
+            {
+              "key": "AMZN",
+              "Name": "Amazon.com Inc",
+              "Holding Percent": 0.0369983
+            },
+            {
+              "key": "GOOGL",
+              "Name": "Alphabet Inc Class A",
+              "Holding Percent": 0.030320698
+            },
+            {
+              "key": "AVGO",
+              "Name": "Broadcom Inc",
+              "Holding Percent": 0.0252078
+            },
+            {
+              "key": "GOOG",
+              "Name": "Alphabet Inc Class C",
+              "Holding Percent": 0.024442999
+            },
+            {
+              "key": "META",
+              "Name": "Meta Platforms Inc Class A",
+              "Holding Percent": 0.023900298
+            },
+            {
+              "key": "MU",
+              "Name": "Micron Technology Inc",
+              "Holding Percent": 0.018046401
+            },
+            {
+              "key": "TSLA",
+              "Name": "Tesla Inc",
+              "Holding Percent": 0.0151429
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0166,
+            "consumer_cyclical": 0.0877,
+            "basic_materials": 0.0156,
+            "consumer_defensive": 0.0431,
+            "technology": 0.4061,
+            "communication_services": 0.0996,
+            "financial_services": 0.1118,
+            "utilities": 0.0185,
+            "industrials": 0.0749,
+            "energy": 0.033800002,
+            "healthcare": 0.0924
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "SPYI": 0.04134,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "SPYI": 0.18993,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "SPYI": 0.27379,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "SPYI": 0.05323,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "SPYI": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "SPYI": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "SPYI": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "SPYI": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "SPYI": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "confidence": 20,
+      "issues": [],
+      "strengths": [
+        "Signal reconciliation is internally consistent"
+      ],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete",
+        "Independent challenger review incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}

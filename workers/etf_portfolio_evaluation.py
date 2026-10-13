@@ -60,16 +60,36 @@ def generate_etf_portfolio_appendix(holdings):
         for holding in holdings
         if isinstance(holding, dict) and holding.get("ticker")
     ] if isinstance(holdings, list) else []
+    has_classifications = any(
+        holding.get("entity_type") in {"stock", "etf"}
+        for holding in holdings
+    )
+    if has_classifications:
+        stocks = [
+            holding for holding in holdings
+            if holding.get("entity_type") == "stock"
+        ]
+        holdings = [
+            holding for holding in holdings
+            if holding.get("entity_type") == "etf"
+        ]
+    else:
+        stocks = []
 
     lines = [
-        "## ETF Portfolio Evaluation (Appendix)",
+        "## ETF Fund Metrics (Appendix)",
         (
-            f"Evaluated {len(holdings)} ETF rows from the asset sheet. "
+            f"Evaluated {len(holdings)} ETF holdings from the asset sheet. "
             "The sheet does not provide portfolio weights, so aggregate "
             "figures below are unweighted averages, not portfolio-weighted "
             "exposures."
         )
     ]
+    if stocks:
+        lines.append(
+            f"Stock operating metrics are evaluated separately for "
+            f"{len(stocks)} classified stock holdings."
+        )
     if not holdings:
         lines.append("No ETF holdings were available for this evaluation.")
         return "\n".join(lines)

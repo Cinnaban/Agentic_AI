@@ -640,7 +640,8 @@ entries.
 
 ## Daily ETF Update
 
-`workers/etf_update.py` maintains the ETF/asset spreadsheet and publishes an automated market update to the Discord Updates channel.
+`workers/etf_update.py` maintains the asset spreadsheet and publishes a
+mixed stock/ETF market update to the Discord Updates channel.
 
 The scheduled flow is:
 
@@ -649,19 +650,30 @@ launchd
  -> run_etf_update.sh
  -> load .env
  -> Google Sheet refresh
- -> yfinance maintenance data
- -> DDGS current headlines
+ -> ticker classification (stock / ETF)
+ -> yfinance metrics and latest quarterly statements
+ -> ticker-specific news restricted to the last 48 hours
  -> Hermes summary
- -> appended ETF portfolio metrics and coverage
+ -> appended unweighted ETF fund metrics and coverage
  -> Discord Updates
 ```
 
-The appended evaluation reports unweighted averages and coverage for retrieved
-expense-ratio, distribution-yield, and beta data. Since the current sheet
-process does not read holding weights, it explicitly does not present these
-averages as portfolio-weighted exposure. EPS and dividend-yield changes in the
-sheet-change summary are marked green for increases and red for decreases;
-direction is not inferred when either value is unavailable.
+Each row is classified using Yahoo Finance quote type, with the existing
+curated ETF registry as a fallback. Stock insights include market cap, cash
+flow, EPS, EBITDA, liquidity and profitability ratios, growth indicators,
+sector/industry, three-month price return, and the latest available quarterly
+income, cash-flow, and balance-sheet values. ETF insights instead emphasize
+fund assets, expense and distribution yields, beta, performance, sector
+exposures, and top holdings; issuer-style EPS, EBITDA, operating cash flow,
+and current ratio are not applicable to a fund.
+
+Ticker-specific news is included only when it has a parseable publication
+time within the prior 48 hours; undated stories are omitted. Same-industry
+stocks in the sheet can be compared as a partial portfolio peer cohort, but
+that cohort is not represented as an industry-wide benchmark. Portfolio
+weights are not read from the sheet, so any aggregate metrics remain
+unweighted. EPS and dividend-yield changes in the sheet summary are marked
+green for increases and red for decreases.
 
 The job is scheduled on the Mac Mini through `launchd` for:
 

@@ -27,12 +27,18 @@ from google.oauth2.service_account import Credentials
 from configs.config import (
     Config
 )
+from data.providers.etf_fund_provider import ETFFundProvider
 from agents.ollama_client import (
     OllamaClient
 )
 from workers.etf_portfolio_evaluation import (
     format_change_direction,
     generate_etf_portfolio_appendix
+)
+from workers.etf_portfolio_insights import (
+    filter_recent_news,
+    format_holding_insights,
+    retrieve_holding_insights
 )
 
 
@@ -95,9 +101,14 @@ logging.info("ETF Update Started")
 def generate_summary(results):
 	lines =[]
 	
-	lines.append("===== ETF UPDATE SUMMARY =====")
+	lines.append("===== MIXED STOCK / ETF UPDATE SUMMARY =====")
 	lines.append(f"Run Date: {results['run_date']}")
-	lines.append(f"ETFs Checked: {results['etfs_checked']}")
+	lines.append(f"Holdings Checked: {results['holdings_checked']}")
+	lines.append(
+		f"Classified stocks: {results['stock_count']} | "
+		f"Classified ETFs: {results['etf_count']} | "
+		f"Unresolved: {results['unresolved_count']}"
+	)
 	lines.append(f"Updates Applied: {results['updates_applied']}")
 	lines.append("")
 
@@ -198,7 +209,8 @@ def build_market_research_prompt(
     portfolio_summary,
     market_sentiment,
     news_headlines,
-    beta_analysis
+    beta_analysis,
+    holding_insights=""
 ):
 
     return f"""
@@ -220,20 +232,43 @@ Beta Analysis:
 
 {beta_analysis}
 
+Classified Holding Insights:
+
+{holding_insights or "No per-holding classification or financial insights were retrieved."}
+
 Objective:
 
 Provide:
 
-1. Portfolio observations
-2. Current market-news context
-3. Sector observations
-4. Notable risks
-5. Opportunities
-6. Short-term watch items
+1. A classification overview separating individual stocks from ETFs.
+2. Relevant latest quarterly financial results and recent quarter-over-quarter
+   changes for operating companies.
+3. Material ticker-specific news published in the preceding 48 hours.
+4. A holding-by-holding stability, growth, and financial-strength assessment
+   using the available metric evidence and each company's sector/industry.
+5. ETF-level performance, cost, distribution, asset, top-holding, and sector
+   exposure context. Do not apply issuer operating-company ratios to ETFs.
+6. Portfolio risks and watch items, distinguishing observations from inference.
 
 EVIDENCE RULES:
 
-- Portfolio Update contains spreadsheet/ETF data.
+- Classified Holding Insights contains retrieved market and statement data.
+- Stock financial statements describe the issuer; ETF fund profile metrics
+  describe the fund. Never treat an ETF's underlying holdings as the fund's
+  own issuer financial statements.
+- Use only the most recent quarterly period provided, identify its period end,
+  and distinguish quarter-over-quarter change from year-over-year growth.
+- Compare same-industry stocks only against the explicitly listed
+  in-portfolio peer cohort, and identify it as partial rather than an
+  industry-wide benchmark. Sector/industry labels alone are not benchmarks.
+- The news list contains only ticker-associated stories with a publication
+  timestamp verified to be within the preceding 48 hours. Do not call an
+  undated story recent.
+- Missing metrics are unavailable, not zero. Explain when evidence is
+  insufficient to call a holding stable, growing, or strong.
+- Do not infer buy/sell recommendations, unsupported causal explanations,
+  financial trends from a single quarter, or portfolio-weighted conclusions
+  because sheet position sizes are not supplied.
 
 - News Headlines contain recently retrieved
   public reporting.
@@ -251,17 +286,18 @@ EVIDENCE RULES:
 
 Format:
 
-# Daily ETF Update
+# Daily Mixed Stock and ETF Portfolio Update
 
-## Portfolio Changes
+## Holdings and Classification
 
-## Current Market Context
+## Quarterly and Financial Metrics
 
-## Risk Watch
+## Relevant News (Last 48 Hours)
 
-## Opportunities
+## Stability, Growth, and Industry Context
 
-## Short-Term Watch
+## Portfolio Risks and Watch Items
+
 """
 # Beta Analysis 
 def generate_beta_analysis(beta_values):
@@ -281,10 +317,10 @@ def generate_beta_analysis(beta_values):
     )[:5]
 
     return f"""
-Highest Beta ETFs:
+Highest Beta Holdings:
 {high_beta}
 
-Lowest Beta ETFs:
+Lowest Beta Holdings:
 {low_beta}
 """
 
@@ -389,11 +425,14 @@ rows = worksheet.get_all_values()
 # Set up change variables
 changes = []
 pending_updates = []
-etf_count = 0
+holdings_checked = 0
 errors = []
 beta_values = []
 portfolio_evaluation_holdings = []
+holding_insights = []
+news_by_ticker = {}
 ai_summary = ""
+fund_classifier = ETFFundProvider()
 
 # Result Variables
 market_sentiment = (
@@ -405,7 +444,7 @@ live_news_backend = (
     )
 )
 
-live_news = (
+live_news = filter_recent_news(
     live_news_backend.search(
         company=None,
         query=(
@@ -469,7 +508,7 @@ for row_num, row in enumerate(rows[1:], start=2):
 	if not ticker:
 		continue
 	
-	etf_count += 1
+	holdings_checked += 1
 
 	print(f"Checking {ticker}")
 
@@ -477,7 +516,9 @@ for row_num, row in enumerate(rows[1:], start=2):
 		"ticker": ticker,
 		"expense_ratio": None,
 		"dividend_yield": None,
-		"beta": None
+			"beta": None,
+			"entity_type": "unresolved",
+			"classification_status": "unavailable"
 	}
 	portfolio_evaluation_holdings.append(
 		evaluation_record
@@ -486,10 +527,84 @@ for row_num, row in enumerate(rows[1:], start=2):
 	try: 
 		fund = yf.Ticker(ticker)
 		info = fund.info
-		expense_ratio = info.get("netExpenseRatio")
-		dividend_yield = info.get("yield")
-		eps = info.get("epsTrailingTwelveMonths")
-		TPE = info.get("trailingPE")
+		classification = fund_classifier.resolve(
+			ticker,
+			message=""
+		)
+		entity_type = classification.get("entity_type", "unresolved")
+		if entity_type not in {"stock", "etf"}:
+			quote_type = str(info.get("quoteType") or "").upper()
+			if quote_type == "EQUITY":
+				entity_type = "stock"
+			elif quote_type == "ETF":
+				entity_type = "etf"
+
+		evaluation_record.update({
+			"entity_type": entity_type,
+			"classification_status": classification.get(
+				"classification_status",
+				"unavailable"
+			),
+			"classification_source": classification.get(
+				"classification_source",
+				"Yahoo Finance quote type"
+			),
+			"sector": classification.get("sector") or info.get("sector"),
+			"industry": classification.get("industry") or info.get("industry")
+		})
+		insight = retrieve_holding_insights(
+			yf_ticker=fund,
+			ticker=ticker,
+			entity_type=entity_type,
+			info=info,
+			fund_context=classification.get("etf_context")
+		)
+		insight["classification_status"] = classification.get(
+			"classification_status",
+			"unavailable"
+		)
+		insight["classification_source"] = classification.get(
+			"classification_source",
+			"Yahoo Finance quote type"
+		)
+		insight["sector"] = (
+			classification.get("sector")
+			or insight.get("sector")
+		)
+		insight["industry"] = (
+			classification.get("industry")
+			or insight.get("industry")
+		)
+		holding_insights.append(insight)
+
+		search_name = (
+			info.get("shortName")
+			or info.get("longName")
+			or ticker
+		)
+		news_by_ticker[ticker] = filter_recent_news(
+			live_news_backend.search(
+				company={"name": search_name, "ticker": ticker},
+				query=f'"{search_name}" {ticker} company stock fund news'
+			)
+		)
+
+		expense_ratio = (
+			info.get("annualReportExpenseRatio")
+			if info.get("annualReportExpenseRatio") is not None
+			else info.get("netExpenseRatio")
+		) if entity_type == "etf" else None
+		dividend_yield = (
+			info.get("dividendYield")
+			if info.get("dividendYield") is not None
+			else info.get("yield")
+		)
+		eps = (
+			info.get("trailingEps")
+			if info.get("trailingEps") is not None
+			else info.get("epsTrailingTwelveMonths")
+		) if entity_type == "stock" else None
+		TPE = info.get("trailingPE") if entity_type == "stock" else None
 		beta = info.get("beta")
 		evaluation_record.update({
 			"expense_ratio": expense_ratio,
@@ -499,7 +614,7 @@ for row_num, row in enumerate(rows[1:], start=2):
 
 		# Format values
 		if expense_ratio is not None:
-			expense_ratio = f"{expense_ratio :.2f}%"
+			expense_ratio = f"{expense_ratio * 100:.2f}%"
 
 		if dividend_yield is not None:
 			dividend_yield = f"{dividend_yield * 100:.2f}%"
@@ -526,7 +641,7 @@ for row_num, row in enumerate(rows[1:], start=2):
 		current_beta = row[8]
 
 		# Update Expense Ratio (Column 5) 
-		if current_expense != expense_ratio:
+		if expense_ratio is not None and current_expense != expense_ratio:
 			row_changed = True			
 	
 			changes.append({
@@ -543,7 +658,7 @@ for row_num, row in enumerate(rows[1:], start=2):
 			})
 		
 		# Update Dividend Rate (Column 6)
-		if current_dividend != dividend_yield:
+		if dividend_yield is not None and current_dividend != dividend_yield:
 			row_changed = True
 		
 			changes.append({
@@ -560,7 +675,7 @@ for row_num, row in enumerate(rows[1:], start=2):
 			})
 		
 		# Update Dividend Rate (Column 7)
-		if current_eps != eps:
+		if eps is not None and current_eps != eps:
 			row_changed = True
 		
 			changes.append({
@@ -577,7 +692,7 @@ for row_num, row in enumerate(rows[1:], start=2):
 			})
 
 		# Update Dividend Rate (Column 8)
-		if current_Tpe != TPE:
+		if TPE is not None and current_Tpe != TPE:
 			row_changed = True
 		
 			changes.append({
@@ -594,7 +709,7 @@ for row_num, row in enumerate(rows[1:], start=2):
 			})
 
 		# Update Beta (Column 9)
-		if current_beta != beta:
+		if beta is not None and current_beta != beta:
 			row_changed = True
 		
 			changes.append({
@@ -630,6 +745,18 @@ for row_num, row in enumerate(rows[1:], start=2):
 		})
 
 		print(f"Error with {ticker}: {e}")
+		holding_insights.append({
+			"ticker": ticker.upper(),
+			"entity_type": "unresolved",
+			"classification_status": "unavailable",
+			"classification_source": "unavailable",
+			"name": ticker,
+			"sector": None,
+			"industry": None,
+			"metrics": {},
+			"quarterly": {},
+			"market_performance_3m_pct": None
+		})
 
 if pending_updates:
 	worksheet.batch_update(
@@ -642,8 +769,21 @@ if pending_updates:
 
 results = {
 	"run_date": today,
-	"etfs_checked": etf_count,
+	"holdings_checked": holdings_checked,
+	"stock_count": sum(
+		1 for item in holding_insights
+		if item.get("entity_type") == "stock"
+	),
+	"etf_count": sum(
+		1 for item in holding_insights
+		if item.get("entity_type") == "etf"
+	),
+	"unresolved_count": sum(
+		1 for item in holding_insights
+		if item.get("entity_type") == "unresolved"
+	),
 	"updates_applied": len(pending_updates),
+	"holdings_classified": len(holding_insights),
 	"changes": changes,
 	"errors": errors
 }
@@ -668,6 +808,10 @@ beta_analysis = generate_beta_analysis(
     beta_values
 )
 
+holding_insights_text = format_holding_insights(
+    holding_insights,
+    news_by_ticker
+)
 
 research_prompt = (
     build_market_research_prompt(
@@ -681,7 +825,10 @@ research_prompt = (
             news_headlines,
 
         beta_analysis=
-            beta_analysis
+            beta_analysis,
+
+        holding_insights=
+            holding_insights_text
     )
 )
 
@@ -704,6 +851,9 @@ print(
     news_headlines
 )
 
+print()
+print("PER-HOLDING INSIGHTS")
+print(holding_insights_text)
 print("=" * 60)
 
 

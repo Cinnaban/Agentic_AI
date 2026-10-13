@@ -184,6 +184,28 @@ class PortfolioSummaryTests(unittest.TestCase):
         self.assertIn("Distribution yield: no retrieved values.", result)
         self.assertIn("Beta: no retrieved values.", result)
 
+    def test_etf_update_appendix_excludes_stocks_from_etf_averages(self):
+        result = generate_etf_portfolio_appendix([
+            {
+                "ticker": "SOXX",
+                "entity_type": "etf",
+                "expense_ratio": 0.004,
+                "dividend_yield": 0.01,
+                "beta": 1.1
+            },
+            {
+                "ticker": "NVDA",
+                "entity_type": "stock",
+                "expense_ratio": 0.8,
+                "dividend_yield": 0.02,
+                "beta": 2.0
+            }
+        ])
+
+        self.assertIn("Unweighted average expense ratio: 0.40%", result)
+        self.assertIn("Stock operating metrics are evaluated separately", result)
+        self.assertNotIn("Unweighted average expense ratio: 40.20%", result)
+
     def test_allocation_chart_shows_each_holding_and_type_colors(self):
         result = PortfolioAllocationChartProvider().generate([
             {"ticker": "SCHD", "weight": 35, "entity_type": "etf"},

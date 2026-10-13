@@ -1,0 +1,218 @@
+{
+  "job_id": "3609a740-fb69-45cc-91e6-eab9aa158694",
+  "status": "completed",
+  "created_at": "2026-10-11T21:09:51.560308",
+  "updated_at": "2026-10-11T21:15:49.325715",
+  "data": {
+    "message": "Compare Philip morris and ko",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "Philip Morris",
+        "ticker": "PM",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Tobacco",
+          "sector": "Consumer Defensive"
+        },
+        "industry": "Tobacco",
+        "sector": "Consumer Defensive"
+      },
+      {
+        "name": "Coca-Cola",
+        "ticker": "KO",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Beverages - Non-Alcoholic",
+          "sector": "Consumer Defensive"
+        },
+        "industry": "Beverages - Non-Alcoholic",
+        "sector": "Consumer Defensive"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": false,
+      "quant": true,
+      "risk": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the supplied evidence, the custom analytical formula supports the conclusion that Coca-Cola (KO) appears to have a stronger financial performance and growth potential compared to Philip Morris International (PM). The formula was designed to compare the two companies across key financial dimensions, including valuation, profitability, momentum, and growth. By combining these metrics and assigning equal weights to each, the formula provides a comprehensive overview of the relative performance and potential of the two companies.\n\nThe scores calculated using the custom formula are as follows:\n- Philip Morris International (PM): 0.25\n- Coca-Cola (KO): 0.75\n\nAccording to the formula, Coca-Cola (KO) ranks higher in the comparison, suggesting that it has a more favorable financial profile based on the specified metrics. This aligns with the broader evidence supplied, which indicates that Coca-Cola has stronger profitability, growth, and momentum compared to Philip Morris. Coca-Cola's higher profitability score suggests its ability to generate profits efficiently, while its higher growth and momentum scores indicate positive trends in revenue, earnings, and investor confidence.\n\nHowever, it is essential to note the limitations of the custom formula. The formula does not consider non-financial factors, such as market trends, competition, and external events, which may significantly impact a company's performance. Additionally, the weights assigned to each metric are arbitrary and may not reflect the actual importance of each factor to an investor's decision. The formula also does not account for individual investor preferences or risk tolerance, which may affect the perceived importance of different metrics.\n\nIn conclusion, based on the supplied evidence and the custom analytical formula, Coca-Cola (KO) appears to have a stronger financial performance and growth potential compared to Philip Morris International (PM). This assessment is supported by Coca-Cola's higher profitability, growth, and momentum scores, indicating its ability to generate profits efficiently and its positive trends in revenue, earnings, and investor confidence. However, it is crucial to consider the limitations of the custom formula and understand that non-financial factors may also play a significant role in a company's overall performance.\n\nFinancial Comparison Table:\n\n| Metric | PM | KO |\n|---|---:|---:|\n| Valuation Score | 0.0 | 1.0 |\n| Profitability Score | 0.0 | 1.0 |\n| Momentum Score | 1.0 | 0.0 |\n| Growth Score | 0.0 | 1.0 |"
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": {
+      "opportunity": "helpful",
+      "design": {
+        "name": "Philip Morris and Coca-Cola Comparative Analysis Formula",
+        "purpose": "To evaluate and compare the financial performance and potential growth of Philip Morris and Coca-Cola based on their stock market metrics.",
+        "components": [
+          {
+            "metric": "valuation_score",
+            "weight": 0.25,
+            "direction": "lower_is_better",
+            "reason": "A lower valuation score indicates that a stock is potentially undervalued compared to its peers, suggesting higher growth potential."
+          },
+          {
+            "metric": "profitability_score",
+            "weight": 0.25,
+            "direction": "higher_is_better",
+            "reason": "Higher profitability indicates a company's ability to generate profits efficiently, which is a key driver of long-term growth."
+          },
+          {
+            "metric": "momentum_score",
+            "weight": 0.25,
+            "direction": "higher_is_better",
+            "reason": "Higher momentum suggests a stock is trending upwards in price, indicating investor confidence and potential short-term growth."
+          },
+          {
+            "metric": "growth_score",
+            "weight": 0.25,
+            "direction": "higher_is_better",
+            "reason": "A higher growth score signifies a company's ability to increase its revenue and earnings at a faster rate than its peers, which is a key indicator of future growth."
+          }
+        ],
+        "how_created": "The formula was designed by considering the user's question of comparing Philip Morris and Coca-Cola. The chosen metrics are relevant to evaluating a company's financial health, valuation, and growth potential. Equal weights were given to each metric to ensure a balanced comparison, without favoring any specific aspect of financial performance.",
+        "why_important": "By combining these metrics, the formula provides a comprehensive overview of the relative financial performance and growth potential of Philip Morris and Coca-Cola. It takes into account key factors such as valuation, profitability, momentum, and growth, which are essential for understanding a company's overall financial health and investment attractiveness.",
+        "assumptions": [
+          "The formula assumes that higher scores in each metric indicate better performance, based on the specified directions.",
+          "The scores used for each metric are accurate and up-to-date, reflecting the current financial situation of the companies.",
+          "The user understands that the formula is a custom analysis designed for this specific question and may not be applicable to other comparison scenarios or investment decisions."
+        ],
+        "limitations": [
+          "The formula does not consider non-financial factors that may impact a company's performance, such as market trends, competition, and external events.",
+          "The weights assigned to each metric are arbitrary and may not reflect the actual importance of each factor to an investor's decision.",
+          "The formula does not account for individual investor preferences or risk tolerance, which may affect the perceived importance of different metrics."
+        ]
+      },
+      "evaluation": {
+        "status": "completed",
+        "formula": {
+          "name": "Philip Morris and Coca-Cola Comparative Analysis Formula",
+          "purpose": "To evaluate and compare the financial performance and potential growth of Philip Morris and Coca-Cola based on their stock market metrics.",
+          "components": [
+            {
+              "metric": "valuation_score",
+              "weight": 0.25,
+              "direction": "lower_is_better",
+              "reason": "A lower valuation score indicates that a stock is potentially undervalued compared to its peers, suggesting higher growth potential."
+            },
+            {
+              "metric": "profitability_score",
+              "weight": 0.25,
+              "direction": "higher_is_better",
+              "reason": "Higher profitability indicates a company's ability to generate profits efficiently, which is a key driver of long-term growth."
+            },
+            {
+              "metric": "momentum_score",
+              "weight": 0.25,
+              "direction": "higher_is_better",
+              "reason": "Higher momentum suggests a stock is trending upwards in price, indicating investor confidence and potential short-term growth."
+            },
+            {
+              "metric": "growth_score",
+              "weight": 0.25,
+              "direction": "higher_is_better",
+              "reason": "A higher growth score signifies a company's ability to increase its revenue and earnings at a faster rate than its peers, which is a key indicator of future growth."
+            }
+          ],
+          "how_created": "The formula was designed by considering the user's question of comparing Philip Morris and Coca-Cola. The chosen metrics are relevant to evaluating a company's financial health, valuation, and growth potential. Equal weights were given to each metric to ensure a balanced comparison, without favoring any specific aspect of financial performance.",
+          "why_important": "By combining these metrics, the formula provides a comprehensive overview of the relative financial performance and growth potential of Philip Morris and Coca-Cola. It takes into account key factors such as valuation, profitability, momentum, and growth, which are essential for understanding a company's overall financial health and investment attractiveness.",
+          "assumptions": [
+            "The formula assumes that higher scores in each metric indicate better performance, based on the specified directions.",
+            "The scores used for each metric are accurate and up-to-date, reflecting the current financial situation of the companies.",
+            "The user understands that the formula is a custom analysis designed for this specific question and may not be applicable to other comparison scenarios or investment decisions."
+          ],
+          "limitations": [
+            "The formula does not consider non-financial factors that may impact a company's performance, such as market trends, competition, and external events.",
+            "The weights assigned to each metric are arbitrary and may not reflect the actual importance of each factor to an investor's decision.",
+            "The formula does not account for individual investor preferences or risk tolerance, which may affect the perceived importance of different metrics."
+          ]
+        },
+        "scores": {
+          "PM": {
+            "score": 0.25,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 0.0,
+                "weight": 0.25,
+                "weighted_value": 0.0
+              },
+              "profitability_score": {
+                "normalized_value": 0.0,
+                "weight": 0.25,
+                "weighted_value": 0.0
+              },
+              "momentum_score": {
+                "normalized_value": 1.0,
+                "weight": 0.25,
+                "weighted_value": 0.25
+              },
+              "growth_score": {
+                "normalized_value": 0.0,
+                "weight": 0.25,
+                "weighted_value": 0.0
+              }
+            }
+          },
+          "KO": {
+            "score": 0.75,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 1.0,
+                "weight": 0.25,
+                "weighted_value": 0.25
+              },
+              "profitability_score": {
+                "normalized_value": 1.0,
+                "weight": 0.25,
+                "weighted_value": 0.25
+              },
+              "momentum_score": {
+                "normalized_value": 0.0,
+                "weight": 0.25,
+                "weighted_value": 0.0
+              },
+              "growth_score": {
+                "normalized_value": 1.0,
+                "weight": 0.25,
+                "weighted_value": 0.25
+              }
+            }
+          }
+        },
+        "ranking": [
+          {
+            "ticker": "KO",
+            "score": 0.75
+          },
+          {
+            "ticker": "PM",
+            "score": 0.25
+          }
+        ]
+      }
+    },
+    "final_status": "completed"
+  }
+}
