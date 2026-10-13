@@ -5,6 +5,8 @@ from urllib.parse import (
     urlunsplit
 )
 
+from configs.config import Config
+
 import requests
 
 from data.providers.live.public_web_backend import (
@@ -26,6 +28,8 @@ from data.providers.social.social_evidence_provider import (
 from data.providers.social.social_summary_builder import (
     SocialSummaryBuilder
 )
+from orchestrator.freshness_detector import FreshnessDetector
+from shared_storage.reference_archive import PublicReferenceArchive
 
 class GenericEvidenceProvider:
 
@@ -53,6 +57,8 @@ class GenericEvidenceProvider:
             SocialSummaryBuilder()
         )
 
+        self.reference_archive = PublicReferenceArchive()
+        self.freshness_detector = FreshnessDetector()
         self.max_pages = 15
         self.max_search_queries = 5
 
@@ -345,6 +351,32 @@ class GenericEvidenceProvider:
             subject=subject
         )
 
+        requires_live_data = self.freshness_detector.requires_live_data(
+            str(query or "")
+        )
+        archived_query = None
+        if not requires_live_data and not include_social:
+            archived_query = self.reference_archive.get_query(
+                query,
+                subject,
+                evidence_depth
+            )
+            if (
+                archived_query
+                and self.reference_archive.is_recent(
+                    archived_query,
+                    Config.PUBLIC_REFERENCE_REUSE_TTL_DAYS
+                )
+            ):
+                return self._build_archived_context(
+                    query,
+                    subject,
+                    research_plan,
+                    evidence_depth,
+                    page_limit,
+                    archived_query
+                )
+
         wikipedia_result = None
         wikipedia_status = {
             "status": "not_requested"
@@ -353,6 +385,8 @@ class GenericEvidenceProvider:
             wikipedia_result, wikipedia_status = (
                 self._get_wikipedia_evidence(subject)
             )
+            if wikipedia_result and not requires_live_data:
+                self.reference_archive.store_page(wikipedia_result)
 
         results = []
         if wikipedia_result:
@@ -458,7 +492,8 @@ class GenericEvidenceProvider:
             self._enrich(
                 deduplicated,
                 page_limit=page_limit,
-                subject=subject
+                subject=subject,
+                use_archive=not requires_live_data
             )
         )
         social_context = {
@@ -478,6 +513,57 @@ class GenericEvidenceProvider:
 
         for index, result in enumerate(enriched, start=1):
             result["source_id"] = f"S{index}"
+
+        if (
+            not requires_live_data
+            and not include_social
+            and any(
+                isinstance(result, dict)
+                and isinstance(result.get("content"), str)
+                and result["content"].strip()
+                for result in enriched
+            )
+        ):
+            self.reference_archive.store_query(
+                query,
+                subject,
+                evidence_depth,
+                enriched
+            )
+
+        if (
+            not requires_live_data
+            and not include_social
+            and archived_query
+            and not any(
+                isinstance(result, dict)
+                and isinstance(result.get("content"), str)
+                and result["content"].strip()
+                for result in enriched
+            )
+        ):
+            return self._build_archived_context(
+                query,
+                subject,
+                research_plan,
+                evidence_depth,
+                page_limit,
+                archived_query
+            )
+
+        archived_results = [
+            result
+            for result in enriched
+            if isinstance(result, dict)
+            and result.get("archive_status") == "reused"
+        ]
+        archive_as_of = max(
+            (
+                str(result.get("archived_at") or "")
+                for result in archived_results
+            ),
+            default=None
+        )
 
         return {
             "available":
@@ -509,6 +595,12 @@ class GenericEvidenceProvider:
             "research_plan":
                 research_plan,
 
+            "archive_reused":
+                bool(archived_results),
+
+            "archive_as_of":
+                archive_as_of,
+
             "wikipedia_status":
                 wikipedia_status,
 
@@ -537,6 +629,56 @@ class GenericEvidenceProvider:
 
             "retrieved_at":
                 datetime.now(timezone.utc).isoformat()
+        }
+
+    @staticmethod
+    def _build_archived_context(
+        query,
+        subject,
+        research_plan,
+        evidence_depth,
+        page_limit,
+        archived_query
+    ):
+        results = archived_query["results"]
+        for index, result in enumerate(results, start=1):
+            result["source_id"] = f"S{index}"
+            result.pop("search_query", None)
+        sources = [
+            {
+                "source_id": result.get("source_id"),
+                "title": result.get("title"),
+                "publisher": result.get("source"),
+                "url": result.get("url"),
+                "source_role": result.get("source_role"),
+                "page_kind": result.get("page_kind"),
+                "evidence_level": result.get("evidence_level")
+            }
+            for result in results
+        ]
+        archive_as_of = max(
+            (
+                str(result.get("archived_at") or "")
+                for result in results
+            ),
+            default=archived_query.get("archived_at")
+        )
+        return {
+            "available": bool(results),
+            "query": query,
+            "subject": subject,
+            "results": results,
+            "social_results": [],
+            "social_summary": {},
+            "search_queries": [],
+            "research_plan": research_plan,
+            "wikipedia_status": {"status": "archived"},
+            "evidence_depth": evidence_depth,
+            "page_limit": page_limit,
+            "sources": sources,
+            "archive_mode": "offline_reuse",
+            "archive_reused": True,
+            "archive_as_of": archive_as_of
         }
 
     @classmethod
@@ -729,7 +871,8 @@ class GenericEvidenceProvider:
         self,
         results,
         page_limit=None,
-        subject=None
+        subject=None,
+        use_archive=True
     ):
 
 
@@ -746,9 +889,12 @@ class GenericEvidenceProvider:
 
             page_limit = 0
             
-        if not self.firecrawl.health_check():
-
-            return results
+        firecrawl_available = self.firecrawl.health_check()
+        reference_archive = getattr(
+            self,
+            "reference_archive",
+            None
+        )
 
 
         results_by_query = {}
@@ -812,10 +958,39 @@ class GenericEvidenceProvider:
                 )
 
                 if result.get("evidence_level") == "retrieved_reference":
+                    if (
+                        use_archive
+                        and reference_archive is not None
+                        and isinstance(result.get("content"), str)
+                        and result["content"].strip()
+                    ):
+                        reference_archive.store_page(result)
                     continue
 
                 if not url:
 
+                    continue
+
+                if use_archive and reference_archive is not None:
+                    archived_page = reference_archive.get_page(url)
+                    if (
+                        archived_page
+                        and reference_archive.is_recent(
+                            archived_page,
+                            Config.PUBLIC_REFERENCE_REUSE_TTL_DAYS
+                        )
+                    ):
+                        found_candidate = True
+                        result.update(archived_page)
+                        result["evidence_level"] = (
+                            "retrieved_webpage"
+                        )
+                        enriched_count += 1
+                        if enriched_count >= page_limit:
+                            break
+                        continue
+
+                if not firecrawl_available:
                     continue
 
 
@@ -886,6 +1061,9 @@ class GenericEvidenceProvider:
                 result["content_retrieved_by"] = (
                     scraped.get("retrieved_by", "Firecrawl")
                 )
+                result["content_retrieved_at"] = (
+                    datetime.now(timezone.utc).isoformat()
+                )
                 result["page_title"] = (
                     scraped_title.strip()
                     if isinstance(scraped_title, str)
@@ -894,6 +1072,8 @@ class GenericEvidenceProvider:
                 if isinstance(scraped_title, str) and scraped_title.strip():
                     result["title"] = scraped_title.strip()
 
+                if use_archive and reference_archive is not None:
+                    reference_archive.store_page(result)
 
                 enriched_count += 1
 

@@ -208,6 +208,13 @@ class Config:
         / "cache"
     )
 
+    PUBLIC_REFERENCE_ARCHIVE_DIRECTORY = (
+        Path(os.getenv("PUBLIC_REFERENCE_ARCHIVE_DIRECTORY"))
+        if os.getenv("PUBLIC_REFERENCE_ARCHIVE_DIRECTORY")
+        else None
+    )
+    PUBLIC_REFERENCE_REUSE_TTL_DAYS = 30
+
 
     LOG_DIRECTORY = (
         ROOT_DIR

@@ -132,6 +132,10 @@ class GenericEvidenceAgent:
                             )
                         )
                         result["sources"] = [homepage_source]
+            result["response"] = self._add_archive_notice(
+                result.get("response", ""),
+                evidence
+            )
             return result
 
 
@@ -502,6 +506,10 @@ RULES:
 - Prefer Firecrawl-extracted page content when it is
   supplied.
 
+- If archive_reused is true, source text was previously
+  retrieved and has not been revalidated during this request.
+  Do not describe it as current; identify it as archived.
+
 - Keep source attribution attached to the original
   publisher or webpage.
 
@@ -645,6 +653,8 @@ social or community discussion.
                 + "\n".join(source_lines)
             )
 
+        text = self._add_archive_notice(text, evidence)
+
         return {
             "status":
                 "completed",
@@ -658,6 +668,22 @@ social or community discussion.
                     []
                 )
         }
+
+    @staticmethod
+    def _add_archive_notice(response, evidence):
+        if not evidence.get("archive_reused"):
+            return response
+        archived_at = evidence.get("archive_as_of")
+        date_text = (
+            f" (latest source snapshot: {archived_at})"
+            if isinstance(archived_at, str) and archived_at
+            else ""
+        )
+        notice = (
+            "Source note: Reused public evidence from the local archive"
+            f"{date_text}; it was not revalidated for this request."
+        )
+        return response.rstrip() + "\n\n" + notice
 
     @staticmethod
     def _retrieved_sentences(content):

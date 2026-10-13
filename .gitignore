@@ -27,6 +27,7 @@ venv/
 logs/
 *.log
 /runtime/hermes/cache/
+/runtime/hermes/reference_archive/
 
 # Personal Files
 GOOGLE_Credentials.json

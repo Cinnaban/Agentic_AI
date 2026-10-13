@@ -638,6 +638,32 @@ at least every 24 hours while the cache is in use. Volatile news, social, and
 live-market evidence is not retained in reusable financial-context cache
 entries.
 
+### Public Reference Archive
+
+The public-reference archive is separate from the short-lived cache and can
+live on the mounted Gaming PC share. Set
+`PUBLIC_REFERENCE_ARCHIVE_DIRECTORY` to a directory on that mounted share;
+for example, point it to a `reference_archive` folder under the share's
+existing `hermes` directory. The archive stays disabled until this path is
+explicitly configured, preventing data from silently accumulating on the
+local disk instead of the intended share.
+
+For non-current factual queries, the archive stores retrieved public webpage
+text and a hashed lookup for an exact normalized query. The original query
+text is not written to disk. Matching evidence is reused for up to 30 days
+without a new scrape; after that, retrieval is attempted again and the saved
+snapshot remains available as a fallback. "Current"/"latest" requests and
+social-discussion requests bypass query reuse. Archived answers disclose that
+the evidence was not revalidated and include the snapshot date. Only public
+webpage evidence is archived; portfolio holdings, portfolio snapshots,
+quant results, and social posts are excluded.
+
+The archive keeps one current snapshot per canonical source URL and hashed
+query references. It is not automatically pruned with the 90-day transient
+cache cleanup, so it can serve as an offline reference store. Keep the archive
+directory on a mounted, access-controlled share; if the share is unavailable,
+archive writes are logged and live retrieval continues.
+
 ## Daily ETF Update
 
 `workers/etf_update.py` maintains the asset spreadsheet and publishes a

@@ -345,6 +345,43 @@ class GenericFactualSourceTests(unittest.TestCase):
         self.assertIn("[S1]", result["response"])
         self.assertIn("Notable games, projects, and achievements", result["response"])
 
+    def test_reused_archive_evidence_is_disclosed_in_direct_answers(self):
+        agent = GenericEvidenceAgent()
+        agent.ollama = Mock()
+        evidence = {
+            "subject": "Example Research",
+            "archive_reused": True,
+            "archive_as_of": "2026-10-01T00:00:00+00:00",
+            "results": [{
+                "source_id": "S1",
+                "title": "Example Research",
+                "source": "example.org",
+                "source_host": "example.org",
+                "source_role": "reference",
+                "evidence_level": "retrieved_reference",
+                "content": (
+                    "Example Research is a nonprofit publisher of "
+                    "public educational research materials."
+                ),
+                "url": "https://example.org/about"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Example Research",
+                "publisher": "example.org",
+                "url": "https://example.org/about"
+            }]
+        }
+
+        result = agent.analyze(
+            "What is Example Research?",
+            evidence
+        )
+
+        self.assertIn("not revalidated for this request", result["response"])
+        self.assertIn("2026-10-01", result["response"])
+        agent.ollama.generate.assert_not_called()
+
     def test_direct_factual_answer_fails_closed_when_only_snippets_exist(self):
         agent = GenericEvidenceAgent()
         agent.ollama = Mock()
