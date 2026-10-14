@@ -529,10 +529,7 @@ class FinancialMetricBuilder:
             "quantitative_models"
         )
 
-        if isinstance(
-            risk,
-            dict
-        ):
+        if isinstance(risk, dict):
             self._add_metric(
                 metrics,
                 "overall_risk",
@@ -544,30 +541,28 @@ class FinancialMetricBuilder:
                 "text",
                 "risk",
             )
-
-        self._add_metric(
-            metrics,
-            "risk_score",
-            "Risk Score",
-            risk.get(
-                "risk_score"
-            ),
-            "risk",
-            "score",
-            "risk"
-        )
-
-        self._add_metric(
-            metrics,
-            "signal_uncertainty",
-            "Signal Uncertainty",
-            risk.get(
-                "signal_uncertainty"
-            ),
-            "risk",
-            "text",
-            "risk"
-        )
+            self._add_metric(
+                metrics,
+                "risk_score",
+                "Risk Score",
+                risk.get(
+                    "risk_score"
+                ),
+                "risk",
+                "score",
+                "risk"
+            )
+            self._add_metric(
+                metrics,
+                "signal_uncertainty",
+                "Signal Uncertainty",
+                risk.get(
+                    "signal_uncertainty"
+                ),
+                "risk",
+                "text",
+                "risk"
+            )
 
         return metrics
 

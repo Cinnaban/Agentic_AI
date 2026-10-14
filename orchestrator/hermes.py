@@ -198,6 +198,21 @@ class Hermes:
             GenericResearchIntent()
         )
        
+    @staticmethod
+    def _format_failure_message(error):
+        error_detail = str(error)
+        if "Gaming PC" in error_detail:
+            return (
+                "Stock/ETF quantitative analysis could not run. "
+                f"{error_detail} Check that the Gaming PC compute "
+                "service is online, then retry. No verified result "
+                "was produced."
+            )
+        return (
+            "I couldn't complete the requested analysis. "
+            "No verified result was produced; please try again later."
+        )
+
         
     def _build_followup_workflow(
             self,
@@ -2606,11 +2621,7 @@ class Hermes:
                 job_id = None
 
             if job_id is not None:
-                failure_message = (
-                    "I couldn't complete the requested analysis. "
-                    "No verified result was produced; please try "
-                    "again later."
-                )
+                failure_message = self._format_failure_message(e)
                 return self.outbound_gate.prepare({
                     "approved": False,
                     "confidence": 0,

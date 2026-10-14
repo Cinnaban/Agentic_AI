@@ -107,6 +107,17 @@ For multi-company work, the Mac Mini keeps one logical Hermes job but sends Quan
 
 The Gaming PC does not own conversational logic or final response synthesis.
 
+If stock/ETF analysis reports that the Gaming PC compute service is
+unreachable, verify the worker from the Mac Mini:
+
+```bash
+curl --max-time 5 http://192.168.50.1:8001/health
+```
+
+The worker must be running and reachable on the configured LAN address and
+port before quantitative requests can complete. Hermes will report this as a
+quant-service failure rather than return an analysis without quant results.
+
 ## Request Routing
 
 ### General Knowledge

@@ -330,6 +330,23 @@ class ETFEvaluationTests(unittest.TestCase):
 
         self.assertNotIn("revenue", metrics)
 
+    def test_quant_only_metrics_do_not_require_risk_results(self):
+        metrics = FinancialMetricBuilder().build({
+            "quant": {
+                "results": [{
+                    "analysis": {
+                        "predictive_rating": "positive"
+                    }
+                }]
+            },
+            "risk": None
+        })
+
+        self.assertEqual(metrics["predictive_rating"]["value"], "positive")
+        self.assertNotIn("overall_risk", metrics)
+        self.assertNotIn("risk_score", metrics)
+        self.assertNotIn("signal_uncertainty", metrics)
+
     def test_gaming_pc_payload_preserves_instrument_type(self):
         bridge = GamingPCBridge()
         bridge.session = Mock()

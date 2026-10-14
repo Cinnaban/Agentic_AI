@@ -206,6 +206,51 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         self.assertIn("no quant results", result["error"])
         executor.market_context_provider.get_context.assert_not_called()
 
+    def test_multi_company_quant_failure_stops_before_partial_analysis(self):
+        executor = AgentExecutor.__new__(AgentExecutor)
+        executor.freshness_detector = type(
+            "FreshnessDetectorMock",
+            (),
+            {"requires_live_data": lambda self, message: False}
+        )()
+        executor.quant_agent = type(
+            "QuantAgentMock",
+            (),
+            {
+                "analyze": lambda self, package: {
+                    "status": "failed",
+                    "error": "Gaming PC compute service unavailable"
+                }
+            }
+        )()
+        work_package = type(
+            "WorkPackage",
+            (),
+            {
+                "companies": [
+                    {"name": "Intel", "ticker": "INTC"},
+                    {"name": "AMD", "ticker": "AMD"}
+                ],
+                "required_agents": {"quant": True},
+                "original_message": "Compare Intel and AMD"
+            }
+        )()
+
+        result = executor.execute(work_package)
+
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("Gaming PC", result["error"])
+
+    def test_worker_failure_message_explains_the_next_step(self):
+        message = Hermes._format_failure_message(
+            "All Gaming PC quant requests failed: "
+            "Cannot connect to the Gaming PC compute service."
+        )
+
+        self.assertIn("quantitative analysis could not run", message)
+        self.assertIn("Check that the Gaming PC compute service is online", message)
+        self.assertIn("No verified result was produced", message)
+
     def test_portfolio_evaluation_keeps_portfolio_route(self):
         workflow = self.hermes.build_workflow(
             "Evaluate my portfolio"

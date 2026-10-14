@@ -100,6 +100,7 @@ class AgentExecutor:
                     work_package
                 )
             )
+
             if (
                 isinstance(quant_result, dict)
                 and quant_result.get("status") == "failed"

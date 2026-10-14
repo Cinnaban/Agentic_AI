@@ -2,6 +2,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import requests
+
 from workers.gaming_pc_bridge import GamingPCBridge
 
 
@@ -59,6 +61,25 @@ class GamingPCBridgeResponseTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["results"], [expected])
+
+    def test_connection_timeout_returns_actionable_worker_error(self):
+        bridge = self.make_bridge({})
+        bridge.session.post.side_effect = requests.ConnectTimeout(
+            "private endpoint detail"
+        )
+
+        result = bridge.submit_job(self.work_package())
+
+        self.assertEqual(result["status"], "failed")
+        self.assertIn(
+            "compute request timed out",
+            result["error"]
+        )
+        self.assertIn(
+            "worker is running and reachable",
+            result["error"]
+        )
+        self.assertNotIn("private endpoint detail", result["error"])
 
 
 if __name__ == "__main__":

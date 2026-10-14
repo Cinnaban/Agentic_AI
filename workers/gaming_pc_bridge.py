@@ -258,13 +258,34 @@ class GamingPCBridge:
                 requests.RequestException,
                 ValueError
             ) as e:
+                if isinstance(e, requests.Timeout):
+                    failure_reason = (
+                        "Gaming PC compute request timed out. "
+                        "Confirm the worker is running and reachable."
+                    )
+                elif isinstance(e, requests.ConnectionError):
+                    failure_reason = (
+                        "Cannot connect to the Gaming PC compute service. "
+                        "Confirm the PC is online and its worker service "
+                        "is running."
+                    )
+                elif isinstance(e, requests.HTTPError):
+                    status_code = (
+                        e.response.status_code
+                        if e.response is not None
+                        else "unknown"
+                    )
+                    failure_reason = (
+                        "Gaming PC compute service returned HTTP "
+                        f"{status_code}."
+                    )
+                else:
+                    failure_reason = str(e)
 
                 print(
                     "GAMING PC QUANT FAILED:",
                     ticker,
-                    repr(
-                        e
-                    )
+                    failure_reason
                 )
 
 
@@ -277,9 +298,7 @@ class GamingPCBridge:
                             ticker,
 
                         "error":
-                            str(
-                                e
-                            )
+                            failure_reason
                     }
                 )
 
@@ -308,7 +327,8 @@ class GamingPCBridge:
                 "error":
                     (
                         "All Gaming PC "
-                        "quant requests failed"
+                        "quant requests failed: "
+                        + failed_companies[0]["error"]
                     )
             }
 
