@@ -449,6 +449,95 @@ class GenericFactualSourceTests(unittest.TestCase):
         self.assertIn("[S1]", result["response"])
         self.assertIn("Notable games, projects, and achievements", result["response"])
 
+    def test_history_request_returns_source_grounded_summary(self):
+        agent = GenericEvidenceAgent()
+        agent.ollama = Mock()
+        evidence = {
+            "query": "Tell me the history of Razer Hong Kong",
+            "subject": "Razer Hong Kong",
+            "results": [{
+                "source_id": "S1",
+                "title": "Razer",
+                "source": "en.wikipedia.org",
+                "source_host": "en.wikipedia.org",
+                "source_role": "reference",
+                "evidence_level": "retrieved_reference",
+                "content": (
+                    "Razer Hong Kong is part of Razer Inc., a company "
+                    "founded in 2005 by Min-Liang Tan and Robert Krakoff. "
+                    "The company launched its first gaming products in "
+                    "2005 and expanded into additional markets afterward."
+                ),
+                "url": "https://en.wikipedia.org/wiki/Razer"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Razer",
+                "publisher": "en.wikipedia.org",
+                "url": "https://en.wikipedia.org/wiki/Razer"
+            }]
+        }
+
+        result = agent.analyze(
+            message="Tell me the history of Razer Hong Kong",
+            evidence=evidence
+        )
+
+        agent.ollama.generate.assert_not_called()
+        self.assertIn("History summary: Razer Hong Kong", result["response"])
+        self.assertIn("founded in 2005", result["response"])
+        self.assertIn("launched its first gaming products in 2005", result["response"])
+        self.assertIn("[S1]", result["response"])
+        self.assertNotIn("Assessment:", result["response"])
+        self.assertNotIn("Answer the original question", result["response"])
+
+    def test_prompt_instructions_from_model_are_replaced_with_evidence_summary(self):
+        agent = GenericEvidenceAgent()
+        agent.ollama = Mock()
+        agent.ollama.generate.return_value = {
+            "response": (
+                "Answer the original question in 2-4 short sections using "
+                "the retrieved evidence. Do not replace it with a rephrased "
+                "question."
+            )
+        }
+        evidence = {
+            "subject": "Piranha Games Inc",
+            "results": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "source": "en.wikipedia.org",
+                "source_host": "en.wikipedia.org",
+                "source_role": "reference",
+                "evidence_level": "retrieved_reference",
+                "content": (
+                    "Piranha Games Inc. is a Canadian video game developer "
+                    "based in Burnaby, British Columbia. The studio developed "
+                    "MechWarrior Online and other video games."
+                ),
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Piranha Games",
+                "publisher": "en.wikipedia.org",
+                "url": "https://en.wikipedia.org/wiki/Piranha_Games"
+            }]
+        }
+
+        result = agent.analyze(
+            message="Compare independent coverage about Piranha Games Inc",
+            evidence=evidence
+        )
+
+        self.assertIn("Burnaby, British Columbia", result["response"])
+        self.assertNotIn(
+            "Answer the original question in 2-4 short sections",
+            result["response"]
+        )
+        self.assertNotIn("Do not replace it", result["response"])
+        self.assertIn("[S1]", result["response"])
+
     def test_reused_archive_evidence_is_disclosed_in_direct_answers(self):
         agent = GenericEvidenceAgent()
         agent.ollama = Mock()

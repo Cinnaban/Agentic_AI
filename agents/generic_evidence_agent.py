@@ -16,8 +16,24 @@ class GenericEvidenceAgent:
     DIRECT_FACTUAL_REQUEST = re.compile(
         r"\b(?:what\s+is|who\s+is|tell\s+me\s+about|"
         r"what\s+can\s+you\s+tell\s+me\s+about|"
-        r"describe|give\s+me\s+(?:an?\s+)?overview\s+of)\b",
+        r"describe|give\s+me\s+(?:an?\s+)?overview\s+of|"
+        r"(?:tell\s+me|give\s+me|show\s+me)\s+the\s+"
+        r"(?:history|story|background)\s+of|"
+        r"(?:history|story|background)\s+of)\b",
         re.IGNORECASE
+    )
+
+    HISTORY_REQUEST = re.compile(
+        r"\b(?:history|historical|origins|origin)\b",
+        re.IGNORECASE
+    )
+
+    PROMPT_LEAK_MARKERS = (
+        "answer the original question in 2-4 short sections",
+        "do not replace it with a rephrased question",
+        "conclude with one brief limitation",
+        "low-confidence response rules",
+        "research coverage rules"
     )
 
     def __init__(
@@ -102,7 +118,9 @@ class GenericEvidenceAgent:
                 ),
                 None
             )
-            if homepage:
+            if homepage and not self.HISTORY_REQUEST.search(
+                str(message or "")
+            ):
                 evidence_sources = evidence.get("sources", [])
                 if not isinstance(evidence_sources, list):
                     evidence_sources = []
@@ -613,6 +631,21 @@ social or community discussion.
             text.strip()
         )
 
+        if self._contains_prompt_leak(text):
+            logging.error(
+                "Generic evidence model returned prompt instructions; "
+                "using the source-grounded fallback"
+            )
+            result = self._build_direct_factual_response(
+                message,
+                evidence,
+                results
+            )
+            result["response"] = self._add_archive_notice(
+                result.get("response", ""),
+                evidence
+            )
+            return result
 
         if not text:
 
@@ -668,6 +701,14 @@ social or community discussion.
                     []
                 )
         }
+
+    @classmethod
+    def _contains_prompt_leak(cls, text):
+        normalized = str(text or "").casefold()
+        return any(
+            marker in normalized
+            for marker in cls.PROMPT_LEAK_MARKERS
+        )
 
     @staticmethod
     def _add_archive_notice(response, evidence):
@@ -769,9 +810,14 @@ Keep historical releases distinct from current projects.
         )
         text = raw_text.strip() if isinstance(raw_text, str) else ""
         cited_ids = re.findall(r"\[([A-Za-z]\d+)\]", text)
-        if not text or not cited_ids or any(
-            cited_id != source_id
-            for cited_id in cited_ids
+        if (
+            not text
+            or self._contains_prompt_leak(text)
+            or not cited_ids
+            or any(
+                cited_id != source_id
+                for cited_id in cited_ids
+            )
         ):
             logging.warning(
                 "Official homepage summary was not usable; "
@@ -921,6 +967,74 @@ Keep historical releases distinct from current projects.
                     "alone are not enough to support a reliable answer."
                 ),
                 "sources": []
+            }
+
+        if cls.HISTORY_REQUEST.search(str(message or "")):
+            historical_pattern = re.compile(
+                r"\b(?:founded|established|originated|began|started|"
+                r"launched|introduced|created|acquired|acquisition|"
+                r"merged|rebranded|renamed|initial public offering|"
+                r"\bipo\b|since|in (?:19|20)\d{2}|history|historical)\b",
+                re.IGNORECASE
+            )
+            historical_items = []
+            seen_sentences = set()
+            for page in pages:
+                for sentence in page["sentences"]:
+                    normalized_sentence = sentence.casefold()
+                    if (
+                        historical_pattern.search(sentence)
+                        and normalized_sentence not in seen_sentences
+                    ):
+                        historical_items.append({
+                            "sentence": sentence,
+                            "source_id": page["source_id"]
+                        })
+                        seen_sentences.add(normalized_sentence)
+                        if len(historical_items) >= 5:
+                            break
+                if len(historical_items) >= 5:
+                    break
+
+            history_lines = [
+                f"History summary: {subject or message.strip()}",
+                "Key historical details stated by retrieved sources:"
+            ]
+            if historical_items:
+                history_lines.extend(
+                    f"- {item['sentence']} [{item['source_id']}]"
+                    for item in historical_items
+                )
+            else:
+                history_lines.append(
+                    "- The retrieved subject-matched pages did not provide "
+                    "enough readable historical detail to summarize."
+                )
+
+            source_ids = {
+                item["source_id"]
+                for item in historical_items
+            }
+            history_lines.extend(["", "Sources:"])
+            for page in pages:
+                if page["source_id"] not in source_ids:
+                    continue
+                history_lines.append(
+                    f"- [{page['source_id']}] {page['title']} "
+                    f"({page['publisher']}): {page['url']}"
+                )
+
+            return {
+                "status": "completed",
+                "response": "\n".join(history_lines),
+                "sources": [
+                    source_by_id[page["source_id"]]
+                    for page in pages
+                    if (
+                        page["source_id"] in source_ids
+                        and page["source_id"] in source_by_id
+                    )
+                ]
             }
 
         overview_terms = (
