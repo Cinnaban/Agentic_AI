@@ -555,14 +555,6 @@ class Hermes:
             "is_company_request",
             False
         ):
-
-            if is_evaluation_request:
-
-                return {
-                    "route":
-                        "general_evaluation"
-                }
-
             return {
                 "route":
                     "local_agents"

@@ -159,6 +159,13 @@ class StockEvaluationRoutingTests(unittest.TestCase):
                 }]
             })
         }
+        detector.ticker_lookup = Mock()
+        detector.ticker_lookup.search.return_value = [{
+            "symbol": "INTC",
+            "name": "Intel Corporation",
+            "quote_type": "EQUITY",
+            "exchange": "NASDAQ"
+        }]
         self.hermes.company_agent = detector
         self.hermes.assignment_agent = AssignmentAgent()
         self.hermes.etf_fund_provider = InstrumentTypeProvider()
@@ -169,7 +176,48 @@ class StockEvaluationRoutingTests(unittest.TestCase):
             [company["ticker"] for company in workflow.companies],
             ["INTC"]
         )
-        self.assertEqual(workflow.companies[0]["name"], "Intel")
+        self.assertEqual(
+            workflow.companies[0]["name"],
+            "Intel Corporation"
+        )
+        self.assertTrue(workflow.required_agents["quant"])
+
+    def test_disney_evaluation_resolves_even_when_company_model_misses_it(self):
+        detector = CompanyDetectionAgent()
+        detector.ollama = Mock()
+        detector.ollama.generate.return_value = {
+            "response": json.dumps({
+                "is_company_request": False,
+                "intent": "general_information",
+                "companies": []
+            })
+        }
+        detector.ticker_lookup = Mock()
+        detector.ticker_lookup.search.return_value = [{
+            "symbol": "DIS",
+            "name": "The Walt Disney Company",
+            "quote_type": "EQUITY",
+            "exchange": "NYSE",
+            "sector": "Communication Services",
+            "industry": "Entertainment"
+        }]
+        self.hermes.company_agent = detector
+        self.hermes.assignment_agent = AssignmentAgent()
+        self.hermes.etf_fund_provider = InstrumentTypeProvider()
+
+        workflow = self.hermes.build_workflow("Evaluate Disney")
+
+        detection_prompt = detector.ollama.generate.call_args.args[0]
+        self.assertIn("Dynamically retrieved public listing candidates", detection_prompt)
+        self.assertIn("The Walt Disney Company", detection_prompt)
+        detector.ticker_lookup.search.assert_called_once_with("Disney")
+        self.assertTrue(hasattr(workflow, "required_agents"))
+        self.assertEqual(
+            workflow.companies[0]["name"],
+            "The Walt Disney Company"
+        )
+        self.assertEqual(workflow.companies[0]["ticker"], "DIS")
+        self.assertEqual(workflow.companies[0]["entity_type"], "stock")
         self.assertTrue(workflow.required_agents["quant"])
 
     def test_quant_failure_is_propagated_without_attempting_market_context(self):
@@ -259,7 +307,7 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         self.assertEqual(workflow["route"], "general_evaluation")
         self.assertEqual(workflow["evaluation_type"], "portfolio")
 
-    def test_evaluation_without_a_security_keeps_generic_route(self):
+    def test_unresolved_evaluation_does_not_enter_portfolio_flow(self):
         self.hermes.company_agent = CompanyAgent({
             "is_company_request": False,
             "intent": "general_information",
@@ -270,7 +318,7 @@ class StockEvaluationRoutingTests(unittest.TestCase):
             "Evaluate this idea"
         )
 
-        self.assertEqual(workflow["route"], "general_evaluation")
+        self.assertEqual(workflow["route"], "local_agents")
 
     def test_portfolio_holding_classification_distinguishes_stocks_and_etfs(self):
         self.hermes.etf_fund_provider = PortfolioInstrumentTypeProvider()

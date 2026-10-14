@@ -1,38 +1,159 @@
 # agents/company_detection_agent.py
 import json
 import re
+
+from data.providers.company_ticker_lookup import CompanyTickerLookup
 from agents.ollama_client import OllamaClient
 from configs.config import Config
 
 class CompanyDetectionAgent:
 
-    KNOWN_PUBLIC_COMPANY_ALIASES = {
-        "intel": {
-            "name": "Intel",
-            "ticker": "INTC",
-            "entity_type": "stock"
-        },
-        "intel corporation": {
-            "name": "Intel",
-            "ticker": "INTC",
-            "entity_type": "stock"
-        }
-    }
+    LOOKUP_ACTION = re.compile(
+        r"^\s*(?:please\s+)?(?:analyze|analyse|evaluate|assess|review|"
+        r"compare|should i buy|should i sell|invest in)\s+",
+        re.IGNORECASE
+    )
+    LOOKUP_SUFFIX = re.compile(
+        r"\s+(?:stock|shares?|ticker|company|corporation|incorporated|"
+        r"inc\.?|limited|ltd\.?|llc|plc)$",
+        re.IGNORECASE
+    )
 
     def __init__(self):
         self.ollama = OllamaClient()
+        self.ticker_lookup = CompanyTickerLookup()
 
     @classmethod
-    def _extract_known_company_entities(cls, message):
-        normalized = str(message or "").lower()
-        entities = []
-        for alias, entity in cls.KNOWN_PUBLIC_COMPANY_ALIASES.items():
-            if re.search(
-                rf"\b{re.escape(alias)}\b",
-                normalized
-            ):
-                entities.append(dict(entity))
-        return entities
+    def _extract_lookup_queries(cls, message):
+        text = str(message or "").strip().rstrip("?.!")
+        if not text:
+            return []
+
+        subject = cls.LOOKUP_ACTION.sub("", text).strip()
+        subject = re.sub(
+            r"^(?:the\s+)?(?:company|stock|ticker)\s+",
+            "",
+            subject,
+            flags=re.IGNORECASE
+        ).strip()
+        parts = re.split(
+            r"\s*(?:,|;|\band\b|\bvs\.?\b|\bversus\b)\s*",
+            subject,
+            flags=re.IGNORECASE
+        )
+        queries = []
+        for part in parts:
+            candidate = cls.LOOKUP_SUFFIX.sub("", part.strip()).strip()
+            if candidate and candidate.casefold() not in {
+                query.casefold() for query in queries
+            }:
+                queries.append(candidate)
+            if len(queries) >= 5:
+                break
+        return queries
+
+    @staticmethod
+    def _normalized_name_terms(value):
+        ignored = {
+            "company", "corporation", "corp", "inc", "incorporated",
+            "limited", "ltd", "llc", "plc", "the"
+        }
+        return {
+            term
+            for term in re.findall(r"[a-z0-9]+", str(value or "").casefold())
+            if term not in ignored
+        }
+
+    @classmethod
+    def _candidate_matches_name(cls, candidate, name):
+        name_terms = cls._normalized_name_terms(name)
+        candidate_terms = cls._normalized_name_terms(candidate.get("name"))
+        if not name_terms or not candidate_terms:
+            return False
+        shared_terms = name_terms.intersection(candidate_terms)
+        return len(shared_terms) >= min(2, len(name_terms))
+
+    @classmethod
+    def _candidate_matches_query(cls, candidate, query):
+        return cls._candidate_matches_name(
+            candidate,
+            query
+        )
+
+    @classmethod
+    def _company_is_mentioned(cls, company, message):
+        company_terms = cls._normalized_name_terms(company)
+        message_terms = cls._normalized_name_terms(message)
+        if not company_terms or not message_terms:
+            return False
+        shared_terms = company_terms.intersection(message_terms)
+        return len(shared_terms) >= min(2, len(company_terms))
+
+    @staticmethod
+    def _is_company_analysis_request(message):
+        return bool(re.search(
+            r"\b(?:analy[sz]e|analysis|evaluate|evaluation|assess|"
+            r"review|compare|history|founding|origins|timeline|"
+            r"stock|shares?|ticker|company)\b",
+            str(message or ""),
+            re.IGNORECASE
+        ))
+
+    @classmethod
+    def _listing_fallback(
+        cls,
+        message,
+        lookup_queries,
+        lookup_candidates
+    ):
+        if (
+            len(lookup_queries) != 1
+            or not cls._is_company_analysis_request(message)
+        ):
+            return None
+
+        candidates = [
+            candidate
+            for candidate in lookup_candidates
+            if (
+                candidate.get("quote_type") == "EQUITY"
+                and candidate.get("searched_name")
+                and cls._candidate_matches_query(
+                    candidate,
+                    candidate["searched_name"]
+                )
+            )
+        ]
+        if not candidates:
+            return None
+
+        preferred_exchanges = {
+            "NYSE",
+            "NASDAQ",
+            "NASDAQGS",
+            "NASDAQGM",
+            "NASDAQCM",
+            "NYSE AMERICAN"
+        }
+        candidate = next(
+            (
+                item
+                for item in candidates
+                if str(item.get("exchange") or "").upper()
+                in preferred_exchanges
+            ),
+            candidates[0]
+        )
+        return {
+            "is_company_request": True,
+            "intent": "general_information",
+            "companies": [{
+                "name": candidate["name"],
+                "ticker": candidate["symbol"],
+                "entity_type": "stock",
+                "ticker_source": "Yahoo Finance company search"
+            }]
+        }
 
     def _extract_explicit_tickers(
             self,
@@ -103,9 +224,19 @@ class CompanyDetectionAgent:
             for ticker
             in explicit_tickers
         ]
-        known_company_entities = (
-            self._extract_known_company_entities(message)
-        )
+        lookup_queries = self._extract_lookup_queries(message)
+        lookup_candidates = []
+        for query in lookup_queries:
+            for candidate in self.ticker_lookup.search(query):
+                candidate = dict(candidate)
+                candidate["searched_name"] = query
+                if not any(
+                    existing.get("symbol") == candidate.get("symbol")
+                    and existing.get("searched_name")
+                    == candidate.get("searched_name")
+                    for existing in lookup_candidates
+                ):
+                    lookup_candidates.append(candidate)
         
         explicit_ticker_context = (
             ", ".join(
@@ -114,6 +245,11 @@ class CompanyDetectionAgent:
             if explicit_tickers
             else "None"
         )
+        lookup_context = json.dumps(
+            lookup_candidates,
+            indent=2,
+            ensure_ascii=False
+        )
         
         prompt = f"""
         You are a company detection agent.
@@ -121,6 +257,10 @@ class CompanyDetectionAgent:
         Explicit ticker symbols already detected:
 
         {explicit_ticker_context}
+
+        Dynamically retrieved public listing candidates:
+
+        {lookup_context or "No listing candidates were retrieved."}
         
 
         IMPORTANT:
@@ -136,6 +276,20 @@ class CompanyDetectionAgent:
 
         - Do not omit natural-language companies merely
         because another explicit ticker is present.
+
+        - Use retrieved listing candidates as evidence when
+        associating company names with ticker symbols.
+
+        - Never invent or guess a ticker. For natural-language
+        company names, use a ticker only when the supplied
+        candidates contain the same company and symbol.
+
+        - A search candidate is evidence to evaluate, not proof
+        by itself. Match the candidate's company name to the
+        organization the user asked about.
+
+        - If the company is identified but no matching listed
+        candidate exists, return its name with ticker null.
 
         - Return all detected entities.
         
@@ -257,30 +411,6 @@ class CompanyDetectionAgent:
         that the company is publicly traded.
 
 
-        Public company Example:
-
-        {{
-            "is_company_request": true,
-            "intent": "analysis",
-            "companies": [
-                {{
-                    "name": "NVIDIA",
-                    "ticker": "NVDA"
-                }}
-            ]
-        }}
-        
-        {{
-            "is_company_request": true,
-            "intent": "history",
-            "companies": [
-                {{
-                    "name": "Intel",
-                    "ticker": "INTC"
-                }}
-            ]
-        }}
-        
         Private company example:
         {{
             "is_company_request": true,
@@ -307,13 +437,17 @@ class CompanyDetectionAgent:
             response,
             dict
         ):
-            fallback_entities = explicit_entities + known_company_entities
+            lookup_fallback = self._listing_fallback(
+                message,
+                lookup_queries,
+                lookup_candidates
+            )
+            if lookup_fallback:
+                return lookup_fallback
             return {
-                "is_company_request": bool(
-                    fallback_entities
-                ),
+                "is_company_request": bool(explicit_entities),
                 "intent": "general_information",
-                "companies": fallback_entities
+                "companies": explicit_entities
             }
 
         model_response = response.get(
@@ -322,13 +456,17 @@ class CompanyDetectionAgent:
         )
 
         if not model_response:
-            fallback_entities = explicit_entities + known_company_entities
+            lookup_fallback = self._listing_fallback(
+                message,
+                lookup_queries,
+                lookup_candidates
+            )
+            if lookup_fallback:
+                return lookup_fallback
             return {
-                "is_company_request": bool(
-                    fallback_entities
-                ),
+                "is_company_request": bool(explicit_entities),
                 "intent": "general_information",
-                "companies": fallback_entities
+                "companies": explicit_entities
             }
 
         print(model_response)
@@ -416,6 +554,63 @@ class CompanyDetectionAgent:
 
                     continue
 
+                if (
+                    not self._company_is_mentioned(name, message)
+                    and not any(
+                        self._candidate_matches_name(candidate, name)
+                        for candidate in lookup_candidates
+                    )
+                ):
+                    continue
+
+                matching_candidates = [
+                    candidate
+                    for candidate in lookup_candidates
+                    if self._candidate_matches_name(
+                        candidate,
+                        name
+                    )
+                ]
+
+                candidate = next(
+                    (
+                        item
+                        for item in matching_candidates
+                        if item.get("symbol") == ticker
+                    ),
+                    None
+                )
+                if ticker and ticker not in explicit_tickers:
+                    if candidate is None:
+                        ticker = None
+                    else:
+                        company["ticker_source"] = (
+                            "Yahoo Finance company search"
+                        )
+                if not ticker and matching_candidates:
+                    preferred_quote_type = (
+                        "ETF"
+                        if entity_type == "etf"
+                        else "EQUITY"
+                    )
+                    candidate = next(
+                        (
+                            item
+                            for item in matching_candidates
+                            if item.get("quote_type")
+                            == preferred_quote_type
+                        ),
+                        matching_candidates[0]
+                    )
+                    ticker = candidate["symbol"]
+                    company["ticker_source"] = (
+                        "Yahoo Finance company search"
+                    )
+                    if candidate.get("quote_type") == "ETF":
+                        entity_type = "etf"
+                    elif candidate.get("quote_type") == "EQUITY":
+                        entity_type = "stock"
+
                 normalized_companies.append(
                     {
                         "name":
@@ -425,9 +620,21 @@ class CompanyDetectionAgent:
                             ticker,
 
                         "entity_type":
-                            entity_type
+                            entity_type,
+
+                        "ticker_source":
+                            company.get("ticker_source")
                     }
                 )
+
+            if not normalized_companies:
+                lookup_fallback = self._listing_fallback(
+                    message,
+                    lookup_queries,
+                    lookup_candidates
+                )
+                if lookup_fallback:
+                    normalized_companies = lookup_fallback["companies"]
 
             merged_companies = []
 
@@ -436,7 +643,6 @@ class CompanyDetectionAgent:
 
             for company in (
                 explicit_entities
-                + known_company_entities
                 + normalized_companies
             ):
 
@@ -472,22 +678,6 @@ class CompanyDetectionAgent:
                     ticker = ticker.strip().upper() or None
                 else:
                     ticker = None
-
-                if known_company_entities:
-                    mentioned = any(
-                        re.search(
-                            rf"\b{re.escape(candidate)}\b",
-                            str(message or ""),
-                            re.IGNORECASE
-                        )
-                        for candidate in (
-                            name,
-                            ticker or ""
-                        )
-                        if candidate
-                    )
-                    if not mentioned:
-                        continue
 
                 entity_type = str(
                     company.get(
@@ -533,7 +723,10 @@ class CompanyDetectionAgent:
                             ticker,
 
                         "entity_type":
-                            entity_type
+                            entity_type,
+
+                        "ticker_source":
+                            company.get("ticker_source")
                     }
                 )
 
@@ -561,7 +754,15 @@ class CompanyDetectionAgent:
             )
 
 
-            fallback_entities = explicit_entities + known_company_entities
+            fallback_entities = explicit_entities
+            lookup_fallback = self._listing_fallback(
+                message,
+                lookup_queries,
+                lookup_candidates
+            )
+            if lookup_fallback:
+                lookup_fallback["error"] = str(e)
+                return lookup_fallback
             if fallback_entities:
 
                 return {

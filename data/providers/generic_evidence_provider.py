@@ -85,6 +85,8 @@ class GenericEvidenceProvider:
         patterns = (
             r"^\s*(?:tell me|give me|show me)\s+(?:the\s+)?"
             r"(?:history|story|background)\s+of\s+(.+?)\s*[?.!]*$",
+            r"^\s*(?:please\s+)?(?:analyze|analyse|evaluate|assess|"
+            r"review)\s+(?:the\s+)?(?:company\s+)?(.+?)\s*[?.!]*$",
             r"^\s*(?:what can you tell me about|"
             r"(?:can you\s+)?tell me about|"
             r"what is|what are|who is|who are|describe|"

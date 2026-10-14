@@ -246,7 +246,9 @@ Route:
 ```text
 Hermes
  -> CompanyDetectionAgent
- -> public ticker
+ -> dynamic Yahoo Finance company search
+ -> model matches the named entity to retrieved listing candidates
+ -> validated public ticker
  -> Gaming PC Quant
  -> SEC / FRED / Market Context
  -> Research
@@ -255,6 +257,15 @@ Hermes
  -> Quality
  -> response
 ```
+
+Company names are not maintained in a per-company alias-to-ticker list.
+`CompanyDetectionAgent` retrieves matching Yahoo Finance listing candidates,
+includes their names, symbols, quote types, and exchange data in the detection
+prompt, and only accepts a ticker supported by a matching candidate. Successful
+lookup results are cached in shared storage for 24 hours. If the model response
+is empty, an eligible single-company analysis can use the matching primary
+equity candidate; unresolved evaluation requests do not enter the portfolio
+workflow.
 
 ### Single ETF Evaluation
 

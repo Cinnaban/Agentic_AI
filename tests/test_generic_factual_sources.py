@@ -96,11 +96,18 @@ class GenericFactualSourceTests(unittest.TestCase):
     def test_history_question_infers_subject_and_excludes_word_matches(self):
         provider = GenericEvidenceProvider.__new__(GenericEvidenceProvider)
         provider.max_search_queries = 5
+        for query, expected_subject in (
+            ("Tell me the history of NASCAR", "NASCAR"),
+            ("Tell me the history of Disney", "Disney"),
+            ("Analyze Disney", "Disney"),
+            ("Evaluate Disney", "Disney")
+        ):
+            with self.subTest(query=query):
+                subject = provider._infer_subject(query)
+                self.assertEqual(subject, expected_subject)
+
         query = "Tell me the history of NASCAR"
         subject = provider._infer_subject(query)
-
-        self.assertEqual(subject, "NASCAR")
-
         queries = provider._build_factual_queries(
             query=query,
             search_queries=[
