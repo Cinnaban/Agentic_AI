@@ -6,15 +6,120 @@ from unittest.mock import Mock
 import pandas as pd
 
 from workers.etf_portfolio_insights import (
+    build_evidence_based_update_summary,
     collect_holding_insights,
+    find_unapproved_ticker_mentions,
     filter_recent_news,
     format_holding_insights,
+    is_complete_portfolio_update,
     parse_asset_rows,
     retrieve_holding_insights
 )
 
 
 class ETFPortfolioInsightsTests(unittest.TestCase):
+
+    def test_summary_requires_the_requested_sections_and_a_quantified_brief(self):
+        valid_summary = "\n".join([
+            "## Portfolio Changes",
+            "No changes.",
+            "## Brief Analysis",
+            "Three stocks rose 2% and four ETFs fell 1%.",
+            "## Current Market Context",
+            "No new headlines.",
+            "## Risk Watch",
+            "Beta data is available.",
+            "## Opportunities",
+            "Positive return observations.",
+            "## Short-Term Watch",
+            "Review new filings."
+        ])
+        self.assertTrue(is_complete_portfolio_update(valid_summary))
+        self.assertFalse(
+            is_complete_portfolio_update(
+                valid_summary.replace(
+                    "Three stocks rose 2% and four ETFs fell 1%.",
+                    "Data is insufficient to assess."
+                )
+            )
+        )
+        self.assertFalse(
+            is_complete_portfolio_update(
+                valid_summary.replace("## Brief Analysis", "## Overview")
+            )
+        )
+
+    def test_generated_summary_tickers_are_checked_against_sheet_holdings(self):
+        self.assertEqual(
+            find_unapproved_ticker_mentions(
+                "NVDA rose while AAPL and MSFT were also mentioned. "
+                "ETF EPS and GDP data were included.",
+                ["NVDA"]
+            ),
+            ["AAPL", "MSFT"]
+        )
+
+    def test_evidence_based_fallback_uses_only_sheet_holdings_and_brief_sections(self):
+        now = datetime.now(timezone.utc)
+        result = build_evidence_based_update_summary(
+            results={
+                "changes": [{
+                    "ticker": "NVDA",
+                    "field": "EPS",
+                    "old": "4.50",
+                    "new": "4.75"
+                }]
+            },
+            holdings=[
+                {
+                    "ticker": "NVDA",
+                    "entity_type": "stock",
+                    "name": "NVIDIA",
+                    "market_performance_3m_pct": 12.5,
+                    "metrics": {"beta": 1.4}
+                },
+                {
+                    "ticker": "SOXX",
+                    "entity_type": "etf",
+                    "market_performance_3m_pct": -2.0,
+                    "metrics": {"beta": 1.1}
+                }
+            ],
+            market_headlines=[
+                {
+                    "title": "Markets open higher",
+                    "source": "Example News",
+                    "published_at": now.isoformat()
+                },
+                {
+                    "title": "AAPL rises after earnings",
+                    "source": "Example News",
+                    "published_at": now.isoformat()
+                }
+            ],
+            news_by_ticker={
+                "NVDA": [{
+                    "title": "NVIDIA quarterly update",
+                    "published_at": now.isoformat(),
+                    "url": "https://example.test/nvda"
+                }]
+            }
+        )
+
+        for heading in (
+            "## Portfolio Changes",
+            "## Brief Analysis",
+            "## Current Market Context",
+            "## Risk Watch",
+            "## Opportunities",
+            "## Short-Term Watch"
+        ):
+            self.assertIn(heading, result)
+        self.assertIn("Strongest: NVDA (+12.50%)", result)
+        self.assertIn("weakest: SOXX (-2.00%)", result)
+        self.assertIn("NVIDIA quarterly update", result)
+        self.assertNotIn("AAPL", result)
+        self.assertTrue(is_complete_portfolio_update(result))
 
     def test_asset_rows_only_accept_valid_ticker_symbols(self):
         holdings, skipped = parse_asset_rows([

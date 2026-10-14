@@ -36,8 +36,11 @@ from workers.etf_portfolio_evaluation import (
     generate_etf_portfolio_appendix
 )
 from workers.etf_portfolio_insights import (
+    build_evidence_based_update_summary,
+    find_unapproved_ticker_mentions,
     filter_recent_news,
     format_holding_insights,
+    is_complete_portfolio_update,
     parse_asset_rows,
     retrieve_holding_insights
 )
@@ -248,21 +251,23 @@ Classified Holding Insights:
 
 Objective:
 
-Provide:
-
-1. A classification overview separating individual stocks from ETFs.
-2. Relevant latest quarterly financial results and recent quarter-over-quarter
-   changes for operating companies.
-3. Material ticker-specific news published in the preceding 48 hours.
-4. A holding-by-holding stability, growth, and financial-strength assessment
-   using the available metric evidence and each company's sector/industry.
-5. ETF-level performance, cost, distribution, asset, top-holding, and sector
-   exposure context. Do not apply issuer operating-company ratios to ETFs.
-6. Portfolio risks and watch items, distinguishing observations from inference.
+Write a concise portfolio brief using the format below. Include a real
+evidence-based analysis of the holdings, not just a list of unavailable data.
+Summarize actual worksheet changes, meaningful available performance or
+quarterly metrics, and timestamp-verified news. Limit each section to a few
+focused bullets.
 
 EVIDENCE RULES:
 
 - Classified Holding Insights contains retrieved market and statement data.
+- The exact included worksheet ticker list in Classified Holding Insights is
+  the complete portfolio. Treat it as a closed set.
+- Never add, infer, recommend, or list a stock, ETF, company, or ticker that
+  is not in the included worksheet ticker list. This includes securities held
+  inside an ETF, market indices, and comparison examples; they are not
+  portfolio positions.
+- Do not create a separate "Holdings and Classification" inventory. Only
+  describe changes and analysis for the included worksheet holdings.
 - Stock financial statements describe the issuer; ETF fund profile metrics
   describe the fund. Never treat an ETF's underlying holdings as the fund's
   own issuer financial statements.
@@ -296,17 +301,19 @@ EVIDENCE RULES:
 
 Format:
 
-# Daily Mixed Stock and ETF Portfolio Update
+# Daily Portfolio Update
 
-## Holdings and Classification
+## Portfolio Changes
 
-## Quarterly and Financial Metrics
+## Brief Analysis
 
-## Relevant News (Last 48 Hours)
+## Current Market Context
 
-## Stability, Growth, and Industry Context
+## Risk Watch
 
-## Portfolio Risks and Watch Items
+## Opportunities
+
+## Short-Term Watch
 
 """
 # Beta Analysis 
@@ -882,6 +889,37 @@ ai_summary = ai_summarize(
     research_prompt,
     beta_analysis
 )
+
+unapproved_tickers = find_unapproved_ticker_mentions(
+    ai_summary,
+    [
+        holding.get("ticker")
+        for holding in holding_insights
+    ],
+    [
+        holding.get("name")
+        for holding in holding_insights
+    ]
+)
+if unapproved_tickers or not is_complete_portfolio_update(ai_summary):
+    if unapproved_tickers:
+        logging.warning(
+            "ETF summary mentioned tickers outside the worksheet portfolio "
+            "(%s); replacing it with a worksheet-grounded brief",
+            ", ".join(unapproved_tickers)
+        )
+    else:
+        logging.warning(
+            "ETF summary omitted the required report sections or a "
+            "quantified brief analysis; replacing it with a "
+            "worksheet-grounded brief"
+        )
+    ai_summary = build_evidence_based_update_summary(
+        results=results,
+        holdings=holding_insights,
+        market_headlines=live_news,
+        news_by_ticker=news_by_ticker
+    )
 
 ai_summary = (
     ai_summary.rstrip()

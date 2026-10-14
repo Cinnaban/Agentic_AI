@@ -728,6 +728,11 @@ The updater reads tickers from column A of the configured asset worksheet;
 it does not use a separate hard-coded portfolio list. Cell A1 must be
 `Ticker` or `Symbol`. Numeric-only values and malformed symbols are skipped,
 and the report identifies the source worksheet and exact accepted ticker set.
+The generated brief treats those accepted tickers as the complete portfolio:
+it does not add ETF constituents or external stocks as holdings. If generated
+text mentions a ticker outside the sheet, the updater replaces it with a
+concise evidence-based report covering portfolio changes, brief analysis,
+market context, risk watch, opportunities, and short-term watch.
 
 The job is scheduled on the Mac Mini through `launchd` for:
 

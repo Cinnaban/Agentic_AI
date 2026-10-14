@@ -34,6 +34,16 @@ ETF_METRIC_LABELS = (
 TICKER_SYMBOL_PATTERN = re.compile(
     r"^[A-Za-z][A-Za-z0-9.-]{0,9}$"
 )
+TICKER_MENTION_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])[A-Z][A-Z0-9.-]{1,9}(?![A-Za-z0-9])"
+)
+NON_TICKER_ACRONYMS = {
+    "AI", "AUM", "CEO", "CFO", "CPI", "DOW", "EBITDA", "EPS", "ETF",
+    "ETFS",
+    "FCF", "FED", "FRED", "GDP", "IPO", "NAV", "NASDAQ", "NYSE",
+    "OCF", "PE", "QOQ", "Q1", "Q2", "Q3", "Q4", "ROE", "SEC",
+    "TTM", "US", "USA", "USD", "YIELD", "YOY", "YTD"
+}
 
 
 def parse_asset_rows(rows):
@@ -578,4 +588,287 @@ def format_holding_insights(holdings, news_by_ticker, now=None):
                 f"- {item.get('title')} | {item.get('source') or 'Source unavailable'}"
                 f" | {item.get('published_at')} | {item.get('url')}"
             )
+    return "\n".join(lines)
+
+
+def find_unapproved_ticker_mentions(
+    text,
+    allowed_tickers,
+    allowed_company_names=()
+):
+    allowed = {
+        str(ticker).strip().upper()
+        for ticker in allowed_tickers
+        if ticker
+    }
+    allowed_names = {
+        token
+        for name in allowed_company_names
+        for token in re.findall(
+            r"(?<![A-Za-z0-9])[A-Z][A-Z0-9.-]{1,9}(?![A-Za-z0-9])",
+            str(name or "")
+        )
+    }
+    mentions = {
+        match.group(0)
+        for match in TICKER_MENTION_PATTERN.finditer(str(text or ""))
+    }
+    return sorted(
+        ticker
+        for ticker in mentions
+        if (
+            ticker not in allowed
+            and ticker not in allowed_names
+            and ticker not in NON_TICKER_ACRONYMS
+        )
+    )
+
+
+def is_complete_portfolio_update(text):
+    text = str(text or "")
+    required_headings = (
+        "## Portfolio Changes",
+        "## Brief Analysis",
+        "## Current Market Context",
+        "## Risk Watch",
+        "## Opportunities",
+        "## Short-Term Watch"
+    )
+    if not all(heading in text for heading in required_headings):
+        return False
+
+    sections = re.split(r"(?m)^##\s+", text)
+    brief_section = next(
+        (
+            section
+            for section in sections
+            if section.startswith("Brief Analysis")
+        ),
+        ""
+    )
+    brief_content = brief_section.partition("\n")[2]
+    return (
+        len(brief_content.strip()) >= 40
+        and re.search(r"\d", brief_content) is not None
+    )
+
+
+def build_evidence_based_update_summary(
+    results,
+    holdings,
+    market_headlines,
+    news_by_ticker
+):
+    holdings = [
+        holding for holding in holdings
+        if isinstance(holding, dict) and holding.get("ticker")
+    ]
+    allowed_tickers = {
+        str(holding["ticker"]).upper()
+        for holding in holdings
+    }
+    allowed_company_names = [
+        holding.get("name")
+        for holding in holdings
+        if holding.get("name")
+    ]
+    changes = results.get("changes", [])
+    changes = changes if isinstance(changes, list) else []
+    lines = [
+        "# Daily Portfolio Update",
+        "",
+        "## Portfolio Changes"
+    ]
+    if changes:
+        changed_tickers = list(dict.fromkeys(
+            str(change.get("ticker", "")).upper()
+            for change in changes
+            if isinstance(change, dict) and change.get("ticker")
+        ))
+        lines.append(
+            f"Applied {len(changes)} metric updates across "
+            f"{len(changed_tickers)} worksheet holdings."
+        )
+        for change in changes[:5]:
+            if not isinstance(change, dict):
+                continue
+            lines.append(
+                f"- {change.get('ticker')}: {change.get('field')} "
+                f"{change.get('old')} -> {change.get('new')}."
+            )
+        if len(changes) > 5:
+            lines.append(
+                f"- {len(changes) - 5} additional metric updates are "
+                "reflected in the worksheet."
+            )
+    else:
+        lines.append("No metric changes were detected in the worksheet.")
+
+    stocks = [
+        holding for holding in holdings
+        if holding.get("entity_type") == "stock"
+    ]
+    etfs = [
+        holding for holding in holdings
+        if holding.get("entity_type") == "etf"
+    ]
+    unresolved = [
+        holding for holding in holdings
+        if holding.get("entity_type") not in {"stock", "etf"}
+    ]
+    performance = [
+        (holding, _number(holding.get("market_performance_3m_pct")))
+        for holding in holdings
+    ]
+    performance = [
+        (holding, value)
+        for holding, value in performance
+        if value is not None
+    ]
+
+    lines.extend([
+        "",
+        "## Brief Analysis",
+        (
+            f"The worksheet contains {len(stocks)} stocks and "
+            f"{len(etfs)} ETFs"
+            + (
+                f" ({len(unresolved)} unclassified)"
+                if unresolved
+                else ""
+            )
+            + "."
+        )
+    ])
+    if performance:
+        gain_count = sum(value > 0 for _, value in performance)
+        loss_count = sum(value < 0 for _, value in performance)
+        strongest, strongest_return = max(
+            performance, key=lambda item: item[1]
+        )
+        weakest, weakest_return = min(
+            performance, key=lambda item: item[1]
+        )
+        lines.append(
+            f"Three-month price data was available for {len(performance)} "
+            f"holdings: {gain_count} rose and {loss_count} fell. "
+            f"Strongest: {strongest['ticker']} "
+            f"({strongest_return:+.2f}%); weakest: {weakest['ticker']} "
+            f"({weakest_return:+.2f}%)."
+        )
+    else:
+        lines.append(
+            "Three-month price performance was unavailable for the "
+            "worksheet holdings."
+        )
+
+    lines.extend(["", "## Current Market Context"])
+    headlines = market_headlines if isinstance(market_headlines, list) else []
+    usable_headlines = [
+        item for item in headlines
+        if (
+            isinstance(item, dict)
+            and item.get("title")
+            and not find_unapproved_ticker_mentions(
+                item.get("title"),
+                allowed_tickers,
+                allowed_company_names
+            )
+        )
+    ][:3]
+    if usable_headlines:
+        lines.extend(
+            f"- {item['title']} "
+            f"({item.get('source') or 'source unavailable'}; "
+            f"{item.get('published_at') or 'date unavailable'})."
+            for item in usable_headlines
+        )
+    else:
+        lines.append("No timestamp-verified market headlines were retrieved.")
+    lines.append("Market sentiment was not independently measured.")
+
+    lines.extend(["", "## Risk Watch"])
+    beta_holdings = [
+        (holding, _number(holding.get("metrics", {}).get("beta")))
+        for holding in holdings
+        if isinstance(holding.get("metrics"), dict)
+    ]
+    beta_holdings = [
+        (holding, beta) for holding, beta in beta_holdings
+        if beta is not None
+    ]
+    if beta_holdings:
+        ranked = sorted(beta_holdings, key=lambda item: item[1], reverse=True)
+        highest = ", ".join(
+            f"{holding['ticker']} ({beta:.2f})"
+            for holding, beta in ranked[:3]
+        )
+        lines.append(
+            f"Highest reported historical beta: {highest}. Beta measures "
+            "historical market sensitivity, not total investment risk."
+        )
+    else:
+        lines.append("No holding beta values were retrieved.")
+    if unresolved:
+        lines.append(
+            "Classification or financial data remains unavailable for: "
+            + ", ".join(holding["ticker"] for holding in unresolved)
+            + "."
+        )
+
+    lines.extend(["", "## Opportunities"])
+    positive_performance = sorted(
+        (
+            (holding, value)
+            for holding, value in performance
+            if value > 0
+        ),
+        key=lambda item: item[1],
+        reverse=True
+    )
+    if positive_performance:
+        lines.append(
+            "Recent positive price performance to monitor (not a forecast "
+            "or recommendation): "
+            + ", ".join(
+                f"{holding['ticker']} ({value:+.2f}%)"
+                for holding, value in positive_performance[:3]
+            )
+            + "."
+        )
+    else:
+        lines.append(
+            "No positive three-month holding returns were available to "
+            "highlight."
+        )
+
+    lines.extend(["", "## Short-Term Watch"])
+    recent_items = []
+    for holding in holdings:
+        ticker = str(holding["ticker"]).upper()
+        for item in filter_recent_news(
+            (news_by_ticker or {}).get(ticker, [])
+        ):
+            if find_unapproved_ticker_mentions(
+                item.get("title"),
+                allowed_tickers,
+                allowed_company_names
+            ):
+                continue
+            recent_items.append((ticker, item))
+    recent_items.sort(
+        key=lambda pair: pair[1].get("published_at", ""),
+        reverse=True
+    )
+    if recent_items:
+        lines.extend(
+            f"- {ticker}: {item.get('title')} "
+            f"({item.get('published_at')})."
+            for ticker, item in recent_items[:3]
+        )
+    else:
+        lines.append(
+            "No timestamp-verified holding-specific news was retrieved "
+            "within the last 48 hours."
+        )
     return "\n".join(lines)
