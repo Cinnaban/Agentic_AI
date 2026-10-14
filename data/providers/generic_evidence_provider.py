@@ -77,6 +77,27 @@ class GenericEvidenceProvider:
             if term not in stop_words
         ]
 
+    @staticmethod
+    def _infer_subject(query):
+        if not isinstance(query, str):
+            return None
+
+        patterns = (
+            r"^\s*(?:tell me|give me|show me)\s+(?:the\s+)?"
+            r"(?:history|story|background)\s+of\s+(.+?)\s*[?.!]*$",
+            r"^\s*(?:what can you tell me about|"
+            r"(?:can you\s+)?tell me about|"
+            r"what is|what are|who is|who are|describe|"
+            r"history of|the history of|overview of|background on)"
+            r"\s+(.+?)\s*[?.!]*$"
+        )
+        for pattern in patterns:
+            match = re.match(pattern, query, re.IGNORECASE)
+            if match:
+                subject = match.group(1).strip()
+                return subject or None
+        return None
+
     @classmethod
     def _is_relevant_to_subject(cls, result, subject):
         terms = cls._subject_terms(subject)
@@ -294,6 +315,8 @@ class GenericEvidenceProvider:
 
             research_plan = {}
 
+        if not subject:
+            subject = self._infer_subject(query)
 
         evidence_depth = (
             research_plan.get(

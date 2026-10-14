@@ -93,6 +93,110 @@ class GenericFactualSourceTests(unittest.TestCase):
             for query in queries
         ))
 
+    def test_history_question_infers_subject_and_excludes_word_matches(self):
+        provider = GenericEvidenceProvider.__new__(GenericEvidenceProvider)
+        provider.max_search_queries = 5
+        query = "Tell me the history of NASCAR"
+        subject = provider._infer_subject(query)
+
+        self.assertEqual(subject, "NASCAR")
+
+        queries = provider._build_factual_queries(
+            query=query,
+            search_queries=[
+                "Tell dictionary meaning",
+                "History reference article",
+                "NASCAR origins and timeline"
+            ],
+            subject=subject
+        )
+
+        self.assertTrue(queries)
+        self.assertTrue(all("nascar" in item.lower() for item in queries))
+        self.assertFalse(provider._is_relevant_to_subject(
+            {
+                "title": "Tell | English meaning",
+                "summary": "History of the word tell",
+                "url": "https://dictionary.cambridge.org/dictionary/english/tell"
+            },
+            subject
+        ))
+        self.assertTrue(provider._is_relevant_to_subject(
+            {
+                "title": "NASCAR history and origins",
+                "summary": "A history of NASCAR racing",
+                "url": "https://www.nascar.com/"
+            },
+            subject
+        ))
+
+    def test_context_uses_inferred_subject_to_filter_search_results(self):
+        provider = GenericEvidenceProvider()
+        provider.freshness_detector = SimpleNamespace(
+            requires_live_data=lambda query: False
+        )
+        provider.reference_archive = Mock()
+        provider.reference_archive.get_query.return_value = None
+        provider.max_search_queries = 5
+        provider.max_pages = 15
+        search_result = {
+            "title": "NASCAR history and origins",
+            "summary": "A history of NASCAR racing",
+            "url": "https://www.nascar.com/history/",
+            "source": "Public Web Search",
+            "source_type": "public_web"
+        }
+        irrelevant_result = {
+            "title": "Tell | English meaning",
+            "summary": "History of the word tell",
+            "url": "https://dictionary.cambridge.org/dictionary/english/tell",
+            "source": "Public Web Search",
+            "source_type": "public_web"
+        }
+        provider.web = SimpleNamespace(
+            search=Mock(return_value=[
+                dict(search_result),
+                dict(irrelevant_result)
+            ])
+        )
+        query_text = "Tell me the history of NASCAR"
+
+        with patch.object(
+            GenericEvidenceProvider,
+            "_get_wikipedia_evidence",
+            return_value=(None, {"status": "not_found"})
+        ), patch.object(
+            provider,
+            "_enrich",
+            side_effect=lambda results, **kwargs: results
+        ):
+            evidence = provider.get_context(
+                query=query_text,
+                search_queries=[
+                    "Tell dictionary meaning",
+                    "History reference article",
+                    "NASCAR origins and timeline"
+                ]
+            )
+
+        self.assertEqual(evidence["subject"], "NASCAR")
+        self.assertTrue(evidence["search_queries"])
+        self.assertTrue(all(
+            "nascar" in query.lower()
+            for query in evidence["search_queries"]
+        ))
+        self.assertTrue(evidence["results"])
+        self.assertTrue(all(
+            "nascar" in result["url"].lower()
+            or "nascar" in result["title"].lower()
+            or "nascar" in result["summary"].lower()
+            for result in evidence["results"]
+        ))
+        self.assertEqual(
+            provider.web.search.call_count,
+            len(evidence["search_queries"])
+        )
+
     def test_factual_context_filters_irrelevant_and_social_results(self):
         provider = GenericEvidenceProvider()
         provider.max_search_queries = 5
