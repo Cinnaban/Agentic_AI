@@ -22,6 +22,7 @@ HELP = (
     "Robinhood (Telegram only, MCP account)\n"
     "/portfolio - balances, allocation %, growth, concentration, live quant\n"
     "/positions - same report\n"
+    "/review - full analysis of every holding (all accounts); /review NVDA VOO for specific symbols\n"
     "/buy NVDA $5 | /buy NVDA 0.02 | /buy NVDA 0.02 @ 215.5\n"
     "/sell NVDA 0.02\n"
     "/confirm CODE - submit the proposed order\n"
@@ -34,12 +35,21 @@ def _ids(name):
     return {x.strip() for x in os.getenv(name, "").split(",") if x.strip()}
 
 
-def authorized(update):
+def identity(update):
+    """Authorized identity, or None. Channel posts have no user, so an admin-only channel ID is the identity."""
     user, chat = update.effective_user, update.effective_chat
-    if not user or str(user.id) not in _ids("TELEGRAM_ROBINHOOD_USER_IDS"):
-        return False
     chats = _ids("TELEGRAM_ROBINHOOD_CHAT_IDS")
-    return not chats or (chat is not None and str(chat.id) in chats)
+    if chat is None:
+        return None
+    if update.channel_post is not None:
+        return f"channel:{chat.id}" if str(chat.id) in chats else None
+    if user and str(user.id) in _ids("TELEGRAM_ROBINHOOD_USER_IDS") and (not chats or str(chat.id) in chats):
+        return str(user.id)
+    return None
+
+
+def authorized(update):
+    return identity(update) is not None
 
 
 async def _send(update, text):
@@ -58,7 +68,7 @@ async def _run(update, fn, *args):
 async def _guard(update):
     if authorized(update):
         return True
-    await _send(update, "Not authorized for Robinhood commands. Use /myid and add your ID to TELEGRAM_ROBINHOOD_USER_IDS.")
+    await _send(update, "Not authorized for Robinhood commands.")
     return False
 
 
@@ -68,7 +78,7 @@ def _portfolio():
 
 
 async def cmd_myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await _send(update, f"user id: {update.effective_user.id}\nchat id: {update.effective_chat.id}")
+    await _send(update, f"user id: {update.effective_user.id if update.effective_user else 'n/a (channel post)'}\nchat id: {update.effective_chat.id}")
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -81,6 +91,17 @@ async def cmd_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _run(update, _portfolio)
 
 
+def _review(symbols):
+    from agentic_trader.robinhood import review
+    return review.review(symbols or None)
+
+
+async def cmd_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await _guard(update):
+        syms = [a.strip(",").upper() for a in context.args if re.fullmatch(r"[A-Za-z.\-,]{1,12}", a)]
+        await _run(update, _review, syms)
+
+
 def _order(text, user_id):
     from agentic_trader.robinhood import orders
     return orders.propose(text, user_id)
@@ -89,7 +110,7 @@ def _order(text, user_id):
 async def cmd_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await _guard(update):
         await _run(update, _order, re.sub(r"^(/\w+)@\w+", r"\1", update.effective_message.text),
-                   update.effective_user.id)
+                   identity(update))
 
 
 def _confirm(code, user_id):
@@ -100,7 +121,7 @@ def _confirm(code, user_id):
 async def cmd_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await _guard(update):
         code = context.args[0] if context.args else ""
-        await _run(update, _confirm, code, update.effective_user.id)
+        await _run(update, _confirm, code, identity(update))
 
 
 async def phrase(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -113,13 +134,17 @@ async def phrase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return True
 
 
+ALL = filters.UpdateType.MESSAGES | filters.UpdateType.CHANNEL_POSTS
+
+
 def register(application, fallback):
     """Register commands, and wrap the general text handler so portfolio phrases are handled here first."""
-    application.add_handler(CommandHandler(["rh", "robinhood", "help_rh"], cmd_help))
-    application.add_handler(CommandHandler(["portfolio", "positions"], cmd_portfolio))
-    application.add_handler(CommandHandler(["buy", "sell"], cmd_order))
-    application.add_handler(CommandHandler("confirm", cmd_confirm))
-    application.add_handler(CommandHandler("myid", cmd_myid))
+    application.add_handler(CommandHandler(["rh", "robinhood", "help_rh"], cmd_help, filters=ALL))
+    application.add_handler(CommandHandler(["portfolio", "positions"], cmd_portfolio, filters=ALL))
+    application.add_handler(CommandHandler(["buy", "sell"], cmd_order, filters=ALL))
+    application.add_handler(CommandHandler("review", cmd_review, filters=ALL))
+    application.add_handler(CommandHandler("confirm", cmd_confirm, filters=ALL))
+    application.add_handler(CommandHandler("myid", cmd_myid, filters=ALL))
 
     async def text_handler(update, context):
         if await phrase(update, context):

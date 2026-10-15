@@ -84,3 +84,4 @@ Only Telegram can reach Robinhood account tools (Discord is market-data only). C
 - Access requires your Telegram user ID in root `.env` `TELEGRAM_ROBINHOOD_USER_IDS`.
 - Orders: MCP account only, equities only, no margin/options, per-order and daily caps, one-time 120s confirm code, placed only if `ROBINHOOD_LIVE_ORDERS=true` and the app's trade approval is ON.
 - Audit log: `state/rh_orders_audit.jsonl`.
+- `/review [SYMBOLS]`: per-holding analysis across all accounts (price, market cap, gain/loss, MA20/50/200, beta, dividend, sentiment, 5-day outlook, ETF top holdings).

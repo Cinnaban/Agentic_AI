@@ -194,3 +194,15 @@ def test_orders_disabled_by_default(monkeypatch):
     orders, placed = _fake_account(monkeypatch, live=False)
     code = orders.propose("/buy NVDA $2", 1).split("/confirm ")[1].split()[0]
     assert "disabled" in orders.confirm(code, 1) and not placed
+
+
+def test_review_math():
+    import numpy as np
+    from agentic_trader.robinhood import review
+    rng = np.random.default_rng(1)
+    m = np.cumprod(1 + rng.normal(0.0005, 0.01, 300)) * 100
+    assert abs(review._beta(m, m) - 1) < 1e-9
+    p = review._projection(m)
+    assert p and p["band5"] > 0
+    assert review._label(review._sentiment({"num_buy_ratings": 10, "num_hold_ratings": 0, "num_sell_ratings": 0}, 0.2, 0.4, 50)) == "bullish"
+    assert review._big(5.0e12) == "$5.00T"
