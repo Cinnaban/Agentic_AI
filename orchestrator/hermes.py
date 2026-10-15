@@ -62,6 +62,9 @@ from data.providers.performance_chart_provider import (
 from data.providers.portfolio_allocation_chart_provider import (
     PortfolioAllocationChartProvider
 )
+from data.providers.portfolio_performance_chart_provider import (
+    PortfolioPerformanceChartProvider
+)
 from orchestrator.comparison_intent import (
     ComparisonIntent
 )
@@ -146,6 +149,9 @@ class Hermes:
         )
         self.portfolio_allocation_chart_provider = (
             PortfolioAllocationChartProvider()
+        )
+        self.portfolio_performance_chart_provider = (
+            PortfolioPerformanceChartProvider()
         )
         self.financial_table_formatter = (
             FinancialTableFormatter()
@@ -1490,6 +1496,11 @@ class Hermes:
                                 )
                             )
                         )
+
+                    self._add_portfolio_performance_charts(
+                        portfolio_result,
+                        holdings
+                    )
 
                     safe_response = (
                         self.outbound_gate.prepare(
@@ -3535,4 +3546,64 @@ class Hermes:
                 response_text.rstrip()
                 + "\n\n"
                 + "\n".join(status_lines)
+            )
+
+    def _add_portfolio_performance_charts(self, response, holdings):
+        try:
+            result = self.portfolio_performance_chart_provider.generate(
+                holdings
+            )
+        except Exception as exc:
+            result = {
+                "status": "failed",
+                "error": f"Chart generation encountered an error: {exc}"
+            }
+
+        attached_count = 0
+        if (
+            isinstance(result, dict)
+            and result.get("status") == "completed"
+            and isinstance(result.get("charts"), list)
+        ):
+            attachments = response.get("attachments", [])
+            if not isinstance(attachments, list):
+                attachments = []
+            filenames = (
+                "portfolio_ytd_return.png",
+                "portfolio_rolling_12_month_return.png"
+            )
+            for chart, filename in zip(result["charts"], filenames):
+                if not isinstance(chart, dict) or not chart.get("path"):
+                    continue
+                attachments.append({
+                    "path": chart["path"],
+                    "filename": filename,
+                    "caption": chart.get("caption", "")
+                })
+                attached_count += 1
+            if attached_count:
+                response["attachments"] = attachments
+
+        if attached_count == 2:
+            status = (
+                "Portfolio return charts attached: year-to-date and "
+                "rolling 12-month, compared with the S&P 500 and DJI."
+            )
+        else:
+            error = (
+                result.get("error")
+                if isinstance(result, dict)
+                else None
+            )
+            status = (
+                "Portfolio return charts unavailable"
+                + (f": {error}" if error else ".")
+            )
+
+        response_text = response.get("response")
+        if isinstance(response_text, str) and response_text.strip():
+            response["response"] = (
+                response_text.rstrip()
+                + "\n\n"
+                + status
             )

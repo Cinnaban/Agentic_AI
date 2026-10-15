@@ -318,7 +318,13 @@ ETF fund profile data when available. Each portfolio response includes an
 allocation bar chart by holding, colored by instrument type. ETF holdings are
 not described with company operating or valuation metrics, and allocations
 whose supplied weights do not total 100% are charted as stated rather than
-normalized.
+normalized. Portfolio analysis also attaches year-to-date and rolling
+12-month return line charts, comparing the weight-normalized portfolio with
+the S&P 500 and Dow Jones Industrial Average, using adjusted-return ETF
+proxies SPY and DIA. These charts use adjusted daily Yahoo Finance prices; if
+prices are missing for any holding or either benchmark proxy, the performance
+comparison is reported as unavailable rather than presenting a partial
+portfolio.
 Supply holdings one per line, for example:
 
 ```text
