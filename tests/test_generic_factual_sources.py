@@ -395,11 +395,79 @@ class GenericFactualSourceTests(unittest.TestCase):
 
         self.assertIn("Do not reinterpret it", prompt)
         self.assertIn("Do not fill gaps from model memory", prompt)
-        self.assertIn("Context:", prompt)
+        self.assertIn("Start with a one-sentence summary of the topic", prompt)
+        self.assertNotIn("Assessment labels", prompt)
+        self.assertNotIn("Question:\n", prompt)
         self.assertNotIn("Interpreted question:", prompt)
+        self.assertIn('Use these sections, in order: "Summary", "Answer", and', prompt)
+        self.assertIn("private chain-of-thought or step-by-step reasoning", prompt)
         self.assertIn("[S1]", prompt)
         self.assertIn("https://en.wikipedia.org/wiki/Piranha_Games", result["response"])
         self.assertIn("Sources:", result["response"])
+
+    def test_generic_response_keeps_summary_answer_assessment_and_sources(self):
+        agent = GenericEvidenceAgent()
+        agent.ollama = Mock()
+        agent.ollama.generate.return_value = {
+            "response": (
+                "Here is my attempt at answering the question with the "
+                "provided evidence and rules:\n\n"
+                "Question interpretation:\n"
+                "Compare ETFs and mutual funds.\n\n"
+                "Summary: ETFs and mutual funds pool investors' money "
+                "but differ in trading and management [S1].\n\n"
+                "Answer interpretation:\n"
+                "Explain pricing and management.\n\n"
+                "Answer: ETFs trade throughout the day, while mutual "
+                "funds are priced once daily [S1].\n"
+                "- ETFs often track indexes, while mutual funds may be "
+                "actively managed [S1].\n\n"
+                "Context interpretation:\n"
+                "Both pool investor money.\n\n"
+                "Assessment: These differences are supported by the cited "
+                "source; no independent confirmation was provided.\n\n"
+                "Sources:\n- [S1] fund guide"
+            )
+        }
+        evidence = {
+            "results": [{
+                "title": "Fund guide",
+                "content": "ETF and mutual fund details",
+                "url": "https://example.org/funds"
+            }],
+            "sources": [{
+                "source_id": "S1",
+                "title": "Fund guide",
+                "publisher": "Example",
+                "url": "https://example.org/funds"
+            }, {
+                "source_id": "S2",
+                "title": "Unrelated dictionary entry",
+                "publisher": "Dictionary",
+                "url": "https://example.org/dictionary"
+            }]
+        }
+
+        result = agent.analyze(
+            "Explain the difference between mutual funds and ETFs",
+            evidence
+        )
+        response = result["response"]
+
+        self.assertTrue(response.startswith("Summary:"))
+        self.assertIn("Answer:\nETFs trade throughout", response)
+        self.assertIn("Assessment:\nThese differences are supported", response)
+        self.assertIn("Sources:\n- [S1] Fund guide (Example)", response)
+        self.assertTrue(response.endswith("https://example.org/funds"))
+        self.assertNotIn("Unrelated dictionary", response)
+        for unwanted in (
+            "Here is my attempt",
+            "Question interpretation:",
+            "Answer interpretation:",
+            "Context interpretation:",
+            "fund guide\n\nSources:"
+        ):
+            self.assertNotIn(unwanted, response)
 
     def test_direct_factual_answer_uses_page_text_without_model_synthesis(self):
         agent = GenericEvidenceAgent()
@@ -445,7 +513,7 @@ class GenericFactualSourceTests(unittest.TestCase):
         self.assertIn("MechWarrior 5: Mercenaries", result["response"])
         self.assertIn("oldest game developers", result["response"])
         self.assertIn(
-            "did not verify a project currently in development",
+            "do not identify a project currently in development",
             result["response"]
         )
         self.assertNotIn("\\[2\\]", result["response"])
@@ -454,7 +522,8 @@ class GenericFactualSourceTests(unittest.TestCase):
         self.assertNotIn("Cliff Bleszinski", result["response"])
         self.assertNotIn("official website", result["response"].lower())
         self.assertIn("[S1]", result["response"])
-        self.assertIn("Notable games, projects, and achievements", result["response"])
+        self.assertIn("Other notable work:", result["response"])
+        self.assertNotIn("Source-grounded summary:", result["response"])
 
     def test_history_request_returns_source_grounded_summary(self):
         agent = GenericEvidenceAgent()
@@ -491,7 +560,7 @@ class GenericFactualSourceTests(unittest.TestCase):
         )
 
         agent.ollama.generate.assert_not_called()
-        self.assertIn("History summary: Razer Hong Kong", result["response"])
+        self.assertNotIn("History summary:", result["response"])
         self.assertIn("founded in 2005", result["response"])
         self.assertIn("launched its first gaming products in 2005", result["response"])
         self.assertIn("[S1]", result["response"])
@@ -687,11 +756,10 @@ class GenericFactualSourceTests(unittest.TestCase):
         )
         response = result["response"]
         current_section, past_section = response.split(
-            "**Notable games, projects, and achievements stated by the "
-            "sources:**"
+            "Other notable work:"
         )
 
-        self.assertIn("**Current projects stated by the sources:**", response)
+        self.assertIn("currently developing a new MechWarrior project", response)
         self.assertIn("currently developing a new MechWarrior project", current_section)
         self.assertNotIn("MechWarrior Online", current_section)
         self.assertIn("MechWarrior Online", past_section)
@@ -782,7 +850,7 @@ class GenericFactualSourceTests(unittest.TestCase):
 
         self.assertIn("MechWarrior series", result["response"])
         self.assertNotIn("Unsupported claim", result["response"])
-        self.assertIn("Notable games, projects, and achievements", result["response"])
+        self.assertIn("Other notable work:", result["response"])
 
     def test_firecrawl_does_not_replace_direct_reference_article_text(self):
         provider = GenericEvidenceProvider.__new__(GenericEvidenceProvider)

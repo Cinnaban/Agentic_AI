@@ -139,15 +139,9 @@ class GenericEvidenceAgent:
                         homepage_source
                     )
                     if summary:
-                        result["response"] = (
-                            summary
-                            + "\n\nSources:\n"
-                            + (
-                                f"- [{homepage_source['source_id']}] "
-                                f"{homepage_source.get('title') or 'Official homepage'} "
-                                f"({homepage_source.get('publisher') or 'publisher'}): "
-                                f"{homepage_source.get('url')}"
-                            )
+                        result["response"] = self._format_answer_and_sources(
+                            summary,
+                            [homepage_source]
                         )
                         result["sources"] = [homepage_source]
             result["response"] = self._add_archive_notice(
@@ -190,8 +184,8 @@ OVERRIDING ACCURACY RULES:
   attribute each version. Do not merge incompatible claims.
 - If the evidence does not establish a fact, say it could not
   be verified. Do not fill gaps from model memory.
-- Keep the answer direct. Do not force an "interpreted
-  question" or assessment format onto a simple factual request.
+- Keep the answer direct. Do not provide an interpreted
+  question or expand the brief assessment into a separate analysis.
 
 USER QUESTION:
 
@@ -299,8 +293,8 @@ retrieved evidence adequately covers the user's
 question.
 
 - If several requested dimensions lack meaningful
-evidence, lower the confidence of the Assessment
-rather than inventing conclusions.
+evidence, qualify the answer rather than inventing
+conclusions.
   
 RESEARCH COVERAGE RULES:
 
@@ -351,59 +345,19 @@ answer, do not fall back to phrases such as:
 
 when useful retrieved evidence exists.
 
-Instead:
+Instead, give the most useful direct answer supported by
+the retrieved evidence. If important information is
+missing, qualify the answer in one short sentence.
 
-1. Preserve and answer the user's original question
-   without rewording it as an "interpreted question".
+RESPONSE FORMAT:
 
-2. Give a one-word Assessment based only on the
-   supplied evidence.
-
-3. Provide a separate Context section containing only
-   explicit scope or background supported by the user's
-   request or retrieved evidence. Clearly label any
-   inference as an inference. If none is available, say
-   "No additional context stated."
-
-4. Explain what the evidence supports and what
-   important evidence is missing.
-
-Allowed Assessment labels should be short and
-appropriate to the question, for example:
-
-- Strong
-- Moderate
-- Limited
-- Potential
-- Unclear
-- Unknown
-
-Use "Unknown" when the evidence genuinely cannot
-support even a qualitative assessment.
-
-Use "Unclear" when relevant evidence exists but points
-to an incomplete or inconclusive answer.
-
-Never manufacture certainty merely to produce an
-Assessment.
-
-RESPONSE FORMAT FOR AMBIGUOUS OR LOW-CONFIDENCE
-QUESTIONS:
-
-Context:
-<brief explicit scope/background, or "No additional context stated">
-
-Assessment: <one-word assessment>
-
-Answer the original question in 2-4 short sections
-using the retrieved evidence. Do not replace it with a
-rephrased question.
-
-Conclude with one brief limitation when important
-information could not be verified.
-
-For simple factual questions that are directly answered
-by the evidence, do not force this format.
+Start with a one-sentence summary of the topic, then give the
+complete answer with the detail needed to address the user's
+question. End with a brief evidence-based assessment of the
+answer's reliability or any important uncertainty. Do not
+provide private chain-of-thought or step-by-step reasoning.
+Do not include question, answer, or context interpretation
+sections, or separate evidence-analysis or methodology.
 
 EVIDENCE INTERPRETATION RULES:
 
@@ -560,29 +514,14 @@ content exist for the same result:
 
 FINAL RESPONSE STRUCTURE:
 
-Always anchor the response to the user's original
-question.
-
-For research-backed generic questions, prefer:
-
-Question:
-"<the user's question or a concise faithful rewording>"
-
-Answer:
-Give the direct answer first in 1-3 sentences.
-
-Context:
-Provide only the supporting public evidence needed
-to understand the answer.
-
-Evidence limitations:
-Include this only when an important part of the
-answer could not be verified.
-
-Do not begin with a long discussion of research
-methodology.
-
-Do not list every search result.
+Use these sections, in order: "Summary", "Answer", and
+"Assessment". Keep the summary to one sentence. Make the
+answer complete and direct, not just a summary. Keep the
+assessment to one brief sentence about evidentiary support or
+uncertainty. Never repeat or reinterpret the question, and do
+not preface the response with process commentary. Cite factual
+claims with supplied source IDs, such as [S1]. Put only the
+cited sources in a concise source list at the end.
 
 Do not describe Firecrawl, Bing, Google or DDGS as
 the factual source of a claim.
@@ -648,43 +587,13 @@ social or community discussion.
             return result
 
         if not text:
-
             text = (
-                "Public information was retrieved, "
-                "but I couldn't generate a useful "
-                "summary."
+                "The retrieved evidence was insufficient to answer "
+                "this question."
             )
 
         sources = evidence.get("sources", [])
-        source_lines = []
-        if isinstance(sources, list):
-            for source in sources:
-                if not isinstance(source, dict):
-                    continue
-                source_id = source.get("source_id")
-                title = source.get("title")
-                url = source.get("url")
-                publisher = source.get("publisher")
-                if not all(
-                    isinstance(value, str) and value.strip()
-                    for value in (source_id, title, url)
-                ):
-                    continue
-                attribution = (
-                    f" ({publisher})"
-                    if isinstance(publisher, str) and publisher
-                    else ""
-                )
-                source_lines.append(
-                    f"- [{source_id}] {title}{attribution}: {url}"
-                )
-
-        if source_lines:
-            text = (
-                text.rstrip()
-                + "\n\nSources:\n"
-                + "\n".join(source_lines)
-            )
+        text = self._format_answer_and_sources(text, sources)
 
         text = self._add_archive_notice(text, evidence)
 
@@ -711,6 +620,96 @@ social or community discussion.
         )
 
     @staticmethod
+    def _format_answer_and_sources(text, sources):
+        lines = str(text or "").strip().splitlines()
+        retained_lines = []
+        retained_sections = {
+            "summary": "Summary",
+            "answer": "Answer",
+            "assessment": "Assessment",
+            "thoughts on the answer": "Assessment"
+        }
+        section_heading_pattern = re.compile(
+            r"^\s{0,3}(?:#{1,6}\s*)?(?:\*\*)?"
+            r"(question interpretation|answer interpretation|"
+            r"context interpretation|summary|answer|assessment|"
+            r"thoughts on the answer|question|context|interpretation|"
+            r"evidence limitations?|limitations?|sources?)"
+            r"(?:\*\*)?\s*:?\s*(.*)$",
+            re.IGNORECASE
+        )
+        preamble_pattern = re.compile(
+            r"^\s*(?:here(?:'s| is) my attempt\b|"
+            r"based on the (?:provided )?evidence\b|"
+            r"the question asks\b|"
+            r"i(?:'ll| will) answer\b)",
+            re.IGNORECASE
+        )
+        current_section = None
+        saw_section_heading = False
+        for line in lines:
+            heading = section_heading_pattern.match(line)
+            if heading:
+                saw_section_heading = True
+                label = heading.group(1).casefold()
+                current_section = retained_sections.get(label)
+                if current_section:
+                    content = heading.group(2).strip()
+                    retained_lines.append(f"{current_section}:")
+                    if content:
+                        retained_lines.append(content)
+                continue
+            if preamble_pattern.match(line):
+                continue
+            if current_section:
+                retained_lines.append(line)
+            elif not saw_section_heading:
+                retained_lines.append(line)
+
+        answer = "\n".join(retained_lines).strip()
+        answer = re.sub(r"(?m)^\s*>\s?", "", answer)
+        answer = re.sub(r"\n{3,}", "\n\n", answer)
+        cited_source_ids = set(
+            re.findall(r"\[(S\d+)\]", answer)
+        )
+        cited_sources = [
+            source for source in sources
+            if (
+                isinstance(source, dict)
+                and source.get("source_id") in cited_source_ids
+            )
+        ] if isinstance(sources, list) else []
+        if cited_sources:
+            sources = cited_sources
+        source_lines = []
+        if isinstance(sources, list):
+            for source in sources:
+                if not isinstance(source, dict):
+                    continue
+                source_id = source.get("source_id")
+                title = source.get("title")
+                url = source.get("url")
+                publisher = source.get("publisher")
+                if not all(
+                    isinstance(value, str) and value.strip()
+                    for value in (source_id, title, url)
+                ):
+                    continue
+                attribution = (
+                    f" ({publisher})"
+                    if isinstance(publisher, str) and publisher
+                    else ""
+                )
+                source_lines.append(
+                    f"- [{source_id}] {title}{attribution}: {url}"
+                )
+        if source_lines:
+            if answer:
+                answer += "\n\n"
+            answer += "Sources:\n" + "\n".join(source_lines)
+        return answer
+
+    @staticmethod
     def _add_archive_notice(response, evidence):
         if not evidence.get("archive_reused"):
             return response
@@ -721,9 +720,11 @@ social or community discussion.
             else ""
         )
         notice = (
-            "Source note: Reused public evidence from the local archive"
-            f"{date_text}; it was not revalidated for this request."
+            "Archived source evidence, not revalidated for this request"
+            f"{date_text}."
         )
+        if "Sources:\n" in response:
+            return response.rstrip() + "\n- " + notice
         return response.rstrip() + "\n\n" + notice
 
     @staticmethod
@@ -996,19 +997,16 @@ Keep historical releases distinct from current projects.
                 if len(historical_items) >= 5:
                     break
 
-            history_lines = [
-                f"History summary: {subject or message.strip()}",
-                "Key historical details stated by retrieved sources:"
-            ]
+            history_lines = []
             if historical_items:
                 history_lines.extend(
-                    f"- {item['sentence']} [{item['source_id']}]"
+                    f"- {item['sentence']}"
                     for item in historical_items
                 )
             else:
                 history_lines.append(
-                    "- The retrieved subject-matched pages did not provide "
-                    "enough readable historical detail to summarize."
+                    "The available sources do not provide enough historical "
+                    "detail to answer this."
                 )
 
             source_ids = {
@@ -1072,7 +1070,7 @@ Keep historical releases distinct from current projects.
         ][:3]
         past_highlights = [
             item for item in achievement_highlights + project_highlights
-            if item not in current_projects
+            if item not in current_projects and item != overview
         ][:max(0, 5 - len(current_projects))]
         selected_highlights = current_projects + past_highlights
         unique_highlights = []
@@ -1100,50 +1098,33 @@ Keep historical releases distinct from current projects.
             item["source_id"] for item in selected_items
         }
 
-        lines = [
-            f"Source-grounded summary: {subject or message.strip()}",
-            "Each point below is an unrewritten statement from a retrieved "
-            "page; the source is identified beside it."
-        ]
+        lines = []
         if overview:
-            lines.extend([
-                "",
-                "**About:**",
-                (
-                    f"- {overview['sentence']} "
-                    f"[{overview['source_id']}]"
-                )
-            ])
-        lines.extend([
-            "",
-            "**Current projects stated by the sources:**"
-        ])
+            lines.append(overview["sentence"])
         if current_projects:
             lines.extend(
-                f"- {item['sentence']} [{item['source_id']}]"
+                f"- {item['sentence']}"
                 for item in current_projects
             )
         else:
             lines.append(
-                "- The retrieved sources did not verify a project "
-                "currently in development or identified as upcoming."
+                "The available sources do not identify a project currently "
+                "in development or announced as upcoming."
             )
         if past_highlights:
             lines.extend([
                 "",
-                "**Notable games, projects, and achievements stated by "
-                "the sources:**"
+                "Other notable work:"
             ])
             lines.extend(
-                f"- {item['sentence']} [{item['source_id']}]"
+                f"- {item['sentence']}"
                 for item in past_highlights
             )
         elif not current_projects:
             lines.extend([
                 "",
-                "The retrieved readable pages did not provide a complete "
-                "sentence supporting a specific game, project, or "
-                "achievement."
+                "The available sources do not identify specific games, "
+                "projects, or achievements."
             ])
 
         source_lines = ["", "Sources:"]

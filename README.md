@@ -190,6 +190,9 @@ Hermes
 ```
 
 Generic research is intended for descriptive, competitive, qualitative, and best-effort public-information questions. Precise financial claims still require stronger evidence.
+Responses include a one-sentence topic summary, the complete direct answer,
+and a brief evidence-based assessment, followed by a list of cited sources.
+They omit question, answer, and context interpretation sections.
 
 ### Dynamic Generic Research Depth
 
