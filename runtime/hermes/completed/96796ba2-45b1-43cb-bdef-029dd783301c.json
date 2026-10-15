@@ -1,0 +1,49 @@
+{
+  "job_id": "96796ba2-45b1-43cb-bdef-029dd783301c",
+  "status": "completed",
+  "created_at": "2026-10-15T01:00:48.931256",
+  "updated_at": "2026-10-15T01:01:29.081752",
+  "data": {
+    "message": "Analyze AAPL",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "AAPL",
+        "ticker": "AAPL",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Consumer Electronics",
+          "sector": "Technology"
+        },
+        "industry": "Consumer Electronics",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "quant": true
+    },
+    "quality_review": {
+      "approved": false,
+      "confidence": 0,
+      "issues": [
+        "Risk output unavailable"
+      ],
+      "strengths": [],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}

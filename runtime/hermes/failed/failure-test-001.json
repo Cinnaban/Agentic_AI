@@ -1,0 +1,12 @@
+{
+  "job_id": "failure-test-001",
+  "status": "failed",
+  "created_at": "2026-10-15T13:27:23.601503",
+  "updated_at": "2026-10-15T13:27:23.601818",
+  "data": {
+    "message": "Analyze Nvidia",
+    "source": "test",
+    "final_status": "failed",
+    "failure_stage": "planning"
+  }
+}

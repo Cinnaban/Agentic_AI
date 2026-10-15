@@ -1,0 +1,10 @@
+{
+  "job_id": "archive-test-001",
+  "status": "archive",
+  "created_at": "2026-10-15T13:27:23.486809",
+  "updated_at": "2026-10-15T13:27:23.487283",
+  "data": {
+    "message": "Analyze Nvidia",
+    "source": "test"
+  }
+}
