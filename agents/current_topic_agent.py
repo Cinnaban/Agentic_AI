@@ -122,6 +122,12 @@ Retrieved Current Evidence:
 
 RULES:
 
+- Results are ranked. A result with "authoritative": true
+  (rank 0, real-time broker quote) is the primary source
+  for current price, change and analyst consensus. Lead
+  with it, quote its timestamp and session, and use
+  scraped pages only as supporting context. If a scraped
+  price conflicts with it, use the rank 0 value.
 - Answer the user's question using the supplied
   current evidence.
 

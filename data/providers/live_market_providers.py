@@ -206,6 +206,18 @@ class LiveMarketProvider:
 
         self.max_firecrawl_pages = 5
         
+    @staticmethod
+    def _rank_results(results):
+        """Rank evidence: real-time exchange/broker data first, then scraped or news content (stable)."""
+        for result in results:
+            if result.get("authoritative"):
+                result["rank"] = 0
+            elif result.get("source_type") == "live_market":
+                result["rank"] = 1
+            else:
+                result["rank"] = 2
+        return sorted(results, key=lambda r: r["rank"])
+
     def _enrich_results(
         self,
         results
@@ -243,6 +255,9 @@ class LiveMarketProvider:
 
                 continue
 
+
+            if result.get("authoritative"):
+                continue
 
             url = result.get(
                 "url"
@@ -515,14 +530,18 @@ class LiveMarketProvider:
         )
 
 
-        results = (
-            self._enrich_results(
-                results
-            )
-        )
-
-
+        results = self._rank_results(results)
+        results = self._enrich_results(results)
+        has_realtime = any(r.get("authoritative") for r in results)
         return {
+            "ranking_policy": (
+                "Results are ranked: rank 0 = real-time broker quote "
+                "(authoritative for current price, change and analyst "
+                "consensus); rank 1-2 = news and scraped pages, which may "
+                "be hours or days stale. If a scraped price conflicts with "
+                "the rank 0 quote, use the rank 0 quote."
+                if has_realtime else "Results are ranked by source type."
+            ),
             "available":
                 bool(results),
 

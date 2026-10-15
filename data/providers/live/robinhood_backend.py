@@ -94,6 +94,8 @@ class RobinhoodBackend:
             "summary": research.describe(symbol, snap) + self._quant_line(symbol),
             "published_at": now,
             "source_type": "live_market",
+            "authoritative": True,
+            "url": f"https://robinhood.com/us/en/stocks/{symbol}/",
             "data": {
                 "symbol": symbol,
                 "price": snap["quote"]["price"],

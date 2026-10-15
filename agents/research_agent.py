@@ -397,7 +397,11 @@ CURRENT INFORMATION RULES:
 - Gaming PC quantitative fields remain model-derived
   quantitative evidence.
 - Live Market Context represents externally retrieved
-  public reporting.
+  public reporting, except results marked
+  "authoritative": true (rank 0), which are real-time broker
+  quotes: use them first for current price, change and
+  analyst consensus, and prefer them over any scraped price.
+  Never report portfolio values.
 - Do not use a web article to override an
   SEC-reported financial fact.
 - Do not use general web reporting to replace
