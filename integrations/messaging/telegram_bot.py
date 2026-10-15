@@ -253,12 +253,12 @@ class TelegramBot:
             .build()
         )
 
-        application.add_handler(
-            MessageHandler(
-                filters.TEXT
-                & ~filters.COMMAND,
-                self.handle_message
-            )
+        from integrations.messaging.telegram_robinhood import (
+            register as register_robinhood
+        )
+        register_robinhood(
+            application,
+            self.handle_message
         )
 
         application.run_polling()

@@ -146,3 +146,51 @@ def test_ts_handles_odd_fraction_digits():
     from agentic_trader.robinhood.data import _ts
     for v in ("2026-10-15T07:44:24.1Z", "2026-10-15T07:44:24.12345Z", "2026-10-15T07:44:24Z", "2026-10-15T07:44:24.123456789+00:00"):
         assert _ts(v) is not None
+
+
+def test_account_tools_not_callable_from_market_client():
+    import pytest
+    from agentic_trader.robinhood.mcp_client import ReadOnlyViolation, RobinhoodMCP
+    c = RobinhoodMCP(allow={"get_portfolio", "place_equity_order"})
+    for name in ("get_portfolio", "place_equity_order", "get_accounts"):
+        with pytest.raises(ReadOnlyViolation):
+            c.call(name, {})
+    for name in ("place_option_order", "cancel_equity_order", "place_crypto_order", "get_option_positions"):
+        with pytest.raises(ReadOnlyViolation):
+            c.call_account(name, {})
+
+
+def _fake_account(monkeypatch, bp=5.0, held=None, live=False):
+    from agentic_trader.robinhood import account, orders
+    placed = []
+    monkeypatch.setattr(account, "agentic_account", lambda: {"account_number": "A1"})
+    monkeypatch.setattr(account, "review_order", lambda a: {"order_checks": {}, "quote_data": {"ask_price": "100", "bid_price": "99.9"}})
+    monkeypatch.setattr(account, "portfolio", lambda n: {"buying_power": {"unleveraged_buying_power": str(bp)}})
+    monkeypatch.setattr(account, "positions", lambda n: held or [])
+    monkeypatch.setattr(account, "approval_required", lambda n: True)
+    monkeypatch.setattr(account, "place_order", lambda a: placed.append(a) or {"content": [{"text": "{\"data\":{}}"}]})
+    monkeypatch.setattr(orders, "_spent_today", lambda: 0.0)
+    monkeypatch.setattr(orders, "_record", lambda x: None)
+    monkeypatch.setattr(orders, "_audit", lambda e: None)
+    monkeypatch.setenv("ROBINHOOD_LIVE_ORDERS", "true" if live else "false")
+    return orders, placed
+
+
+def test_order_guards_and_confirm(monkeypatch):
+    orders, placed = _fake_account(monkeypatch, bp=5.0, live=True)
+    assert "Blocked" in orders.propose("/buy NVDA $50", 1)  # over buying power (no margin)
+    assert "Blocked" in orders.propose("/sell NVDA 1", 1)  # nothing held
+    assert "Usage" in orders.propose("/buy NVDA call 5", 1)
+    out = orders.propose("/buy NVDA $2", 1)
+    code = out.split("/confirm ")[1].split()[0]
+    assert "different user" in orders.confirm(code, 2) and not placed
+    code = orders.propose("/buy NVDA $2", 1).split("/confirm ")[1].split()[0]
+    assert "submitted" in orders.confirm(code, 1) and len(placed) == 1
+    assert placed[0]["account_number"] == "A1" and "ref_id" in placed[0]
+    assert "No valid" in orders.confirm(code, 1)  # single use
+
+
+def test_orders_disabled_by_default(monkeypatch):
+    orders, placed = _fake_account(monkeypatch, live=False)
+    code = orders.propose("/buy NVDA $2", 1).split("/confirm ")[1].split()[0]
+    assert "disabled" in orders.confirm(code, 1) and not placed

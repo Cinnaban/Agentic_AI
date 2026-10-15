@@ -17,6 +17,13 @@ SAFE_TOOLS = frozenset({
     "get_financials", "get_sec_filing_index", "get_sec_filing", "get_sec_filing_facts", "get_sec_filing_facts_catalog",
     "get_option_chains", "get_option_quotes", "get_option_historicals", "get_crypto_quotes", "get_currency_pairs",
 })
+# Account tools: reachable ONLY through RobinhoodMCP.call_account (used by the Telegram Robinhood handler).
+# No options, crypto, margin, transfer, watchlist, alert, scan or exercise tools.
+ACCOUNT_READ_TOOLS = frozenset({
+    "get_accounts", "get_portfolio", "get_equity_positions", "get_equity_orders",
+    "get_trade_approval_setting", "get_trade_approvals",
+})
+ACCOUNT_ORDER_TOOLS = frozenset({"review_equity_order", "place_equity_order"})
 BLOCKED = re.compile(r"order|trade|buy|sell|cancel|place|submit|transfer|withdraw|deposit|execute", re.I)
 
 
@@ -42,6 +49,7 @@ class RobinhoodMCP:
         r = requests.post(self.url, json=body, headers=headers, timeout=30)
         if r.status_code >= 300:
             raise RuntimeError(f"MCP {method} -> {r.status_code}: {r.text[:300]}")
+        r.encoding = "utf-8"
         self.session_id = r.headers.get("Mcp-Session-Id", self.session_id)
         if notify or not r.text.strip():
             return None
@@ -76,4 +84,10 @@ class RobinhoodMCP:
             raise ReadOnlyViolation(f"Tool '{name}' is not in the allow-list")
         if BLOCKED.search(name):
             raise ReadOnlyViolation(f"Tool '{name}' looks like a trading/account-changing tool; refused")
+        return self._post("tools/call", {"name": name, "arguments": arguments or {}})
+
+    def call_account(self, name: str, arguments: dict | None = None):
+        """Account/order tools for the Telegram Robinhood handler only; everything else is refused."""
+        if name not in ACCOUNT_READ_TOOLS and name not in ACCOUNT_ORDER_TOOLS:
+            raise ReadOnlyViolation(f"Tool '{name}' is not an allowed account tool")
         return self._post("tools/call", {"name": name, "arguments": arguments or {}})

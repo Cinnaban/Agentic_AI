@@ -78,3 +78,9 @@ wire a community MCP server only after paper results are proven, with an explici
   `robinhood_stale`, 24h last-known-good fallback if the MCP call fails). Market data only – never accounts or portfolio values.
 - The root bot's `RobinhoodBackend` now detects tickers/company names in free text and adds the quant line to live answers.
   Restart the bot (`launchctl kickstart -k gui/$(id -u)/com.bunnyhouse.stockagent.discord`) to load it.
+
+## Telegram: Robinhood portfolio and approved orders
+Only Telegram can reach Robinhood account tools (Discord is market-data only). Commands: `/myid`, `/portfolio`, `/buy SYM $amt|qty [@ limit]`, `/sell SYM qty`, `/confirm CODE`.
+- Access requires your Telegram user ID in root `.env` `TELEGRAM_ROBINHOOD_USER_IDS`.
+- Orders: MCP account only, equities only, no margin/options, per-order and daily caps, one-time 120s confirm code, placed only if `ROBINHOOD_LIVE_ORDERS=true` and the app's trade approval is ON.
+- Audit log: `state/rh_orders_audit.jsonl`.
