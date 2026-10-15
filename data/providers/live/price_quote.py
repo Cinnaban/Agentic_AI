@@ -32,7 +32,8 @@ def answer(message, provider):
     if not live:
         return None
     others = [r for r in results if not r.get("authoritative")][:5]
-    lines = [f"Live quote (Robinhood, real-time):", live["summary"]]
+    table = (live.get("data") or {}).get("table")
+    lines = [table] if table else ["Live quote (Robinhood, real-time):", live["summary"]]
     if others:
         lines += ["", "Scrape summary (web sources, may be delayed; the live quote above takes priority):"]
         for r in others:

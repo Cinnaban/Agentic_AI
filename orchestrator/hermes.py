@@ -1445,6 +1445,22 @@ class Hermes:
                         )
                     )
 
+                    try:
+                        from orchestrator.table_format import (
+                            holdings_tables
+                        )
+                        holdings_text = holdings_tables(holdings)
+                        if holdings_text:
+                            portfolio_result["response"] = (
+                                holdings_text
+                                + "\n\n"
+                                + str(portfolio_result.get("response", ""))
+                            )
+                    except Exception as table_error:
+                        print(
+                            "PORTFOLIO TABLE FAILED:",
+                            table_error
+                        )
                     allocation_chart = (
                         self.portfolio_allocation_chart_provider
                         .generate(holdings)

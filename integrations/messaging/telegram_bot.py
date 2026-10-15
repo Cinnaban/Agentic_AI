@@ -202,9 +202,18 @@ class TelegramBot:
 
             for part in response_parts:
 
-                await message.reply_text(
-                    part
+                from orchestrator.table_format import (
+                    to_telegram_html
                 )
+                try:
+                    await message.reply_text(
+                        to_telegram_html(part),
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    await message.reply_text(
+                        part
+                    )
 
             for attachment in self.formatter.get_attachments(result):
                 with open(attachment["path"], "rb") as chart:

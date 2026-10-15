@@ -54,8 +54,12 @@ def authorized(update):
 
 
 async def _send(update, text):
-    for i in range(0, len(text), 3900):
-        await update.effective_message.reply_text(text[i:i + 3900])
+    from orchestrator.table_format import split_message, to_telegram_html
+    for part in split_message(text, 3500):
+        try:
+            await update.effective_message.reply_text(to_telegram_html(part), parse_mode="HTML")
+        except Exception:
+            await update.effective_message.reply_text(part)
 
 
 async def _run(update, fn, *args):

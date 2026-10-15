@@ -65,3 +65,25 @@ def describe(sym: str, s: dict) -> str:
         parts.append(f"earnings {s['next_earnings']}")
     as_of = q["as_of"].astimezone(timezone.utc).strftime("%H:%M:%SZ") if q.get("as_of") else "n/a"
     return "; ".join(parts) + f" [as of {as_of}]"
+
+
+def quote_table(sym: str, s: dict, m: dict | None = None) -> str:
+    """Live quote as a metric/value table (market data only)."""
+    from ..tables import kv_table
+    q = s["quote"]
+    if not q or not q.get("price"):
+        return ""
+    as_of = q["as_of"].astimezone(timezone.utc).strftime("%H:%M:%SZ") if q.get("as_of") else "n/a"
+    pairs = [("Price", f"${q['price']:,.2f}" + (" (ext. hrs)" if q.get("session") == "extended" else "")),
+             ("Change vs prev close", f"{q['change_pct']:+.2%}" if q.get("change_pct") is not None else None),
+             ("Analysts", s.get("consensus")),
+             ("Target vs price", f"{s['upside_to_target']:+.1%}" if s.get("upside_to_target") is not None else None),
+             ("Next earnings", s.get("next_earnings"))]
+    if m and "error" not in m:
+        sc = m.get("scorecard", {})
+        pairs += [("Quant signal", f"{m['signal_score']:+.2f}"), ("RSI14", f"{m.get('rsi14') or 0:.0f}"),
+                  ("VWAP deviation", f"{m['vwap_dev_pct']:+.2%}"), ("Realized vol (ann.)", f"{m['realized_vol_ann']:.0%}"),
+                  ("Beta vs SPY", f"{m.get('beta_vs_spy') or 0:.2f}"),
+                  ("Walk-forward IC / hit rate", f"{sc.get('ic', 0):+.2f} / {sc.get('hit_rate', 0):.0%}")]
+    pairs.append(("As of", as_of))
+    return kv_table(pairs, title=f"{sym} live quote (Robinhood, real-time)")

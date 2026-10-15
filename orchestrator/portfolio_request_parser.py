@@ -9,6 +9,7 @@ class PortfolioRequestParser:
         r"\s+"
         r"(?P<weight>\d+(?:\.\d+)?)"
         r"\s*%"
+        r"(?:\s+(?P<sector>[A-Za-z][A-Za-z &/,.\-]{1,40}?))?"
         r"\s*$"
     )
 
@@ -68,16 +69,17 @@ class PortfolioRequestParser:
 
             seen.add(ticker)
 
-            holdings.append(
-                {
-                    "ticker": ticker,
-                    "weight": float(
-                        match.group(
-                            "weight"
-                        )
+            holding = {
+                "ticker": ticker,
+                "weight": float(
+                    match.group(
+                        "weight"
                     )
-                }
-            )
+                )
+            }
+            if match.group("sector"):
+                holding["sector"] = match.group("sector").strip()
+            holdings.append(holding)
 
         return {
             "is_portfolio_request":

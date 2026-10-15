@@ -297,3 +297,15 @@ def test_fees_and_regime():
     assert pl.sell_fees(100.0, 20000.0) > 0.4
     assert pl.classify_regime(14, 0.10, False)["hedge_target"] == 0.0
     assert pl.classify_regime(35, 0.2, True)["hedge_target"] == 0.25
+
+
+def test_tables_and_splitter():
+    from agentic_trader.tables import FENCE, split_message, table, to_telegram_html, holdings_tables
+    t = table(["A", "B"], [["x", "1"], ["yy", "22"]], title="T")
+    assert t.startswith("T") and FENCE in t
+    big = "\n\n".join([table(["A"], [["r%d" % i] for i in range(30)])] * 6)
+    for chunk in split_message(big, 900):
+        assert chunk.count(FENCE) % 2 == 0
+    assert "<pre>" in to_telegram_html(t) and "<" not in to_telegram_html("a<b").replace("&lt;", "")
+    assert holdings_tables([]) == ""
+    assert "VOO" in holdings_tables([{"ticker": "VOO", "weight": 50, "sector": "Core"}])

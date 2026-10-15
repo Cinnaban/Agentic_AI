@@ -90,18 +90,11 @@ class ResponseFormatter:
 
             return []
 
-        return [
-            text[
-                index:
-                index + max_length
-            ]
-
-            for index in range(
-                0,
-                len(text),
-                max_length
-            )
-        ]
+        from orchestrator.table_format import split_message
+        return split_message(
+            text,
+            max_length
+        )
 
     @staticmethod
     def get_attachments(result):

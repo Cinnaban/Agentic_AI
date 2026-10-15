@@ -95,3 +95,8 @@ Only Telegram can reach Robinhood account tools (Discord is market-data only). C
 - Discord: every 30 min (10:00-15:30 ET) to `DISCORD_REALTIMETRADER_CHANNEL_ID`, daily summary after the close to `DISCORD_UPDATES_CHANNEL_ID`. Both include P/L net of fees, holdings maintained, holdings let go and portfolio trend.
 - Telegram `/paper` shows the stored paper account.
 - Not modelled: pattern-day-trader limits (real accounts under $25K are limited to 3 day trades per 5 days), slippage beyond the spread, taxes.
+
+## Tables
+Portfolio, stock and ETF evaluations (Discord, Telegram, `/review`, `/portfolio`) render as monospace tables
+(`agentic_trader/tables.py`). Pasted portfolios may include a trailing sector column (`Ticker Weight Sector`).
+Telegram sends tables as `<pre>` blocks; long replies split between tables, never inside one.

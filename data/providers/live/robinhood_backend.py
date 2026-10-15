@@ -77,6 +77,18 @@ class RobinhoodBackend:
         except Exception:
             return ""
 
+    @staticmethod
+    def _quote_table(research, symbol, snap):
+        try:
+            from agentic_trader import quant_live
+            m = quant_live.analyze([symbol])[symbol]
+        except Exception:
+            m = None
+        try:
+            return research.quote_table(symbol, snap, m)
+        except Exception:
+            return ""
+
     def search(self, company, query):
         research = self._load()
         if research is None:
@@ -103,5 +115,6 @@ class RobinhoodBackend:
                 "session": snap["quote"]["session"],
                 "consensus": snap["consensus"],
                 "next_earnings": snap["next_earnings"],
+                "table": self._quote_table(research, symbol, snap),
             },
         }]

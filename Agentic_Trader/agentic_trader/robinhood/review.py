@@ -134,10 +134,9 @@ def _is_etf(f):
 
 
 def review_symbol(sym, f, q, c, bench, rating, held, port_value):
+    """Metrics for one symbol as a dict (rendered into tables by review())."""
     price = q.get("price")
-    ma20 = float(c[-20:].mean()) if len(c) >= 20 else None
-    ma50 = float(c[-50:].mean()) if len(c) >= 50 else None
-    ma200 = float(c[-200:].mean()) if len(c) >= 200 else None
+    ma = {n: (float(c[-n:].mean()) if len(c) >= n else None) for n in (20, 50, 200)}
     rsi = _rsi(c)
     proj = _projection(c)
     beta = _beta(c, bench) if len(bench) else None
@@ -145,66 +144,80 @@ def review_symbol(sym, f, q, c, bench, rating, held, port_value):
     upside = (target / price - 1) if target and price else None
     sent = _sentiment(rating, upside, proj and proj["trend_ann"], rsi)
     etf = _is_etf(f)
-    kind = "ETF" if etf else (f.get("sector") or "stock")
-    L = [f"{sym} ({kind})", ""]
-
-    def kv(label, value):
-        L.extend([f"{label}:", value])
-
-    day = q.get("change_pct")
-    kv("Current price", f"{_money(price)}" + (f" ({day:+.2%} today)" if day is not None else ""))
-    kv("Market cap", _big(_f(f.get("market_cap"))))
+    d = {"sym": sym, "kind": "ETF" if etf else (f.get("sector") or "Stock"), "etf": etf, "price": price,
+         "day": q.get("change_pct"), "mcap": _f(f.get("market_cap")), "ma": ma, "rsi": rsi, "beta": beta,
+         "sent": sent, "upside": upside, "target": target, "proj": proj, "pe": _f(f.get("pe_ratio")),
+         "yield": _f(f.get("dividend_yield")), "div_ps": _f(f.get("dividend_per_share")),
+         "freq": f.get("distribution_frequency") or "", "rating": rating,
+         "hi": _f(f.get("high_52_weeks")), "lo": _f(f.get("low_52_weeks")), "held": None, "top": None}
     if held:
         val = price * held["qty"] if price else 0.0
-        gl = (val - held["cost"]) if held["cost"] else None
-        glp = (val / held["cost"] - 1) if held["cost"] else None
-        where = ", ".join(f"{k} {v:g}" for k, v in held["where"].items())
-        L.append("")
-        kv("Position", f"{held['qty']:g} sh in {where}\nValue {_money(val)}"
-           + (f" ({val / port_value:.1%} of all holdings)" if port_value else ""))
-        if gl is not None:
-            kv("Gain/Loss", f"{gl:+,.2f} ({glp:+.1%}) vs average cost")
-    pos = lambda m: "n/a" if not (m and price) else f"{_money(m)} ({price / m - 1:+.1%})"
-    L.append("")
-    kv("MA20", pos(ma20))
-    kv("MA50", pos(ma50))
-    kv("MA200", pos(ma200))
-    if ma20 and ma50:
-        kv("Trend", "MA20 above MA50 (bullish)" if ma20 > ma50 else "MA20 below MA50 (bearish)")
-    if rsi is not None:
-        kv("RSI14", f"{rsi:.0f}" + (" (oversold)" if rsi < 30 else " (overbought)" if rsi > 70 else ""))
-    hi, lo = _f(f.get("high_52_weeks")), _f(f.get("low_52_weeks"))
-    if hi and lo and price and hi > lo:
-        kv("52-week range", f"{_money(lo)} - {_money(hi)} ({(price - lo) / (hi - lo):.0%} of range)")
-    L.append("")
-    kv("Beta", f"{beta:.2f} (1y daily vs {BENCH})" if beta is not None else "n/a")
-    div_ps, dy = _f(f.get("dividend_per_share")), _f(f.get("dividend_yield"))
-    freq = (f.get("distribution_frequency") or "")
-    if div_ps:
-        txt = f"{dy:.2f}% yield\n${div_ps:.2f}/sh {freq}".rstrip()
-        if held and freq.lower().startswith("q"):
-            txt += f"\n~${div_ps * 4 * held['qty']:.2f}/yr on your shares"
-        kv("Dividend", txt)
-    else:
-        kv("Dividend", "none")
-    if f.get("pe_ratio"):
-        kv("P/E", f"{_f(f['pe_ratio']):.1f}")
-    L.append("")
-    if rating:
-        kv("Analysts", f"{rating.get('num_buy_ratings', 0)} buy / {rating.get('num_hold_ratings', 0)} hold / "
-           f"{rating.get('num_sell_ratings', 0)} sell\nMean target {_money(target)}"
-           + (f" ({upside:+.1%})" if upside is not None else ""))
-    kv("Market sentiment", f"{_label(sent)}" + (f" ({sent:+.2f})" if sent is not None else ""))
-    if proj:
-        L.append("")
-        kv("Outlook (5 days)", f"Expected {proj['exp5']:+.2%} +/- {proj['band5']:.1%} (1 sd)\n"
-           f"60d trend {proj['trend_ann']:+.0%}/yr (fit R2 {proj['r2']:.2f})\nVolatility {proj['vol_ann']:.0%}/yr")
+        d["held"] = {"qty": held["qty"], "val": val, "w": (val / port_value) if port_value else None,
+                     "gl": (val - held["cost"]) if held["cost"] else None,
+                     "glp": (val / held["cost"] - 1) if held["cost"] else None,
+                     "where": ", ".join(held["where"])}
     if etf:
-        top = _etf_holdings(sym)
-        L.append("")
-        kv("Top holdings", "\n".join(f"- {n}: {w:.1%}" if w < 1 else f"- {n}: {w:.1f}%" for n, w in top)
-           if top else "unavailable")
-    return "\n".join(L)
+        d["top"] = _etf_holdings(sym)
+    return d
+
+
+def _p(x, spec="+.1%"):
+    return "n/a" if x is None else format(x, spec)
+
+
+def _vs(m, price):
+    return "n/a" if not (m and price) else f"{price / m - 1:+.1%}"
+
+
+def _signal_word(d):
+    ma20, ma50 = d["ma"][20], d["ma"][50]
+    if not (ma20 and ma50):
+        return "n/a"
+    return "bull" if ma20 > ma50 else "bear"
+
+
+def _tables(items):
+    from ..tables import table
+    out = []
+    pos = [d for d in items if d["held"]]
+    if pos:
+        out.append(table(
+            ["Symbol", "Price", "Day", "Value", "Wt", "Gain/Loss", "G/L %"],
+            [[d["sym"], f"${d['price']:,.2f}" if d["price"] else "n/a", _p(d["day"], "+.1%"),
+              _money(d["held"]["val"]), _p(d["held"]["w"], ".0%"),
+              "n/a" if d["held"]["gl"] is None else f"{d['held']['gl']:+,.0f}", _p(d["held"]["glp"])] for d in pos],
+            title="Position and gain/loss"))
+    out.append(table(
+        ["Symbol", "Type", "Price", "Mkt cap", "P/E", "Div yld", "Beta"],
+        [[d["sym"], d["kind"][:10], f"${d['price']:,.2f}" if d["price"] else "n/a", _big(d["mcap"]).replace("$", ""),
+          _p(d["pe"], ".1f"), f"{d['yield']:.2f}%" if d["div_ps"] and d["yield"] is not None else "-",
+          _p(d["beta"], ".2f")] for d in items], title="Valuation and risk"))
+    out.append(table(
+        ["Symbol", "vs MA20", "vs MA50", "vs MA200", "RSI", "Trend"],
+        [[d["sym"], _vs(d["ma"][20], d["price"]), _vs(d["ma"][50], d["price"]), _vs(d["ma"][200], d["price"]),
+          "n/a" if d["rsi"] is None else f"{d['rsi']:.0f}", _signal_word(d)] for d in items],
+        title="Moving averages and momentum (price vs average)"))
+    out.append(table(
+        ["Symbol", "Sentiment", "Analysts B/H/S", "Tgt up", "5d exp", "5d +/-"],
+        [[d["sym"], _label(d["sent"]) + ("" if d["sent"] is None else f" {d['sent']:+.2f}"),
+          "-" if not d["rating"] else "/".join(str(d["rating"].get(k, 0)) for k in
+                                               ("num_buy_ratings", "num_hold_ratings", "num_sell_ratings")),
+          _p(d["upside"]), _p(d["proj"] and d["proj"]["exp5"], "+.2%"),
+          _p(d["proj"] and d["proj"]["band5"], ".1%")] for d in items],
+        title="Sentiment and outlook (5 trading days, 1 sd band)"))
+    divs = [d for d in items if d["div_ps"]]
+    if divs:
+        out.append(table(
+            ["Symbol", "Per share", "Frequency", "Est/yr on your shares"],
+            [[d["sym"], f"${d['div_ps']:.2f}", d["freq"] or "-",
+              f"${d['div_ps'] * 4 * d['held']['qty']:.2f}" if d["held"] and d["freq"].lower().startswith("q") else "-"]
+             for d in divs], aligns="lrlr", title="Dividends"))
+    for d in items:
+        if d["etf"]:
+            top = d["top"]
+            out.append(table(["Holding", "Weight"], [[n, f"{w:.1%}" if w < 1 else f"{w:.1f}%"] for n, w in top],
+                             title=f"{d['sym']} top holdings") if top else f"{d['sym']} top holdings: unavailable")
+    return out
 
 
 def review(symbols: list[str] | None = None) -> str:
@@ -219,12 +232,14 @@ def review(symbols: list[str] | None = None) -> str:
     bars = d.bars(wanted + [BENCH], "day", HISTORY_DAYS)
     bench = _closes(bars.get(BENCH, []))
     ratings = d.ratings(wanted)
-    blocks = []
+    items, errors = [], []
     for s in wanted:
         try:
-            blocks.append(review_symbol(s, funds.get(s, {}), quotes.get(s, {}), _closes(bars.get(s, [])), bench,
-                                        ratings.get(s), held.get(s), total))
+            items.append(review_symbol(s, funds.get(s, {}), quotes.get(s, {}), _closes(bars.get(s, [])), bench,
+                                       ratings.get(s), held.get(s), total))
         except Exception as exc:
-            blocks.append(f"{s}: review failed ({str(exc)[:80]})")
-    head = f"Review of {len(wanted)} symbol(s)" + (f" across {len(held)} held, equity value {_money(total)}" if not symbols else "")
-    return head + "\n\n" + "\n\n----------\n\n".join(blocks) + "\n\nProjections are statistical estimates, not advice."
+            errors.append(f"{s}: review failed ({str(exc)[:80]})")
+    head = f"Review of {len(wanted)} symbol(s)" + (f", equity value {_money(total)}" if not symbols else "")
+    parts = [head] + (_tables(items) if items else []) + errors
+    parts.append("Sentiment blends analyst mix, target upside, trend and RSI. Outlook is a statistical estimate, not advice.")
+    return "\n\n".join(parts)
