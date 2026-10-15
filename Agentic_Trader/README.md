@@ -88,7 +88,7 @@ Only Telegram can reach Robinhood account tools (Discord is market-data only). C
 
 ## Internal paper trading (live Robinhood data, simulated fills)
 `python -m agentic_trader paper-live` (service: `run_paper_trader.sh` via launchd `com.bunnyhouse.stockagent.papertrader`; `--once`, `--status`, `--reset`).
-- Start cash $500 (`PAPER_START_CASH`). Account state is stored in shared_storage (namespace `paper_trader`) with a mirror in `state/paper_live.json`.
+- Start cash $5,000 (`PAPER_START_CASH`; changing it archives the old account and restarts). Day-trade rule: margin account with equity >= $2,000 has no limit (2026); below that the legacy 3-per-5-days limit applies (`PAPER_ACCOUNT_TYPE`, `PAPER_PDT_FREE_MIN_EQUITY`). Account state is stored in shared_storage (namespace `paper_trader`) with a mirror in `state/paper_live.json`.
 - Data only comes from the read-only Robinhood MCP path. The module never touches account or order tools (enforced by a test).
 - Sleeves: ETF core (VOO/QQQ/SCHD/VXUS, in while above MA50), day trader (live-quote quant signal, inverse-vol sizing, 1.5% stop / 2% target, flat by 15:50 ET, max 3 positions), volatility hedge (VIX + SPY 20d vol -> calm 0%, normal 5%, elevated 10%, stressed 20% in SH; +5% if SPY < MA50; day-trade size scaled down when elevated/stressed).
 - Fees modelled: SEC fee + FINRA TAF on sells (min $0.01), buys at ask / sells at bid. All P/L is net of these.

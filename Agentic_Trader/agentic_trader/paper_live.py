@@ -1,6 +1,6 @@
 """Internal live paper trading on real Robinhood market data (read-only data path only).
 
-- Starts with PAPER_START_CASH ($500 = 5 x 100). Orders are simulated here; nothing is ever sent to Robinhood.
+- Starts with PAPER_START_CASH ($5,000). Orders are simulated here; nothing is ever sent to Robinhood.
 - State lives in the shared_storage cache (namespace `paper_trader`) with a JSON mirror in state/.
 - Sleeves: ETF core (trend-filtered), day trader (live-quote quant signal, inverse-vol sizing, flat by close),
   and a volatility hedge (VIX + SPY realized vol -> long-only inverse ETF + smaller day-trade size).
@@ -34,7 +34,7 @@ def _csv(name, default):
 class Cfg:
     def __init__(self):
         load_env_files()
-        self.start_cash = float(os.getenv("PAPER_START_CASH", "500"))
+        self.start_cash = float(os.getenv("PAPER_START_CASH", "5000"))
         self.core_pct = float(os.getenv("PAPER_CORE_PCT", "0.60"))
         self.day_pct = float(os.getenv("PAPER_DAY_PCT", "0.25"))
         self.etfs = _csv("PAPER_ETFS", "VOO,QQQ,SCHD,VXUS")
@@ -46,6 +46,12 @@ class Cfg:
         self.target = float(os.getenv("PAPER_TARGET_PCT", "0.02"))
         self.max_day_positions = int(os.getenv("PAPER_MAX_DAY_POSITIONS", "3"))
         self.min_trade = float(os.getenv("PAPER_MIN_TRADE_USD", "5"))
+        # 2026 rule: margin accounts with >= $2,000 equity have no day-trade limit; otherwise the
+        # legacy limit (max 3 day trades per 5 business days under $25,000) applies.
+        self.account_type = os.getenv("PAPER_ACCOUNT_TYPE", "margin").lower()
+        self.pdt_free_min = float(os.getenv("PAPER_PDT_FREE_MIN_EQUITY", "2000"))
+        self.pdt_max = int(os.getenv("PAPER_PDT_MAX_DAY_TRADES", "3"))
+        self.pdt_legacy_equity = float(os.getenv("PAPER_PDT_LEGACY_EQUITY", "25000"))
         self.cooldown_min = int(os.getenv("PAPER_COOLDOWN_MIN", "30"))
 
 
@@ -149,9 +155,41 @@ class PaperTrader:
     def __init__(self, data, notifier, store, cfg=None, clock=now_et, analyze=None):
         self.data, self.n, self.store, self.cfg, self.clock = data, notifier, store, cfg or Cfg(), clock
         self.analyze = analyze or self._analyze
-        self.s = store.load() or new_state(self.cfg, clock())
+        self.s = store.load()
+        if self.s and abs(self.s.get("start_cash", 0) - self.cfg.start_cash) > 1e-9:
+            self._archive(self.s)
+            self.s = None
+        self.s = self.s or new_state(self.cfg, clock())
+        self.pdt_blocked = 0
 
     # ---- helpers
+    def _archive(self, old):
+        path = STATE_DIR / f"paper_live_archive_{self.clock().strftime('%Y%m%d_%H%M%S')}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(old, default=str))
+        print("[paper] start cash changed; archived previous account to", path)
+
+    def day_trades_5d(self, t):
+        """Day trades (sold on the day opened) in the last 5 business days."""
+        days, d = set(), t.date()
+        while len(days) < 5:
+            if d.weekday() < 5:
+                days.add(d.isoformat())
+            d -= timedelta(days=1)
+        return sum(1 for x in self.s["trades"] if x["side"] == "sell" and x.get("opened")
+                   and x["ts"][:10] in days and x["opened"][:10] == x["ts"][:10])
+
+    def pdt_limited(self):
+        c = self.cfg
+        eq = self.s["equity_log"][-1][1] if self.s["equity_log"] else self.s["cash"]
+        if c.account_type == "margin" and eq >= c.pdt_free_min:
+            return False
+        return eq < c.pdt_legacy_equity
+
+    def day_trade_blocked(self, opened_iso, t):
+        return (opened_iso[:10] == t.isoformat()[:10] and self.pdt_limited()
+                and self.day_trades_5d(t) >= self.cfg.pdt_max)
+
     def _analyze(self, symbols):
         from . import quant_live
         return quant_live.analyze(symbols, data=self.data)
@@ -204,6 +242,9 @@ class PaperTrader:
     def sell(self, sym, qty, reason, q, t):
         pos = self.s["positions"].get(sym)
         if not pos:
+            return False
+        if self.day_trade_blocked(pos["opened"], t):
+            self.pdt_blocked += 1
             return False
         qty = min(qty, pos["qty"])
         px = self.fill_px(q, "sell")
@@ -286,6 +327,8 @@ class PaperTrader:
             if reason:
                 self.sell(sym, p["qty"], reason, q, t)
         if flatten or phase_hm >= NO_ENTRY_AFTER:
+            return
+        if self.pdt_limited() and self.day_trades_5d(t) >= c.pdt_max:
             return
         open_n = sum(1 for p in self.s["positions"].values() if p["sleeve"] == "day")
         budget = equity * c.day_pct - sum(p["qty"] * (quotes.get(s, {}).get("price") or p["avg"])
@@ -415,6 +458,10 @@ class PaperTrader:
             L += ["", "Day stats:",
                   f"Closed trades {len(closed)} | wins {len(wins)} | win rate {len(wins) / len(closed):.0%}" if closed
                   else "No closed trades today"]
+        limited = self.pdt_limited()
+        L += ["", "Day-trade rule:",
+              (f"Limited: {self.day_trades_5d(t)}/{cfg.pdt_max} day trades used (5 business days)" if limited else
+               f"No limit ({cfg.account_type} account, equity >= {_money(cfg.pdt_free_min)})")]
         L += ["", "Paper account only. No live orders are placed."]
         return "\n".join(L)
 

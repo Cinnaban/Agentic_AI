@@ -309,3 +309,23 @@ def test_tables_and_splitter():
     assert "<pre>" in to_telegram_html(t) and "<" not in to_telegram_html("a<b").replace("&lt;", "")
     assert holdings_tables([]) == ""
     assert "VOO" in holdings_tables([{"ticker": "VOO", "weight": 50, "sector": "Core"}])
+
+
+def test_pdt_rule_2026(tmp_path):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from agentic_trader import paper_live as pl
+    t = datetime(2026, 10, 15, 11, 0, tzinfo=ZoneInfo("America/New_York"))
+    cfg = pl.Cfg()
+    st = pl.Store(mirror=tmp_path / "s.json", storage=False)
+    tr = pl.PaperTrader(type("D", (), {})(), type("N", (), {"post": lambda *a: None})(), st, cfg, lambda: t, lambda s: {})
+    assert tr.s["start_cash"] == 5000 and not tr.pdt_limited()
+    q = _q(100, t)
+    for i in range(4):
+        assert tr.buy("AAPL", 100, "day", "x", q, t) and tr.sell("AAPL", 1, "x", q, t)
+    assert tr.day_trades_5d(t) == 4
+    tr.cfg.account_type = "cash"
+    tr.s["equity_log"] = [[t.isoformat(), 5000]]
+    assert tr.pdt_limited()
+    tr.buy("AAPL", 100, "day", "x", q, t)
+    assert not tr.sell("AAPL", 1, "x", q, t) and tr.pdt_blocked == 1
