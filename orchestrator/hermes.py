@@ -710,6 +710,35 @@ class Hermes:
             .lower()
         )
 
+        try:
+            from data.providers.live.price_quote import (
+                answer as live_price_answer
+            )
+            price_text = live_price_answer(
+                message,
+                self.live_market_provider
+            )
+        except Exception:
+            price_text = None
+        if price_text:
+            safe_price = self.outbound_gate.prepare(
+                {
+                    "status": "completed",
+                    "response": price_text
+                }
+            )
+            self.conversation_context.add_message(
+                conversation_key,
+                "user",
+                str(message)
+            )
+            self.conversation_context.add_message(
+                conversation_key,
+                "assistant",
+                price_text
+            )
+            return safe_price
+
         positive_replies = {
             "yes",
             "yeah",

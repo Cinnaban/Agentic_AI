@@ -5,6 +5,7 @@ Only calls tools in mcp_client.SAFE_TOOLS. Never touches accounts, positions, po
 from __future__ import annotations
 
 import json
+import re
 import sys
 import threading
 import time
@@ -43,8 +44,11 @@ def _f(x):
 
 
 def _ts(s):
+    """Parse RFC3339; normalizes fractional seconds so Python 3.9 fromisoformat accepts any digit count."""
+    text = str(s).strip().replace("Z", "+00:00")
+    text = re.sub(r"\.(\d+)", lambda m: "." + (m.group(1) + "000000")[:6], text, count=1)
     try:
-        return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+        return datetime.fromisoformat(text)
     except ValueError:
         return None
 

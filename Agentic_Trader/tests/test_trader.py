@@ -140,3 +140,9 @@ def test_shared_storage_cache_roundtrip(tmp_path):
     k = st.build_cache_key({"t": "pytest"})
     st.set_cached_data("robinhood_market", k, {"ok": 1}, 5)
     assert st.get_cached_data("robinhood_market", k) == {"ok": 1}
+
+
+def test_ts_handles_odd_fraction_digits():
+    from agentic_trader.robinhood.data import _ts
+    for v in ("2026-10-15T07:44:24.1Z", "2026-10-15T07:44:24.12345Z", "2026-10-15T07:44:24Z", "2026-10-15T07:44:24.123456789+00:00"):
+        assert _ts(v) is not None
