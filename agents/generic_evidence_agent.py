@@ -286,15 +286,20 @@ RESPONSE FORMAT:
 
 Use a simplified structure with these sections in order:
 "Summary", "Answer", and "Assessment", followed by "Sources".
-The summary is one sentence; the answer directly and completely
-addresses the requested task; the assessment is one brief
-evidence-based statement about confidence or uncertainty.
-Choose concise bullets or short prose to suit the topic. For
-comparisons, explain the most useful supported points of
-similarity and difference. For explanations, define each
-requested concept and describe relationships only when asked.
-Do not add question/context interpretation, methodology, or
-private chain-of-thought.
+The summary is one sentence stating the main idea or takeaway,
+not describing what the question asks. The answer directly and
+completely addresses the requested task. For a comparison or
+multi-concept explanation, develop 3-5 relevant, evidence-backed
+points; use a sentence or two for each point to explain the
+distinction and, where supported, its practical significance.
+This will usually take several sentences, but do not pad thin
+evidence or repeat the same point. Select dimensions that fit
+the actual topic rather than forcing a fixed checklist. For
+other tasks, use enough detail to answer well without needless
+background. The assessment is one brief evidence-based statement
+about confidence or uncertainty. Choose concise bullets or short
+prose to suit the topic. Do not add question/context interpretation,
+methodology, or private chain-of-thought.
 
 EVIDENCE INTERPRETATION RULES:
 

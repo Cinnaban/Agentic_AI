@@ -90,6 +90,12 @@ RULES:
   when the question asks how topics relate. Do not force a
   comparison merely because multiple concepts are mentioned.
 
+- For comparisons or explanations involving multiple concepts,
+  research several meaningful dimensions that help distinguish
+  or connect the topics. Select dimensions that fit the subject,
+  and include practical implications or context when reliable
+  sources support them.
+
 - Search for reliable sources suited to the topic and claim.
   Use primary or official sources for rules and specifications,
   and reputable independent sources for explanation or context.
@@ -315,6 +321,17 @@ Return ONLY valid JSON:
             "other"
         }:
             task_type = "other"
+        task_type = task_type.casefold()
+
+        explicit_summary = any(
+            term in normalized
+            for term in summary_terms
+        )
+        if not explicit_summary and task_type in {
+            "comparison",
+            "explanation"
+        }:
+            evidence_depth = "deep"
 
         research_scope = result.get("research_scope", message)
         if not isinstance(research_scope, str) or not research_scope.strip():
@@ -328,10 +345,13 @@ Return ONLY valid JSON:
                 ),
 
             "task_type":
-                task_type.casefold(),
+                task_type,
 
             "research_scope":
                 research_scope.strip(),
+
+            "evidence_depth":
+                evidence_depth,
 
             "queries":
                 cleaned_queries,

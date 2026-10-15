@@ -33,10 +33,28 @@ class GenericResearchPlannerTests(unittest.TestCase):
         prompt = planner.ollama.generate.call_args.args[0]
 
         self.assertEqual(plan["task_type"], "comparison")
+        self.assertEqual(plan["evidence_depth"], "deep")
         self.assertIn("MOBA, FPS, and RTS", plan["research_scope"])
         self.assertEqual(len(plan["queries"]), 2)
         self.assertIn("Keep every named subject or concept", prompt)
         self.assertIn("Questions may concern any public-information", prompt)
+        self.assertIn("research several meaningful dimensions", prompt)
+
+    def test_explicit_brief_request_keeps_summary_evidence_depth(self):
+        planner = GenericResearchPlanner()
+        planner.ollama = Mock()
+        planner.ollama.generate.return_value = {
+            "response": json.dumps({
+                "task_type": "comparison",
+                "research_scope": "Briefly compare two racing series.",
+                "queries": ["Racing series comparison"]
+            })
+        }
+
+        plan = planner.plan("Briefly compare NASCAR and Formula One")
+
+        self.assertEqual(plan["task_type"], "comparison")
+        self.assertEqual(plan["evidence_depth"], "summary")
 
     def test_planner_uses_original_question_if_plan_is_unstructured(self):
         planner = GenericResearchPlanner()

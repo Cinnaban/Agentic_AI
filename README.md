@@ -193,6 +193,10 @@ Generic research is intended for descriptive, competitive, qualitative, and best
 Responses include a one-sentence topic summary, the complete direct answer,
 and a brief evidence-based assessment, followed by a list of cited sources.
 They omit question, answer, and context interpretation sections.
+For comparisons and multi-concept explanations, the planner gathers deeper
+evidence by default and the answer develops several relevant differences or
+connections, including sourced practical context where available. Explicitly
+brief requests retain summary-depth research.
 The planner identifies the task and topic scope from the full question, then
 preserves the user's query alongside its research searches. Relevance checks
 are domain-neutral, so the same path can review and summarize topics across
