@@ -60,13 +60,39 @@ ACTIVE TOPIC FROM CONVERSATION:
 {active_topic or "None"}
 
 
-Generate targeted search queries.
+First identify the task the user wants performed and the
+topics, entities, concepts, and relationships the question
+is about. Questions may concern any public-information
+domain, including finance, sports, games, science, history,
+technology, or culture. Do not assume the topic is a company
+or that the question follows a particular sentence pattern.
+
+Generate targeted public-web search queries that preserve
+the actual topic and requested relationship.
 
 RULES:
 
 - Return no more than 5 queries.
 
 - Queries should cover different evidence needs.
+
+- Include at least one query that directly searches the
+  user's topic or concepts, not the meanings of instruction
+  words such as "explain" or "compare".
+
+- Keep every named subject or concept from the question in
+  the research scope and relevant searches. If the question
+  relates several topics, do not silently drop any of them.
+
+- Interpret the requested relationship from the whole
+  question. Compare when comparison is requested; explain
+  each concept when that is requested; explain a relationship
+  when the question asks how topics relate. Do not force a
+  comparison merely because multiple concepts are mentioned.
+
+- Search for reliable sources suited to the topic and claim.
+  Use primary or official sources for rules and specifications,
+  and reputable independent sources for explanation or context.
 
 - Do not simply repeat the user's question five times.
 
@@ -87,10 +113,9 @@ RULES:
 - For descriptive questions, prefer organization pages
   and reputable reference material.
 
-- For a studio, developer, or company known for creative
-  work, search separately for current or upcoming projects
-  and for its notable past work. Do not treat a past release
-  as an active project.
+- When current activity and historical activity are both
+  relevant, search for them separately. Do not infer that
+  historical activity is still current.
 
 - Do not invent facts.
 
@@ -98,6 +123,10 @@ Return ONLY valid JSON:
 
 {{
     "intent": "description",
+
+    "task_type": "overview | comparison | explanation | analysis | history | other",
+
+    "research_scope": "One sentence describing the actual topic and task.",
 
     "queries": [
         "query 1",
@@ -137,6 +166,12 @@ Return ONLY valid JSON:
                 "intent":
                     "general_research",
 
+                "task_type":
+                    "other",
+
+                "research_scope":
+                    message,
+
                 "queries":
                     [
                         message
@@ -146,6 +181,8 @@ Return ONLY valid JSON:
                     []
             }
 
+        if not isinstance(result, dict):
+            result = {}
 
         queries = result.get(
             "queries",
@@ -268,12 +305,33 @@ Return ONLY valid JSON:
                 "deep"
             )
 
+        task_type = result.get("task_type", "other")
+        if not isinstance(task_type, str) or task_type.casefold() not in {
+            "overview",
+            "comparison",
+            "explanation",
+            "analysis",
+            "history",
+            "other"
+        }:
+            task_type = "other"
+
+        research_scope = result.get("research_scope", message)
+        if not isinstance(research_scope, str) or not research_scope.strip():
+            research_scope = message
+
         return {
             "intent":
                 result.get(
                     "intent",
                     "general_research"
                 ),
+
+            "task_type":
+                task_type.casefold(),
+
+            "research_scope":
+                research_scope.strip(),
 
             "queries":
                 cleaned_queries,

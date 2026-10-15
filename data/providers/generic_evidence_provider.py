@@ -32,6 +32,23 @@ from orchestrator.freshness_detector import FreshnessDetector
 from shared_storage.reference_archive import PublicReferenceArchive
 
 class GenericEvidenceProvider:
+    SEARCH_STOP_WORDS = {
+        "a", "about", "above", "after", "against", "all", "also", "an",
+        "and", "any", "are", "as", "at", "be", "because", "been", "before",
+        "being", "between", "both", "but", "by", "can", "could", "did",
+        "do", "does", "doing", "down", "during", "each", "explain", "for",
+        "from", "further", "get", "give", "had", "has", "have", "he", "her",
+        "here", "hers", "him", "his", "how", "i", "if", "in", "into", "is",
+        "it", "its", "itself", "just", "me", "more", "most", "my", "no",
+        "nor", "not", "of", "off", "on", "once", "only", "or", "other",
+        "our", "out", "over", "own", "please", "same", "she", "should",
+        "so", "some", "such", "than", "that", "the", "their", "them",
+        "then", "there", "these", "they", "this", "those", "through", "to",
+        "too", "under", "until", "up", "us", "very", "was", "we", "were",
+        "what", "when", "where", "which", "while", "who", "why", "will",
+        "with", "would", "you", "your", "compare", "comparison", "different",
+        "difference", "differences", "versus", "vs"
+    }
 
     def __init__(
         self
@@ -66,7 +83,9 @@ class GenericEvidenceProvider:
     def _subject_terms(subject):
         stop_words = {
             "about", "company", "corporation", "corp", "inc", "incorporated",
-            "limited", "llc", "ltd", "organization", "what", "who"
+            "limited", "llc", "ltd", "organization", "what", "who",
+            "and", "between", "compare", "comparison", "difference",
+            "differences", "explain", "versus"
         }
         return [
             term
@@ -77,28 +96,41 @@ class GenericEvidenceProvider:
             if term not in stop_words
         ]
 
-    @staticmethod
-    def _infer_subject(query):
-        if not isinstance(query, str):
-            return None
+    @classmethod
+    def _search_terms(cls, text):
+        terms = set()
+        for term in re.findall(r"[a-z0-9]+", str(text or "").casefold()):
+            if term in cls.SEARCH_STOP_WORDS or len(term) < 2:
+                continue
+            if term.endswith("ies") and len(term) > 4:
+                term = term[:-3] + "y"
+            elif term.endswith("s") and not term.endswith(("ss", "us")):
+                term = term[:-1]
+            terms.add(term)
+        return terms
 
-        patterns = (
-            r"^\s*(?:tell me|give me|show me)\s+(?:the\s+)?"
-            r"(?:history|story|background)\s+of\s+(.+?)\s*[?.!]*$",
-            r"^\s*(?:please\s+)?(?:analyze|analyse|evaluate|assess|"
-            r"review)\s+(?:the\s+)?(?:company\s+)?(.+?)\s*[?.!]*$",
-            r"^\s*(?:what can you tell me about|"
-            r"(?:can you\s+)?tell me about|"
-            r"what is|what are|who is|who are|describe|"
-            r"history of|the history of|overview of|background on)"
-            r"\s+(.+?)\s*[?.!]*$"
+    @classmethod
+    def _relevance_score(cls, result, query, search_queries, subject):
+        primary_terms = cls._search_terms(
+            " ".join((str(query or ""), str(subject or "")))
         )
-        for pattern in patterns:
-            match = re.match(pattern, query, re.IGNORECASE)
-            if match:
-                subject = match.group(1).strip()
-                return subject or None
-        return None
+        result_text = " ".join(
+            str(result.get(key) or "")
+            for key in ("title", "summary", "url")
+        )
+        result_terms = cls._search_terms(result_text)
+        primary_matches = len(primary_terms & result_terms)
+        if primary_matches:
+            return primary_matches
+
+        planned_terms = cls._search_terms(
+            " ".join(
+                item for item in search_queries
+                if isinstance(item, str)
+            )
+        )
+        planned_matches = len(planned_terms & result_terms)
+        return planned_matches if planned_matches >= 2 else 0
 
     @classmethod
     def _is_relevant_to_subject(cls, result, subject):
@@ -151,7 +183,22 @@ class GenericEvidenceProvider:
         return host, role
 
     @classmethod
-    def _rank_and_filter_results(cls, results, subject):
+    def _rank_and_filter_results(
+        cls,
+        results,
+        subject=None,
+        query=None,
+        search_queries=None
+    ):
+        if not isinstance(search_queries, list):
+            search_queries = []
+
+        topic_terms = cls._search_terms(
+            " ".join((str(query or ""), str(subject or "")))
+        )
+        planned_terms = cls._search_terms(" ".join(search_queries))
+        should_filter_by_relevance = bool(topic_terms or planned_terms)
+
         social_hosts = (
             "reddit.com",
             "x.com",
@@ -165,10 +212,19 @@ class GenericEvidenceProvider:
             if not isinstance(result, dict):
                 continue
             url = result.get("url")
-            if not isinstance(url, str) or not cls._is_relevant_to_subject(
+            if not isinstance(url, str):
+                continue
+            relevance = cls._relevance_score(
                 result,
+                query,
+                (
+                    [result["search_query"]]
+                    if result.get("search_query")
+                    else search_queries
+                ),
                 subject
-            ):
+            )
+            if should_filter_by_relevance and relevance == 0:
                 continue
             host, role = cls._source_details(
                 url,
@@ -185,7 +241,7 @@ class GenericEvidenceProvider:
             result["source"] = host or "Unknown publisher"
             result["source_host"] = host
             result["source_role"] = role
-            ranked.append(result)
+            ranked.append((relevance, result))
 
         role_order = {
             "official_candidate": 0,
@@ -194,12 +250,13 @@ class GenericEvidenceProvider:
             "independent_or_other": 3
         }
         ranked.sort(
-            key=lambda result: (
-                role_order.get(result.get("source_role"), 3),
-                result.get("source_host", "")
+            key=lambda item: (
+                -item[0],
+                role_order.get(item[1].get("source_role"), 3),
+                item[1].get("source_host", "")
             )
         )
-        return ranked
+        return [result for _, result in ranked]
 
     def _build_factual_queries(
         self,
@@ -209,46 +266,26 @@ class GenericEvidenceProvider:
     ):
         target = str(subject or query or "").strip()
         candidates = []
-        target_terms = set(self._subject_terms(target))
-        is_game_related = bool(target_terms.intersection({
-            "game",
-            "games",
-            "developer",
-            "developers",
-            "studio",
-            "studios"
-        }))
-        if target:
+        if subject:
             candidates.extend([
                 f'"{target}" official website',
-                f'"{target}" Wikipedia',
-                f'"{target}"',
-                f'"{target}" current projects upcoming in development'
+                str(query or "").strip(),
+                f'"{target}" overview'
             ])
-            if is_game_related:
-                candidates.append(
-                    f'"{target}" video game franchise projects history'
-                )
-
+        else:
+            candidates.append(str(query or "").strip())
         if isinstance(search_queries, list):
             candidates.extend(search_queries)
 
         cleaned = []
-        target_terms = self._subject_terms(target)
         for candidate in candidates:
             if not isinstance(candidate, str):
                 continue
             candidate = candidate.strip()
             if not candidate or candidate in cleaned:
                 continue
-            if subject and target_terms:
-                query_terms = self._subject_terms(candidate)
-                if not all(term in query_terms for term in target_terms):
-                    continue
             cleaned.append(candidate)
-            query_limit = self.max_search_queries + (
-                2 if is_game_related else 1
-            )
+            query_limit = self.max_search_queries + 1
             if len(cleaned) >= query_limit:
                 break
         return cleaned
@@ -316,9 +353,6 @@ class GenericEvidenceProvider:
         ):
 
             research_plan = {}
-
-        if not subject:
-            subject = self._infer_subject(query)
 
         evidence_depth = (
             research_plan.get(
@@ -503,7 +537,9 @@ class GenericEvidenceProvider:
 
         deduplicated = self._rank_and_filter_results(
             deduplicated,
-            subject
+            subject=subject,
+            query=query,
+            search_queries=cleaned_queries
         )
         deduplicated = self._add_official_homepage_candidate(
             deduplicated
