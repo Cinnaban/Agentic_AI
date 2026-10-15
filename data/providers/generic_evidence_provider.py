@@ -120,8 +120,17 @@ class GenericEvidenceProvider:
         )
         result_terms = cls._search_terms(result_text)
         primary_matches = len(primary_terms & result_terms)
-        if primary_matches:
+        minimum_primary_matches = min(2, len(primary_terms))
+        if primary_matches >= minimum_primary_matches:
             return primary_matches
+        if primary_matches:
+            matched_terms = primary_terms & result_terms
+            if (
+                any(len(term) >= 5 for term in matched_terms)
+                or all(len(term) < 5 for term in primary_terms)
+            ):
+                return primary_matches
+            return 0
 
         planned_terms = cls._search_terms(
             " ".join(

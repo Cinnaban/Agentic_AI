@@ -1,0 +1,183 @@
+{
+  "job_id": "3d2f0da1-1590-4961-a712-6627e0dc4d90",
+  "status": "failed",
+  "created_at": "2026-10-14T22:42:49.891886",
+  "updated_at": "2026-10-14T22:43:13.531171",
+  "data": {
+    "message": "Analyze CIBR",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "CIBR",
+        "ticker": "CIBR",
+        "entity_type": "etf",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-10-15T05:42:49.887238+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Technology",
+            "family": "First Trust",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "CIBR": 0.0058,
+              "Category Average": 0.009006999
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "CIBR": 0.21,
+              "Category Average": 0.582
+            },
+            {
+              "key": "Total Net Assets",
+              "CIBR": 91719.37,
+              "Category Average": 91719.37
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.0019,
+            "stockPosition": 0.9981,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.0
+          },
+          "top_holdings": [
+            {
+              "key": "CRWD",
+              "Name": "CrowdStrike Holdings Inc Class A",
+              "Holding Percent": 0.0889205
+            },
+            {
+              "key": "FTNT",
+              "Name": "Fortinet Inc",
+              "Holding Percent": 0.081139095
+            },
+            {
+              "key": "PANW",
+              "Name": "Palo Alto Networks Inc",
+              "Holding Percent": 0.0806674
+            },
+            {
+              "key": "CSCO",
+              "Name": "Cisco Systems Inc",
+              "Holding Percent": 0.075576805
+            },
+            {
+              "key": "AVGO",
+              "Name": "Broadcom Inc",
+              "Holding Percent": 0.073573
+            },
+            {
+              "key": "OKTA",
+              "Name": "Okta Inc Class A",
+              "Holding Percent": 0.044182703
+            },
+            {
+              "key": "NET",
+              "Name": "Cloudflare Inc",
+              "Holding Percent": 0.0441543
+            },
+            {
+              "key": "FFIV",
+              "Name": "F5 Inc",
+              "Holding Percent": 0.0360612
+            },
+            {
+              "key": "ZS",
+              "Name": "Zscaler Inc",
+              "Holding Percent": 0.0359388
+            },
+            {
+              "key": "RBRK",
+              "Name": "Rubrik Inc Class A Shares",
+              "Holding Percent": 0.0268432
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.0,
+            "basic_materials": 0.0,
+            "consumer_defensive": 0.0,
+            "technology": 0.9489,
+            "communication_services": 0.0221,
+            "financial_services": 0.0,
+            "utilities": 0.0,
+            "industrials": 0.029000001,
+            "energy": 0.0,
+            "healthcare": 0.0
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "CIBR": 0.03153,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "CIBR": 0.11946,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "CIBR": 0.18773,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "CIBR": 0.04466,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "CIBR": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "CIBR": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "CIBR": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "CIBR": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "CIBR": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "final_status": "failed",
+    "error": "All Gaming PC quant requests failed: Cannot connect to the Gaming PC compute service. Confirm the PC is online and its worker service is running."
+  }
+}

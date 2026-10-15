@@ -83,6 +83,48 @@ class GenericFactualSourceTests(unittest.TestCase):
                 self.assertEqual(len(results), 1)
                 self.assertEqual(results[0]["title"], relevant_title)
 
+    def test_team_history_search_rejects_league_streaming_service_result(self):
+        query = "Tell me the history of the NFL Jaguars"
+        results = GenericEvidenceProvider._rank_and_filter_results(
+            [{
+                "title": "NFL+",
+                "summary": (
+                    "NFL Audio Pass launched in 2003 to stream NFL radio "
+                    "broadcasts."
+                ),
+                "url": "https://en.wikipedia.org/wiki/NFL%2B",
+                "search_query": query
+            }, {
+                "title": "Jacksonville Jaguars history",
+                "summary": (
+                    "The Jacksonville Jaguars are an NFL team founded in "
+                    "1993 and began play in 1995."
+                ),
+                "url": "https://www.jaguars.com/history",
+                "search_query": query
+            }],
+            query=query
+        )
+
+        self.assertEqual(
+            [result["title"] for result in results],
+            ["Jacksonville Jaguars history"]
+        )
+
+    def test_short_acronym_comparison_can_match_one_side(self):
+        query = "Compare AI and ML"
+        results = GenericEvidenceProvider._rank_and_filter_results(
+            [{
+                "title": "AI overview",
+                "summary": "An introduction to artificial intelligence.",
+                "url": "https://example.org/ai",
+                "search_query": query
+            }],
+            query=query
+        )
+
+        self.assertEqual([result["title"] for result in results], ["AI overview"])
+
     def test_wikipedia_lookup_selects_matching_article_and_extract(self):
         responses = [
             Response({
