@@ -145,49 +145,65 @@ def review_symbol(sym, f, q, c, bench, rating, held, port_value):
     upside = (target / price - 1) if target and price else None
     sent = _sentiment(rating, upside, proj and proj["trend_ann"], rsi)
     etf = _is_etf(f)
-    L = [f"{sym} ({'ETF' if etf else (f.get('sector') or 'stock')})"]
+    kind = "ETF" if etf else (f.get("sector") or "stock")
+    L = [f"{sym} ({kind})", ""]
+
+    def kv(label, value):
+        L.extend([f"{label}:", value])
+
     day = q.get("change_pct")
-    L.append(f"Price {_money(price)}" + (f" ({day:+.2%} today)" if day is not None else "")
-             + f" | Mkt cap {_big(_f(f.get('market_cap')))}")
+    kv("Current price", f"{_money(price)}" + (f" ({day:+.2%} today)" if day is not None else ""))
+    kv("Market cap", _big(_f(f.get("market_cap"))))
     if held:
         val = price * held["qty"] if price else 0.0
         gl = (val - held["cost"]) if held["cost"] else None
         glp = (val / held["cost"] - 1) if held["cost"] else None
         where = ", ".join(f"{k} {v:g}" for k, v in held["where"].items())
-        L.append(f"Held {held['qty']:g} sh ({where}) = {_money(val)}"
-                 + (f" ({val / port_value:.1%} of all holdings)" if port_value else "")
-                 + (f" | Gain/Loss {gl:+,.2f} ({glp:+.1%})" if gl is not None else ""))
+        L.append("")
+        kv("Position", f"{held['qty']:g} sh in {where}\nValue {_money(val)}"
+           + (f" ({val / port_value:.1%} of all holdings)" if port_value else ""))
+        if gl is not None:
+            kv("Gain/Loss", f"{gl:+,.2f} ({glp:+.1%}) vs average cost")
     pos = lambda m: "n/a" if not (m and price) else f"{_money(m)} ({price / m - 1:+.1%})"
-    L.append(f"MA20 {pos(ma20)} | MA50 {pos(ma50)} | MA200 {pos(ma200)}")
+    L.append("")
+    kv("MA20", pos(ma20))
+    kv("MA50", pos(ma50))
+    kv("MA200", pos(ma200))
     if ma20 and ma50:
-        L.append("Trend: " + ("MA20 above MA50 (bullish)" if ma20 > ma50 else "MA20 below MA50 (bearish)")
-                 + (f" | RSI14 {rsi:.0f}" if rsi is not None else ""))
+        kv("Trend", "MA20 above MA50 (bullish)" if ma20 > ma50 else "MA20 below MA50 (bearish)")
+    if rsi is not None:
+        kv("RSI14", f"{rsi:.0f}" + (" (oversold)" if rsi < 30 else " (overbought)" if rsi > 70 else ""))
     hi, lo = _f(f.get("high_52_weeks")), _f(f.get("low_52_weeks"))
-    rng = f" | 52w {_money(lo)}-{_money(hi)} ({(price - lo) / (hi - lo):.0%} of range)" if hi and lo and price and hi > lo else ""
+    if hi and lo and price and hi > lo:
+        kv("52-week range", f"{_money(lo)} - {_money(hi)} ({(price - lo) / (hi - lo):.0%} of range)")
+    L.append("")
+    kv("Beta", f"{beta:.2f} (1y daily vs {BENCH})" if beta is not None else "n/a")
     div_ps, dy = _f(f.get("dividend_per_share")), _f(f.get("dividend_yield"))
-    div = (f"yield {dy:.2f}% (${div_ps:.2f}/sh {f.get('distribution_frequency') or ''}"
-           + (f", ~${div_ps * (4 if (f.get('distribution_frequency') or '').lower().startswith('q') else 1) * held['qty']:.2f}/yr on your shares"
-              if held and div_ps and (f.get('distribution_frequency') or '').lower().startswith('q') else "") + ")"
-           ) if div_ps else "none"
-    L.append(f"Beta {beta:.2f} (1y daily vs {BENCH})" if beta is not None else "Beta n/a")
-    L[-1] += f" | Dividend {div}" + rng
+    freq = (f.get("distribution_frequency") or "")
+    if div_ps:
+        txt = f"{dy:.2f}% yield\n${div_ps:.2f}/sh {freq}".rstrip()
+        if held and freq.lower().startswith("q"):
+            txt += f"\n~${div_ps * 4 * held['qty']:.2f}/yr on your shares"
+        kv("Dividend", txt)
+    else:
+        kv("Dividend", "none")
     if f.get("pe_ratio"):
-        L[-1] += f" | P/E {_f(f['pe_ratio']):.1f}"
+        kv("P/E", f"{_f(f['pe_ratio']):.1f}")
+    L.append("")
     if rating:
-        L.append(f"Analysts: {rating.get('num_buy_ratings', 0)} buy / {rating.get('num_hold_ratings', 0)} hold / "
-                 f"{rating.get('num_sell_ratings', 0)} sell; mean target {_money(target)}"
-                 + (f" ({upside:+.1%})" if upside is not None else ""))
-    L.append(f"Sentiment: {_label(sent)}" + (f" ({sent:+.2f})" if sent is not None else "")
-             + " [analysts + target upside + trend + RSI]")
+        kv("Analysts", f"{rating.get('num_buy_ratings', 0)} buy / {rating.get('num_hold_ratings', 0)} hold / "
+           f"{rating.get('num_sell_ratings', 0)} sell\nMean target {_money(target)}"
+           + (f" ({upside:+.1%})" if upside is not None else ""))
+    kv("Market sentiment", f"{_label(sent)}" + (f" ({sent:+.2f})" if sent is not None else ""))
     if proj:
-        L.append(f"Outlook (5d): expected {proj['exp5']:+.2%} +/- {proj['band5']:.1%} (1 sd); 60d trend "
-                 f"{proj['trend_ann']:+.0%}/yr, fit R2 {proj['r2']:.2f}, vol {proj['vol_ann']:.0%}/yr")
+        L.append("")
+        kv("Outlook (5 days)", f"Expected {proj['exp5']:+.2%} +/- {proj['band5']:.1%} (1 sd)\n"
+           f"60d trend {proj['trend_ann']:+.0%}/yr (fit R2 {proj['r2']:.2f})\nVolatility {proj['vol_ann']:.0%}/yr")
     if etf:
         top = _etf_holdings(sym)
-        if top:
-            L.append("Top holdings: " + ", ".join(f"{n} {w:.1%}" if w < 1 else f"{n} {w:.1f}%" for n, w in top))
-        else:
-            L.append("Top holdings: unavailable")
+        L.append("")
+        kv("Top holdings", "\n".join(f"- {n}: {w:.1%}" if w < 1 else f"- {n}: {w:.1f}%" for n, w in top)
+           if top else "unavailable")
     return "\n".join(L)
 
 
@@ -211,4 +227,4 @@ def review(symbols: list[str] | None = None) -> str:
         except Exception as exc:
             blocks.append(f"{s}: review failed ({str(exc)[:80]})")
     head = f"Review of {len(wanted)} symbol(s)" + (f" across {len(held)} held, equity value {_money(total)}" if not symbols else "")
-    return head + "\n\n" + "\n\n".join(blocks) + "\n\nProjections are statistical estimates, not advice."
+    return head + "\n\n" + "\n\n----------\n\n".join(blocks) + "\n\nProjections are statistical estimates, not advice."

@@ -134,19 +134,29 @@ class RobinhoodData:
         return out
 
     # ---- bars ----
-    def bars(self, symbols: list[str], interval: str = "minute", days_back: float = 5, bounds: str = "regular") -> dict[str, list[dict]]:
+    def bars(self, symbols: list[str], interval: str = "minute", days_back: float = 5, bounds: str = "regular",
+             ttl: float = BARS_TTL) -> dict[str, list[dict]]:
         """interval per Robinhood: minute, 5minute, 10minute, 30minute, hour, day, ..."""
         start = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%dT%H:%M:%SZ")
         out: dict[str, list[dict]] = {}
         syms = [s.upper() for s in symbols]
         for i in range(0, len(syms), 10):
             data = self._call("get_equity_historicals", {"symbols": syms[i:i + 10], "start_time": start,
-                                                         "interval": interval, "bounds": bounds}, BARS_TTL)
+                                                         "interval": interval, "bounds": bounds}, ttl)
             for r in data.get("results", []):
                 out[r["symbol"]] = [{"ts": _ts(b["begins_at"]), "open": _f(b["open_price"]), "high": _f(b["high_price"]),
                                      "low": _f(b["low_price"]), "close": _f(b["close_price"]), "volume": b.get("volume") or 0}
                                     for b in r.get("bars", []) if not b.get("interpolated")]
         return out
+
+    def vix(self):
+        """Latest VIX index value, or None."""
+        try:
+            ids = [i["id"] for i in self._call("get_indexes", {}, 86400).get("indexes", []) if i.get("symbol") == "VIX"]
+            qs = self._call("get_index_quotes", {"instrument_ids": ids}, 60).get("quotes", []) if ids else []
+            return _f(qs[0].get("value")) if qs else None
+        except Exception:
+            return None
 
     # ---- research ----
     def ratings(self, symbols: list[str]) -> dict[str, dict | None]:

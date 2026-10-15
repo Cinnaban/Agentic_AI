@@ -85,3 +85,13 @@ Only Telegram can reach Robinhood account tools (Discord is market-data only). C
 - Orders: MCP account only, equities only, no margin/options, per-order and daily caps, one-time 120s confirm code, placed only if `ROBINHOOD_LIVE_ORDERS=true` and the app's trade approval is ON.
 - Audit log: `state/rh_orders_audit.jsonl`.
 - `/review [SYMBOLS]`: per-holding analysis across all accounts (price, market cap, gain/loss, MA20/50/200, beta, dividend, sentiment, 5-day outlook, ETF top holdings).
+
+## Internal paper trading (live Robinhood data, simulated fills)
+`python -m agentic_trader paper-live` (service: `run_paper_trader.sh` via launchd `com.bunnyhouse.stockagent.papertrader`; `--once`, `--status`, `--reset`).
+- Start cash $500 (`PAPER_START_CASH`). Account state is stored in shared_storage (namespace `paper_trader`) with a mirror in `state/paper_live.json`.
+- Data only comes from the read-only Robinhood MCP path. The module never touches account or order tools (enforced by a test).
+- Sleeves: ETF core (VOO/QQQ/SCHD/VXUS, in while above MA50), day trader (live-quote quant signal, inverse-vol sizing, 1.5% stop / 2% target, flat by 15:50 ET, max 3 positions), volatility hedge (VIX + SPY 20d vol -> calm 0%, normal 5%, elevated 10%, stressed 20% in SH; +5% if SPY < MA50; day-trade size scaled down when elevated/stressed).
+- Fees modelled: SEC fee + FINRA TAF on sells (min $0.01), buys at ask / sells at bid. All P/L is net of these.
+- Discord: every 30 min (10:00-15:30 ET) to `DISCORD_REALTIMETRADER_CHANNEL_ID`, daily summary after the close to `DISCORD_UPDATES_CHANNEL_ID`. Both include P/L net of fees, holdings maintained, holdings let go and portfolio trend.
+- Telegram `/paper` shows the stored paper account.
+- Not modelled: pattern-day-trader limits (real accounts under $25K are limited to 3 day trades per 5 days), slippage beyond the spread, taxes.

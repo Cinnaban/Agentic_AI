@@ -206,3 +206,94 @@ def test_review_math():
     assert p and p["band5"] > 0
     assert review._label(review._sentiment({"num_buy_ratings": 10, "num_hold_ratings": 0, "num_sell_ratings": 0}, 0.2, 0.4, 50)) == "bullish"
     assert review._big(5.0e12) == "$5.00T"
+
+
+# ---- internal live paper trading -------------------------------------------------
+def _pt(tmp_path, quotes_fn, analyze_fn, clock):
+    from datetime import datetime
+    from agentic_trader import paper_live as pl
+
+    class Data:
+        def quotes(self, syms):
+            return {s: quotes_fn(s) for s in syms}
+
+        def bars(self, syms, interval, days, **kw):
+            return {s: [{"close": 100 + i * 0.1} for i in range(120)] for s in syms}
+
+        def vix(self):
+            return 17.0
+
+    class Note:
+        sent = []
+
+        def post(self, ch, text):
+            self.sent.append((ch, text))
+
+    cfg = pl.Cfg()
+    n = Note()
+    n.sent = []
+    return pl.PaperTrader(Data(), n, pl.Store(mirror=tmp_path / "s.json", storage=False), cfg, clock, analyze_fn), n
+
+
+def _q(price, as_of):
+    return {"price": price, "bid": price * 0.9995, "ask": price * 1.0005, "as_of": as_of, "session": "regular",
+            "prev_close": price, "change_pct": 0.0}
+
+
+def test_paper_live_cycle_fees_and_summaries(tmp_path):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from agentic_trader import paper_live as pl
+    ET = ZoneInfo("America/New_York")
+    clk = {"t": datetime(2026, 10, 14, 9, 40, tzinfo=ET)}  # Wednesday
+    px = {"NVDA": 200.0}
+    tr, note = _pt(tmp_path, lambda s: _q(px.get(s, 120.0), clk["t"]),
+                   lambda syms: {"NVDA": {"signal_score": 0.5, "rsi14": 55, "realized_vol_ann": 0.35}}, lambda: clk["t"])
+    assert tr.step() == "open"
+    held = tr.s["positions"]
+    assert "NVDA" in held and held["NVDA"]["sleeve"] == "day"
+    assert {"VOO", "QQQ", "SCHD", "VXUS"} <= set(held)  # core sleeve deployed
+    assert "SH" in held  # VIX 17 -> normal regime -> 5% hedge
+    assert not note.sent  # first half-hour slot is 10:00
+    clk["t"] = datetime(2026, 10, 14, 10, 0, tzinfo=ET)
+    tr.step()
+    assert note.sent and note.sent[0][0] == "realtime"
+    assert "Profit/Loss (net of fees):\n" in note.sent[0][1] and "Holdings maintained:" in note.sent[0][1]
+    # day stop-out is a loss that includes the sell fee
+    clk["t"] = datetime(2026, 10, 14, 10, 5, tzinfo=ET)
+    px["NVDA"] = 195.0
+    tr.step()
+    assert "NVDA" not in tr.s["positions"] and tr.s["fees_total"] >= 0.01
+    last = [x for x in tr.s["trades"] if x["sym"] == "NVDA"][-1]
+    assert last["realized"] < 0 and "stop" in last["reason"]
+    # equity = start + realized + unrealized, with fees already deducted from cash
+    eq = tr.equity({s: _q(px.get(s, 120.0), clk["t"]) for s in tr.universe()})
+    assert abs(eq - tr.s["start_cash"]) < 15
+    # flatten + end of day summary goes to the updates channel exactly once
+    clk["t"] = datetime(2026, 10, 14, 16, 5, tzinfo=ET)
+    assert tr.step() == "close" and tr.step() == "close"
+    ups = [m for ch, m in note.sent if ch == "updates"]
+    assert len(ups) == 1 and "DAILY SUMMARY" in ups[0] and "Holdings let go:" in ups[0]
+    # state persists and reloads
+    from agentic_trader.paper_live import Store
+    assert Store(mirror=tmp_path / "s.json", storage=False).load()["fees_total"] == tr.s["fees_total"]
+
+
+def test_paper_live_idle_when_closed_and_no_account_access(tmp_path):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from pathlib import Path
+    ET = ZoneInfo("America/New_York")
+    t = datetime(2026, 10, 17, 11, 0, tzinfo=ET)  # Saturday
+    tr, note = _pt(tmp_path, lambda s: _q(100.0, t), lambda s: {}, lambda: t)
+    assert tr.step() == "idle" and not tr.s["positions"] and not note.sent
+    src = (Path(__file__).resolve().parents[1] / "agentic_trader" / "paper_live.py").read_text()
+    assert "robinhood.account" not in src and "robinhood import orders" not in src and "call_account" not in src
+
+
+def test_fees_and_regime():
+    from agentic_trader import paper_live as pl
+    assert pl.sell_fees(1.0, 50.0) == 0.01
+    assert pl.sell_fees(100.0, 20000.0) > 0.4
+    assert pl.classify_regime(14, 0.10, False)["hedge_target"] == 0.0
+    assert pl.classify_regime(35, 0.2, True)["hedge_target"] == 0.25

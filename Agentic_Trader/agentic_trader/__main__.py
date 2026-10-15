@@ -21,6 +21,10 @@ def main() -> None:
     sub.add_parser("rebalance", help="force an ETF sleeve rebalance now")
     sub.add_parser("discord-test", help="post test messages to the realtime and updates channels")
     sub.add_parser("status", help="show paper account")
+    pl = sub.add_parser("paper-live", help="internal paper trading on live Robinhood data; Discord summaries")
+    pl.add_argument("--once", action="store_true", help="run a single cycle and exit")
+    pl.add_argument("--status", action="store_true", help="print stored paper account and exit")
+    pl.add_argument("--reset", action="store_true", help="discard stored paper account and restart at start cash")
     rl = sub.add_parser("rh-login", help="sign in to Robinhood MCP in your browser (OAuth); saves tokens to .env")
     rl.add_argument("--manual", action="store_true", help="browser is on another machine: paste the redirect URL back")
     rr = sub.add_parser("rh-research", help="live quote + analyst consensus + earnings for symbols (read-only)")
@@ -33,6 +37,18 @@ def main() -> None:
     rc.add_argument("--args", default="{}", help="JSON arguments")
     a = ap.parse_args()
     s = Settings.from_env()
+
+    if a.cmd == "paper-live":
+        from . import paper_live
+        if a.status:
+            print(paper_live.status_text())
+            return
+        bot = paper_live.build()
+        if a.reset:
+            bot.s = paper_live.new_state(bot.cfg, bot.clock())
+            bot.store.save(bot.s)
+        print(bot.step()) if a.once else bot.run_forever()
+        return
 
     if a.cmd == "rh-quant":
         from . import gaming_pc

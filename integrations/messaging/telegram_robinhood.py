@@ -23,6 +23,7 @@ HELP = (
     "/portfolio - balances, allocation %, growth, concentration, live quant\n"
     "/positions - same report\n"
     "/review - full analysis of every holding (all accounts); /review NVDA VOO for specific symbols\n"
+    "/paper - internal paper-trading account status\n"
     "/buy NVDA $5 | /buy NVDA 0.02 | /buy NVDA 0.02 @ 215.5\n"
     "/sell NVDA 0.02\n"
     "/confirm CODE - submit the proposed order\n"
@@ -102,6 +103,16 @@ async def cmd_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _run(update, _review, syms)
 
 
+def _paper():
+    from agentic_trader import paper_live
+    return paper_live.status_text()
+
+
+async def cmd_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await _guard(update):
+        await _run(update, _paper)
+
+
 def _order(text, user_id):
     from agentic_trader.robinhood import orders
     return orders.propose(text, user_id)
@@ -143,6 +154,7 @@ def register(application, fallback):
     application.add_handler(CommandHandler(["portfolio", "positions"], cmd_portfolio, filters=ALL))
     application.add_handler(CommandHandler(["buy", "sell"], cmd_order, filters=ALL))
     application.add_handler(CommandHandler("review", cmd_review, filters=ALL))
+    application.add_handler(CommandHandler("paper", cmd_paper, filters=ALL))
     application.add_handler(CommandHandler("confirm", cmd_confirm, filters=ALL))
     application.add_handler(CommandHandler("myid", cmd_myid, filters=ALL))
 
