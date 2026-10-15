@@ -1,0 +1,6 @@
+numpy>=1.26
+pandas>=2.2
+requests>=2.32
+yfinance>=0.2.40      # optional: free delayed market data
+pytest>=8
+# cupy-cuda12x        # optional: GPU acceleration on the NVIDIA gaming PC

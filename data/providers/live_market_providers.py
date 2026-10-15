@@ -15,6 +15,9 @@ if str(ROOT_DIR) not in sys.path:
 from data.providers.live.public_topic_news_backend import (
     PublicTopicNewsBackend
 )
+from data.providers.live.robinhood_backend import (
+    RobinhoodBackend
+)
 from data.providers.live.firecrawl_backend import (
     FirecrawlBackend
 )
@@ -193,7 +196,8 @@ class LiveMarketProvider:
     ):
 
         self.backends = [
-            PublicTopicNewsBackend()
+            PublicTopicNewsBackend(),
+            RobinhoodBackend()
         ]
 
         self.firecrawl = (
