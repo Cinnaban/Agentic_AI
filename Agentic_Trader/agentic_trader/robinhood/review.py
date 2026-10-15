@@ -67,7 +67,7 @@ def _beta(c, bench):
     if n < 60:
         return None
     r, m = np.diff(np.log(c[-n:])), np.diff(np.log(bench[-n:]))
-    var = np.var(m)
+    var = np.var(m, ddof=1)
     return float(np.cov(r, m)[0, 1] / var) if var > 0 else None
 
 
