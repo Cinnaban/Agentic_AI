@@ -124,7 +124,8 @@ class FinancialTableFormatter:
     
     def build_sectioned_tables(
         self,
-        metrics
+        metrics,
+        evidence=None
     ):
         sections = []
 
@@ -162,7 +163,8 @@ class FinancialTableFormatter:
 
                 if category == "quantitative_models":
                     review = QuantSummaryReviewer().build(
-                        metrics
+                        metrics,
+                        evidence
                     )
 
                     if review:

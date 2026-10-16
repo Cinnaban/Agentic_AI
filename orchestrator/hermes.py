@@ -105,6 +105,9 @@ from orchestrator.financial_metric_builder import (
 from orchestrator.financial_table_formatter import (
     FinancialTableFormatter
 )
+from orchestrator.quant_evidence_builder import (
+    QuantEvidenceBuilder
+)
 class Hermes:
 
     def __init__(self):
@@ -162,6 +165,21 @@ class Hermes:
 
         self.live_market_provider = (
             LiveMarketProvider()
+        )
+        self.quant_evidence_builder = (
+            QuantEvidenceBuilder(
+                web_fn=lambda company: (
+                    self.live_market_provider.get_context(
+                        company=company,
+                        query=(
+                            f"{company.get('ticker') or company.get('name')} "
+                            "stock news latest"
+                        )
+                    )
+                    if isinstance(company, dict)
+                    else {}
+                )
+            )
         )
 
         self.current_topic_agent = (
@@ -3136,10 +3154,27 @@ class Hermes:
             )
         )
 
+        quant_evidence = {}
+
+        if financial_metrics:
+            try:
+                quant_evidence = (
+                    self.quant_evidence_builder
+                    .build(
+                        execution_results
+                    )
+                )
+            except Exception as exc:
+                print(
+                    "QUANT CROSS-REFERENCE FAILED:",
+                    repr(exc)
+                )
+
         financial_table = (
            self.financial_table_formatter
         .build_sectioned_tables(
-            financial_metrics
+            financial_metrics,
+            quant_evidence
         )
             if financial_metrics
             else ""
