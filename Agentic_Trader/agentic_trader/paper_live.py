@@ -36,7 +36,8 @@ class Cfg:
         load_env_files()
         self.start_cash = float(os.getenv("PAPER_START_CASH", "5000"))
         self.core_pct = float(os.getenv("PAPER_CORE_PCT", "0.60"))
-        self.day_pct = float(os.getenv("PAPER_DAY_PCT", "0.25"))
+        # day-trading sleeve is held within 20-40% of equity
+        self.day_pct = min(0.40, max(0.20, float(os.getenv("PAPER_DAY_PCT", "0.30"))))
         self.etfs = _csv("PAPER_ETFS", "VOO,QQQ,SCHD,VXUS")
         self.day_symbols = _csv("PAPER_DAY_SYMBOLS", "NVDA,AAPL,AMD,TSLA,MSFT,META")
         self.hedge = os.getenv("PAPER_HEDGE_SYMBOL", "SH").upper()
@@ -333,7 +334,8 @@ class PaperTrader:
         open_n = sum(1 for p in self.s["positions"].values() if p["sleeve"] == "day")
         budget = equity * c.day_pct - sum(p["qty"] * (quotes.get(s, {}).get("price") or p["avg"])
                                           for s, p in self.s["positions"].items() if p["sleeve"] == "day")
-        ranked = sorted(((m.get("signal_score") or -9, s, m) for s, m in sig.items()
+        sentiment = self._sentiment(c.day_symbols)
+        ranked = sorted(((self.day_rank(m, sentiment.get(s)), s, m) for s, m in sig.items()
                          if isinstance(m, dict) and "error" not in m and s in c.day_symbols), reverse=True)
         for score, sym, m in ranked:
             if open_n >= c.max_day_positions or budget < c.min_trade:
@@ -348,6 +350,33 @@ class PaperTrader:
             if self.buy(sym, size, "day", f"signal {score:+.2f}, RSI {m.get('rsi14') or 0:.0f}, vol {vol:.0%}", q, t):
                 open_n += 1
                 budget -= size
+
+    # ---- main cycle
+    def _sentiment(self, symbols):
+        """Analyst buy-minus-sell share per symbol in [-1, 1]; missing data is simply omitted."""
+        try:
+            ratings = self.data.ratings(list(symbols))
+        except Exception as exc:
+            print("[paper] sentiment unavailable:", repr(exc))
+            return {}
+        out = {}
+        for sym, r in (ratings or {}).items():
+            b, h, s = ((r or {}).get(k) or 0 for k in ("num_buy_ratings", "num_hold_ratings", "num_sell_ratings"))
+            if b + h + s:
+                out[sym] = (b - s) / (b + h + s)
+        return out
+
+    @staticmethod
+    def day_rank(m, sentiment=None):
+        """Momentum/mean-reversion score, tilted by the walk-forward regression's out-of-sample IC
+        (trust the model only as far as it has predicted) and by analyst sentiment."""
+        score = m.get("signal_score") or -9
+        ic = (m.get("scorecard") or {}).get("ic")
+        if ic is not None:
+            score += 0.10 * max(-1.0, min(1.0, ic / 0.2))
+        if sentiment is not None:
+            score += 0.10 * sentiment
+        return score
 
     # ---- main cycle
     def step(self):
@@ -379,10 +408,23 @@ class PaperTrader:
         if phase == "open":
             self.maybe_post_half_hour(t, quotes, equity)
         elif phase == "close" and not day["eod_posted"]:
-            self.n.post("updates", self.summary(t, quotes, equity, daily=True))
+            self.n.post("updates", self.summary(t, quotes, equity, daily=True), **self._session_chart_kwargs(t, equity))
             day["eod_posted"] = True
         self.store.save(self.s)
         return phase
+
+    def _session_chart_kwargs(self, t, equity):
+        """Best-effort half-hour chart of the portfolio vs SPY/DIA; the summary posts without it on any failure."""
+        try:
+            from . import session_chart
+            syms = list(session_chart.BENCHMARKS.values())
+            bars = self.data.bars(syms, "30minute", 2)
+            prev = {s: (q or {}).get("prev_close") for s, q in self.data.quotes(syms).items()}
+            path = session_chart.build_chart(self.s["equity_log"], self.s["day"]["open_equity"], bars, prev, t.date())
+            return {"image_path": path} if path else {}
+        except Exception as exc:
+            print("[paper] session chart failed:", repr(exc))
+            return {}
 
     def maybe_post_half_hour(self, t, quotes, equity):
         slot = t.replace(minute=0 if t.minute < 30 else 30, second=0, microsecond=0)
@@ -457,7 +499,9 @@ class PaperTrader:
             wins = [x for x in closed if x["realized"] > 0]
             L += ["", "Day stats:",
                   f"Closed trades {len(closed)} | wins {len(wins)} | win rate {len(wins) / len(closed):.0%}" if closed
-                  else "No closed trades today"]
+                  else "No closed trades today",
+                  f"Daily goal +10%: {'met' if day_pl / s['day']['open_equity'] >= 0.10 else 'not met'} "
+                  f"(today {day_pl / s['day']['open_equity']:+.2%})"]
         limited = self.pdt_limited()
         L += ["", "Day-trade rule:",
               (f"Limited: {self.day_trades_5d(t)}/{cfg.pdt_max} day trades used (5 business days)" if limited else

@@ -1,3 +1,6 @@
+from orchestrator.quant_summary_reviewer import QuantSummaryReviewer
+
+
 class FinancialTableFormatter:
                 
    
@@ -152,9 +155,21 @@ class FinancialTableFormatter:
             )
 
             if table:
-                sections.append(
+                section = (
                     f"**{title}**\n\n"
                     + table
+                )
+
+                if category == "quantitative_models":
+                    review = QuantSummaryReviewer().build(
+                        metrics
+                    )
+
+                    if review:
+                        section += "\n\n" + review
+
+                sections.append(
+                    section
                 )
 
         return "\n\n".join(

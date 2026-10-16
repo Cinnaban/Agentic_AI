@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
+from pathlib import Path
 
 import requests
 
@@ -22,7 +23,7 @@ class DiscordNotifier:
     def live(self) -> bool:
         return bool(self.token)
 
-    def post(self, channel: str, text: str) -> bool:
+    def post(self, channel: str, text: str, image_path: str | None = None) -> bool:
         self.sent.append((channel, text))
         cid = self.channels.get(channel, "")
         if not (self.token and cid):
@@ -40,7 +41,22 @@ class DiscordNotifier:
                     self._outbox(channel, chunk)
                     return False
                 break
+        if image_path:
+            return self._post_image(cid, image_path, channel)
         return True
+
+    def _post_image(self, cid: str, image_path: str, channel: str) -> bool:
+        try:
+            with open(image_path, "rb") as fh:
+                r = requests.post(API.format(cid=cid), timeout=30, headers={"Authorization": f"Bot {self.token}"},
+                                  files={"files[0]": (Path(image_path).name, fh, "image/png")})
+            if r.status_code < 300:
+                return True
+            print(f"[discord] chart upload {r.status_code}: {r.text[:200]}")
+        except Exception as exc:
+            print("[discord] chart upload failed:", repr(exc))
+        self._outbox(channel, f"(chart not sent: {image_path})")
+        return False
 
     def _outbox(self, channel: str, text: str) -> None:
         STATE_DIR.mkdir(parents=True, exist_ok=True)

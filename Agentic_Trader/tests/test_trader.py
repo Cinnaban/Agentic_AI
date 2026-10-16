@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -226,7 +228,7 @@ def _pt(tmp_path, quotes_fn, analyze_fn, clock):
     class Note:
         sent = []
 
-        def post(self, ch, text):
+        def post(self, ch, text, image_path=None):
             self.sent.append((ch, text))
 
     cfg = pl.Cfg()
@@ -329,3 +331,26 @@ def test_pdt_rule_2026(tmp_path):
     assert tr.pdt_limited()
     tr.buy("AAPL", 100, "day", "x", q, t)
     assert not tr.sell("AAPL", 1, "x", q, t) and tr.pdt_blocked == 1
+
+
+def test_session_chart_half_hour_series_and_png(tmp_path):
+    from datetime import date, datetime
+    from agentic_trader import session_chart as sc
+    day = date(2026, 10, 16)
+    slots = sc.session_slots(day)
+    assert len(slots) == 14 and slots[0].strftime("%H:%M") == "09:30" and slots[-1].strftime("%H:%M") == "16:00"
+    log = [[slots[0].isoformat(), 5000.0], [slots[2].isoformat(), 5050.0], [slots[-1].isoformat(), 5100.0]]
+    port = sc.portfolio_series(log, 5000.0, slots)
+    assert port[0] == 0 and abs(port[2] - 0.01) < 1e-9 and abs(port[-1] - 0.02) < 1e-9
+    bars = [{"ts": s, "open": 100.0, "close": 101.0} for s in slots[:-1]]
+    bench = sc.benchmark_series(bars, 100.0, slots)
+    assert bench[0] == 0 and abs(bench[-1] - 0.01) < 1e-9
+    png = sc.build_chart(log, 5000.0, {"SPY": bars, "DIA": bars}, {"SPY": 100.0, "DIA": 100.0}, day, tmp_path)
+    assert png and Path(png).stat().st_size > 1000
+
+
+def test_day_rank_blends_regression_and_sentiment():
+    from agentic_trader.paper_live import PaperTrader
+    base = {"signal_score": 0.3}
+    good = {"signal_score": 0.3, "scorecard": {"ic": 0.2}}
+    assert PaperTrader.day_rank(good, 1.0) > PaperTrader.day_rank(base) > PaperTrader.day_rank(base, -1.0)
