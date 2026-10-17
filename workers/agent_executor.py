@@ -327,17 +327,6 @@ class AgentExecutor:
                     "MULTI-COMPANY RISK COMPLETE:",
                     ticker
                 )
-
-                risk_result = (
-                    self.risk_agent
-                    .analyze(
-                        company=company,
-                        quant_data=company_quant,
-                        reconciliation_data=(
-                            reconciliation_result
-                        )
-                    )
-                )
            
             if market_context is None:
 
@@ -357,6 +346,17 @@ class AgentExecutor:
             
             
 
+            sentiment_result = None
+
+            if work_package.required_agents.get("sentiment", False):
+                try:
+                    sentiment_result = self.sentiment_agent.analyze(
+                        company=company,
+                        market_context=market_context
+                    )
+                except Exception as sentiment_error:
+                    print("MULTI-COMPANY SENTIMENT FAILED:", ticker, sentiment_error)
+
             company_results[
                 ticker
             ] = {
@@ -370,8 +370,11 @@ class AgentExecutor:
                     research_result,
 
                 "sentiment":
-                    None,
-                    
+                    sentiment_result,
+
+                "market_context":
+                    market_context,
+
                 "signal_reconciliation":
                     reconciliation_result,
 
@@ -408,6 +411,9 @@ class AgentExecutor:
 
             "quant":
                 quant_result,
+
+            "quant_package":
+                quant_by_ticker,
 
             "comparison_plan":
                 comparison_plan

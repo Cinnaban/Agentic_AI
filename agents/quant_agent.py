@@ -1,5 +1,6 @@
 import sys
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -20,6 +21,54 @@ class QuantAgent:
         self.freshness_detector = FreshnessDetector()
 
     def analyze(
+        self,
+        work_package
+    ):
+        companies = getattr(work_package, "companies", [])
+        if isinstance(companies, list) and len(companies) > 1:
+            return self._analyze_each(work_package, companies)
+        return self._analyze_single(work_package)
+
+    def _analyze_each(self, work_package, companies):
+        # One cached job per ticker, merged into a single package.
+        results = []
+        failed = []
+        for company in companies:
+            if not isinstance(company, dict) or not company.get("ticker"):
+                continue
+            sub_package = replace(work_package, companies=[company])
+            outcome = self._analyze_single(sub_package)
+            if not isinstance(outcome, dict):
+                continue
+            results.extend(outcome.get("results") or [])
+            failed.extend(outcome.get("failed_companies") or [])
+            if outcome.get("status") == "failed" and not outcome.get(
+                "failed_companies"
+            ):
+                failed.append({
+                    "company": company,
+                    "ticker": company.get("ticker"),
+                    "error": outcome.get("error", "Quant job failed")
+                })
+        if not results and failed:
+            return {
+                "job_id": work_package.job_id,
+                "worker": self.bridge.worker_name,
+                "status": "failed",
+                "results": [],
+                "failed_companies": failed,
+                "error": "All Gaming PC quant requests failed: "
+                + str(failed[0].get("error"))
+            }
+        return {
+            "job_id": work_package.job_id,
+            "worker": self.bridge.worker_name,
+            "status": "partial" if failed else "completed",
+            "results": results,
+            "failed_companies": failed
+        }
+
+    def _analyze_single(
         self,
         work_package
     ):

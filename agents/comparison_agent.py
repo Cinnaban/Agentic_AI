@@ -65,7 +65,14 @@ COMPANIES:
 COMPANY EVIDENCE:
 
 {json.dumps(
-    company_results,
+    {
+        ticker: {
+            key: value
+            for key, value in result.items()
+            if key != "market_context"
+        } if isinstance(result, dict) else result
+        for ticker, result in company_results.items()
+    },
     indent=2,
     default=str
 )}

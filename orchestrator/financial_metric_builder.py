@@ -112,6 +112,12 @@ class FinancialMetricBuilder:
             )
 
             if (
+                not quant_results
+                and isinstance(quant.get("analysis"), dict)
+            ):
+                quant_results = [quant]
+
+            if (
                 isinstance(
                     quant_results,
                     list
