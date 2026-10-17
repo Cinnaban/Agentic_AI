@@ -1,3 +1,6 @@
+import re
+
+
 class ComparisonIntent:
 
     KEYWORDS = (
@@ -46,6 +49,15 @@ class ComparisonIntent:
             .lower()
         )
 
+
+        if re.search(
+            r"\bvs\b\.?|\bversus\b|\bagainst\b|\bor\b",
+            normalized
+        ) and any(
+            isinstance(c, dict) and c.get("ticker")
+            for c in companies
+        ):
+            return True
 
         return any(
             keyword in normalized

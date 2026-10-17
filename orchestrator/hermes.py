@@ -544,7 +544,9 @@ class Hermes:
             )
         )
 
-        if is_explicit_security_evaluation:
+        if self.comparison_intent.is_comparison(message, companies):
+            intent = "comparison"
+        elif is_explicit_security_evaluation:
             intent = "evaluation"
         elif is_explicit_security_analysis:
             intent = "analysis"
@@ -625,6 +627,10 @@ class Hermes:
 
         if not isinstance(assignment_result, dict):
             assignment_result = {}
+
+        if intent == "comparison":
+            for agent_name in ("research", "quant", "sentiment"):
+                assignment_result[agent_name] = True
 
         if (
             is_explicit_security_evaluation

@@ -197,6 +197,55 @@ class CompanyDetectionAgent:
                     tickers
                 )
             )
+    @classmethod
+    def _add_lookup_companies(
+        cls,
+        message,
+        lookup_queries,
+        lookup_candidates,
+        explicit_tickers,
+        companies
+    ):
+        companies = list(companies)
+        if len(lookup_queries) < 2 or not re.search(
+            r"\b(?:compare|comparison|versus|vs\.?|against|or)\b",
+            str(message),
+            re.IGNORECASE
+        ):
+            return companies
+
+        for query in lookup_queries:
+            if query.upper() in explicit_tickers:
+                continue
+            if any(
+                cls._company_is_mentioned(item["name"], query)
+                for item in companies
+            ):
+                continue
+            matches = [
+                item
+                for item in lookup_candidates
+                if item.get("searched_name") == query
+                and item.get("quote_type") in {"EQUITY", "ETF"}
+                and cls._normalized_name_terms(query).issubset(
+                    cls._normalized_name_terms(item.get("name"))
+                )
+            ]
+            if not matches:
+                continue
+            best = matches[0]
+            if best["symbol"] in {item.get("ticker") for item in companies}:
+                continue
+            companies.append({
+                "name": best["name"],
+                "ticker": best["symbol"],
+                "entity_type": (
+                    "etf" if best.get("quote_type") == "ETF" else "stock"
+                ),
+                "ticker_source": "Yahoo Finance company search"
+            })
+        return companies
+
     def analyze(
         self,
         message
@@ -444,10 +493,17 @@ class CompanyDetectionAgent:
             )
             if lookup_fallback:
                 return lookup_fallback
+            fallback_companies = self._add_lookup_companies(
+                message,
+                lookup_queries,
+                lookup_candidates,
+                explicit_tickers,
+                explicit_entities
+            )
             return {
-                "is_company_request": bool(explicit_entities),
+                "is_company_request": bool(fallback_companies),
                 "intent": "general_information",
-                "companies": explicit_entities
+                "companies": fallback_companies
             }
 
         model_response = response.get(
@@ -463,10 +519,17 @@ class CompanyDetectionAgent:
             )
             if lookup_fallback:
                 return lookup_fallback
+            fallback_companies = self._add_lookup_companies(
+                message,
+                lookup_queries,
+                lookup_candidates,
+                explicit_tickers,
+                explicit_entities
+            )
             return {
-                "is_company_request": bool(explicit_entities),
+                "is_company_request": bool(fallback_companies),
                 "intent": "general_information",
-                "companies": explicit_entities
+                "companies": fallback_companies
             }
 
         print(model_response)
@@ -730,6 +793,14 @@ class CompanyDetectionAgent:
                     }
                 )
 
+            merged_companies = self._add_lookup_companies(
+                message,
+                lookup_queries,
+                lookup_candidates,
+                explicit_tickers,
+                merged_companies
+            )
+
             intent = result.get(
                 "intent",
                 "general_information"
@@ -754,7 +825,13 @@ class CompanyDetectionAgent:
             )
 
 
-            fallback_entities = explicit_entities
+            fallback_entities = self._add_lookup_companies(
+                message,
+                lookup_queries,
+                lookup_candidates,
+                explicit_tickers,
+                explicit_entities
+            )
             lookup_fallback = self._listing_fallback(
                 message,
                 lookup_queries,
