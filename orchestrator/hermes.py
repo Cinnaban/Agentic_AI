@@ -105,6 +105,9 @@ from orchestrator.financial_metric_builder import (
 from orchestrator.financial_table_formatter import (
     FinancialTableFormatter
 )
+from orchestrator.quant_comparison_reviewer import (
+    QuantComparisonReviewer
+)
 from orchestrator.quant_evidence_builder import (
     QuantEvidenceBuilder
 )
@@ -165,6 +168,9 @@ class Hermes:
 
         self.live_market_provider = (
             LiveMarketProvider()
+        )
+        self.quant_comparison_reviewer = (
+            QuantComparisonReviewer()
         )
         self.quant_evidence_builder = (
             QuantEvidenceBuilder(
@@ -2217,10 +2223,33 @@ class Hermes:
                     )
                 )
                 
+                quant_comparison = ""
+
+                try:
+                    evidence_by_ticker = (
+                        self._build_comparison_evidence(
+                            company_results
+                        )
+                    )
+                    quant_comparison = (
+                        self.quant_comparison_reviewer
+                        .build(
+                            company_metrics,
+                            evidence_by_ticker
+                        )
+                    )
+                except Exception as exc:
+                    print(
+                        "QUANT COMPARISON FAILED:",
+                        repr(exc)
+                    )
+
                 comparison_result = (
                     self.comparison_agent
                     .analyze(
                         message=message,
+
+                        quant_comparison=quant_comparison,
 
                         companies=(
                             work_package.companies
@@ -2269,6 +2298,11 @@ class Hermes:
                     comparison_response = (
                         "Financial Comparison\n\n"
                         + financial_table
+                        + (
+                            "\n\n" + quant_comparison
+                            if quant_comparison
+                            else ""
+                        )
                         + "\n\n"
                         + comparison_response
                     )
@@ -3137,6 +3171,38 @@ class Hermes:
             )
         )
 
+
+    def _build_comparison_evidence(
+        self,
+        company_results
+    ):
+        from concurrent.futures import ThreadPoolExecutor
+
+        def gather(item):
+            ticker, result = item
+            try:
+                return ticker, self.quant_evidence_builder.build(
+                    result
+                )
+            except Exception as exc:
+                print(
+                    "QUANT CROSS-REFERENCE FAILED:",
+                    ticker,
+                    repr(exc)
+                )
+                return ticker, {}
+
+        items = [
+            (ticker, result)
+            for ticker, result in company_results.items()
+            if isinstance(result, dict)
+        ]
+        if not items:
+            return {}
+        with ThreadPoolExecutor(
+            max_workers=min(4, len(items))
+        ) as pool:
+            return dict(pool.map(gather, items))
 
     def _build_company_response(
         self,

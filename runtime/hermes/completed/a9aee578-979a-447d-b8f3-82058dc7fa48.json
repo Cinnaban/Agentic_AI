@@ -1,0 +1,92 @@
+{
+  "job_id": "a9aee578-979a-447d-b8f3-82058dc7fa48",
+  "status": "completed",
+  "created_at": "2026-10-17T13:18:36.908095",
+  "updated_at": "2026-10-17T13:22:52.129467",
+  "data": {
+    "message": "Compare MU, WDC, STX, and P",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "MU",
+        "ticker": "MU",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      },
+      {
+        "name": "WDC",
+        "ticker": "WDC",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Computer Hardware",
+          "sector": "Technology"
+        },
+        "industry": "Computer Hardware",
+        "sector": "Technology"
+      },
+      {
+        "name": "STX",
+        "ticker": "STX",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Computer Hardware",
+          "sector": "Technology"
+        },
+        "industry": "Computer Hardware",
+        "sector": "Technology"
+      },
+      {
+        "name": "P",
+        "ticker": "P",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Computer Hardware",
+          "sector": "Technology"
+        },
+        "industry": "Computer Hardware",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "quant": true,
+      "sentiment": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "I do not have enough evidence to directly compare Micron (MU), Western Digital (WDC), Seagate Technology (STX), and P (the company you asked about) based on the specific dimensions you requested. The company evidence I have only includes financial metrics for P, with no comparable numbers for the other companies. The comparison dimensions like overview, business model, competitive position, growth, profitability, financial strength, valuation, and risk also cannot be addressed as I do not have any evidence about these topics for MU, WDC, or STX. The comparison table contains some metrics for all four companies, but many key cells are missing, so it is not sufficient to compare across all dimensions. I would need full financials, analyst reports, and news to do the type of detailed comparison your question requires. Let me know if you have any other questions!"
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": null,
+    "final_status": "completed"
+  }
+}

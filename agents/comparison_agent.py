@@ -27,7 +27,8 @@ class ComparisonAgent:
         company_results,
         comparison_plan=None,
         custom_formula=None,
-        financial_table=None
+        financial_table=None,
+        quant_comparison=None
     ):
 
         if not isinstance(
@@ -233,6 +234,18 @@ The formula supplements the evidence.
 
 FINANCIAL COMPARISON TABLE:
 {financial_table or "Not available"}
+
+QUANT AND CROSS-REFERENCE COMPARISON (computed from every
+ticker's Gaming PC quant values plus Robinhood and Firecrawl
+evidence):
+
+{quant_comparison or "Not available"}
+
+Build your answer around this comparison. Explain how the
+quant values and cross-referenced evidence differ between
+EVERY ticker, not just one, and draw a summary on which
+shows the stronger and weaker combined signal and why.
+Never base the comparison on a single ticker's filings.
 
 TABLE RULES:
 - The Financial Comparison Table is
