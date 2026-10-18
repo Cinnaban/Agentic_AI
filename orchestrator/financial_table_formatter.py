@@ -1,4 +1,5 @@
 from orchestrator.quant_summary_reviewer import QuantSummaryReviewer
+from orchestrator.table_format import table
 
 
 class FinancialTableFormatter:
@@ -200,38 +201,20 @@ class FinancialTableFormatter:
         metrics
     ):
         rows = [
-            "| Metric | Value | Source |",
-            "|---|---:|---|"
+            [
+                metric.get("label", ""),
+                self.format_value(metric),
+                self.format_source(metric.get("source", ""))
+            ]
+            for metric in metrics.values()
         ]
 
-        for metric in metrics.values():
-
-            label = metric.get(
-                "label",
-                ""
-            )
-
-            display = self.format_value(
-                metric
-            )
-
-            source = self.format_source(
-                metric.get(
-                    "source",
-                    ""
-                )
-            )      
-
-            rows.append(
-                f"| {label} | "
-                f"{display} | "
-                f"{source} |"
-            )
-
-        return "\n".join(
-            rows
+        return table(
+            ["Metric", "Value", "Source"],
+            rows,
+            aligns="lrl"
         )
-    
+
     def build_comparison_table(
             self,
             company_metrics

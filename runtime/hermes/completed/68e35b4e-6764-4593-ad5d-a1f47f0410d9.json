@@ -1,0 +1,83 @@
+{
+  "job_id": "68e35b4e-6764-4593-ad5d-a1f47f0410d9",
+  "status": "completed",
+  "created_at": "2026-10-17T15:50:42.351834",
+  "updated_at": "2026-10-17T15:56:32.400348",
+  "data": {
+    "message": "Compare TGT, WMT and AMZN",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "TGT",
+        "ticker": "TGT",
+        "entity_type": "stock",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Discount Stores",
+          "sector": "Consumer Defensive"
+        },
+        "industry": "Discount Stores",
+        "sector": "Consumer Defensive"
+      },
+      {
+        "name": "WMT",
+        "ticker": "WMT",
+        "entity_type": "stock",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Discount Stores",
+          "sector": "Consumer Defensive"
+        },
+        "industry": "Discount Stores",
+        "sector": "Consumer Defensive"
+      },
+      {
+        "name": "AMZN",
+        "ticker": "AMZN",
+        "entity_type": "stock",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Internet Retail",
+          "sector": "Consumer Cyclical"
+        },
+        "industry": "Internet Retail",
+        "sector": "Consumer Cyclical"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the requested comparison dimensions and the provided Financial Comparison Table, here is a side-by-side comparison of TGT, WMT, and AMZN:\n\nGrowth:\nWMT has the strongest 30-day (+9.5%) and 90-day (+17.4%) forecasts, while AMZN's are the most negative (-6.3% and -3.6%). TGT's forecasts are in between. The models predict WMT and AMZN moving, but TGT to be flat. \n\nProfitability:\nWMT's highest P/E and highest operating margins make it the most profitable. TGT's are weaker, and AMZN's are much higher but with huge sales. \n\nFinancial Strength:\nAMZN has the most cash and equity. WMT and TGT are less financially strong but still solid. TGT's stability is weakest.\n\nValuation:\nAMZN trades at the highest valuation. WMT is lower but still high. TGT is the cheapest.\n\nRisk:\nWMT has the lowest risk beta and most positive forecast consensus. AMZN's is most volatile and negative. TGT's is in between.\n\nCompetitive Position:\nAMZN and WMT have the strongest market positions and momentum. TGT's is weaker but still good.\n\nThe combination of quantitative forecasts, cross-referenced independent signals, and financial metrics shows WMT has the strongest combined positive signal, while AMZN is the weakest on net. TGT's signals are in between. \n\nThe live model's predictive edge is small, so take its recommendations with caution. But the cross-referenced independent evidence backs WMT being the strongest and AMZN the weakest.\n\nIn conclusion, based on the combined quantitative predictions, cross-referenced company evidence, and financial metrics, WMT appears to have the strongest momentum, profitability, and competitive position, while AMZN is the weakest. TGT's signals fall in between WMT and AMZN. The cross-referenced independent signals support the live model's positive call on WMT and cautious view of AMZN."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": null,
+    "final_status": "completed"
+  }
+}

@@ -42,7 +42,9 @@ class QuantSummaryReviewTests(unittest.TestCase):
         quant = out.index("**Quantitative Models**")
         review = out.index("**Quant Summary Review**")
         self.assertGreater(review, quant)
-        self.assertLess(out.index("| Financial Strength | Poor | Quant |"), review)
+        self.assertIn("```", out)
+        self.assertNotIn("| Metric |", out)
+        self.assertLess(out.index("Financial Strength"), review)
         self.assertNotIn("**Reported Financials**", out[quant:review])
 
     def test_aligned_bullish_has_no_conflict_line(self):

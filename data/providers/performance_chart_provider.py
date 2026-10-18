@@ -289,7 +289,14 @@ class PerformanceChartProvider:
             "industry_error": industry_error,
             "caption": caption,
             "path": file_path,
-            "source": "Yahoo Finance adjusted daily prices"
+            "source": "Yahoo Finance adjusted daily prices",
+            "asset_return_pct": float(performance[ticker].iloc[-1]),
+            "benchmark_return_pct": float(
+                performance[f"S&P 500 ({benchmark_ticker})"].iloc[-1]
+            ),
+            "benchmark_label": f"S&P 500 ({benchmark_ticker})",
+            "start_date": performance.index[0].date().isoformat(),
+            "end_date": performance.index[-1].date().isoformat()
         }
 
     def _find_industry_peers(self, ticker, industry):

@@ -2501,7 +2501,7 @@ class Hermes:
                     response_text += (
                         "\n\n"
                         f"Quality Review Confidence: "
-                        f"{quality_confidence}"
+                        f"{self._display_confidence(quality_confidence, quality_context)}"
                     )
                                         
                     issues = quality_review.get(
@@ -3172,6 +3172,24 @@ class Hermes:
         )
 
 
+    def _display_confidence(self, llm_confidence, quality_context):
+        scores = []
+        if isinstance(llm_confidence, (int, float)):
+            scores.append(int(llm_confidence))
+        try:
+            heuristic = self.quality_manager._build_fallback_review(
+                quality_context
+            )
+            scores.append(int(heuristic.get("confidence", 0)))
+        except Exception as exc:
+            print("CONFIDENCE HEURISTIC FAILED:", repr(exc))
+        best = max(scores) if scores else 0
+        print("QUALITY CONFIDENCE (llm, best):", llm_confidence, best)
+        final = "As Per Review" if best < 70 else str(min(best, 100))
+        if isinstance(llm_confidence, (int, float)):
+            final += f" (Reviewer score: {int(llm_confidence)})"
+        return final
+
     def _build_comparison_evidence(
         self,
         company_results
@@ -3318,9 +3336,9 @@ class Hermes:
             sections.append(etf_section)
             
         if evidence_section:
-            sections.append(
-                evidence_section
-            )
+            print()
+            print("EVIDENCE AVAILABILITY (debug only):")
+            print(evidence_section)
 
         if research.strip():
             sections.append(
@@ -3332,16 +3350,6 @@ class Hermes:
                 challenger_section
             )
         
-        if evidence_section:
-            sections.append(
-                evidence_section
-            )
-            
-        if challenger_section:
-            sections.append(
-                challenger_section
-            )
-
         if social_discussion_section:
 
             sections.append(
@@ -3589,6 +3597,7 @@ class Hermes:
         status_lines = [
             "Performance charts (trailing 1 year):"
         ]
+        evaluation_lines = []
         companies = getattr(work_package, "companies", [])
         if not isinstance(companies, list):
             return
@@ -3624,6 +3633,9 @@ class Hermes:
                 status_lines.append(
                     f"- {ticker}: chart attached."
                 )
+                evaluation = self._evaluate_vs_sp500(ticker, chart)
+                if evaluation:
+                    evaluation_lines.append(evaluation)
                 if (
                     chart.get("industry_status") == "unavailable"
                     and chart.get("industry_error")
@@ -3649,11 +3661,52 @@ class Hermes:
             response["attachments"] = attachments
         response_text = response.get("response")
         if isinstance(response_text, str) and response_text.strip():
+            evaluation_text = (
+                "**Performance vs S&P 500 (trailing 1 year):**\n"
+                + "\n".join(evaluation_lines)
+                + "\n\n"
+                if evaluation_lines
+                else ""
+            )
             response["response"] = (
                 response_text.rstrip()
                 + "\n\n"
+                + evaluation_text
                 + "\n".join(status_lines)
             )
+
+    @staticmethod
+    def _evaluate_vs_sp500(ticker, chart):
+        asset = chart.get("asset_return_pct")
+        bench = chart.get("benchmark_return_pct")
+        if not isinstance(asset, (int, float)) or not isinstance(
+            bench, (int, float)
+        ):
+            return ""
+        gap = asset - bench
+        label = chart.get("benchmark_label") or "S&P 500"
+        if abs(gap) < 1:
+            verdict = "roughly in line with the index"
+        elif gap > 0:
+            verdict = (
+                f"outperformed by {gap:.1f} percentage points"
+                + (
+                    f" ({asset / bench:.1f}x the index return)"
+                    if bench > 0 and asset > 0 and asset / bench >= 1.5
+                    else ""
+                )
+            )
+        else:
+            verdict = f"underperformed by {abs(gap):.1f} percentage points"
+        note = ""
+        if asset < 0 <= bench:
+            note = " It lost value while the index gained."
+        elif gap > 0 and asset > 0:
+            note = " Higher returns usually come with higher volatility."
+        return (
+            f"- {ticker} returned {asset:+.1f}% versus {bench:+.1f}% for "
+            f"{label} - {verdict}.{note}"
+        )
 
     def _add_portfolio_performance_charts(self, response, holdings):
         try:
