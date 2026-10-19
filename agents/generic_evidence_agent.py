@@ -100,6 +100,15 @@ You are answering a general informational question.
 OVERRIDING ACCURACY RULES:
 
 - Answer the exact subject and question in USER QUESTION.
+- Answer about the subject itself (the place, company, person,
+  product, or topic). Never describe the websites or sources as
+  if they were the subject.
+- If USER QUESTION asks for the latest, recent, or current
+  developments, lead with the most recent dated developments in
+  the supplied sources and state their dates. Do not substitute a
+  generic company or topic overview.
+- A trailing "(Subject: ...)" line only names the subject; it is
+  not part of the question.
 - Do not reinterpret it as a question about a subreddit,
   community, discussion, or another topic unless the user
   explicitly asks about that topic.

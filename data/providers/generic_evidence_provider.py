@@ -47,7 +47,12 @@ class GenericEvidenceProvider:
         "too", "under", "until", "up", "us", "very", "was", "we", "were",
         "what", "when", "where", "which", "while", "who", "why", "will",
         "with", "would", "you", "your", "compare", "comparison", "different",
-        "difference", "differences", "versus", "vs"
+        "difference", "differences", "versus", "vs", "tell", "show",
+        "describe", "know", "say", "latest", "recent", "recently", "new",
+        "news", "update", "updates", "whats", "what's", "happening",
+        "overview", "information", "info", "summary", "summarize",
+        "press", "release", "releases", "announcement", "announcements",
+        "site", "www", "com", "http", "https"
     }
 
     def __init__(
@@ -139,7 +144,7 @@ class GenericEvidenceProvider:
             )
         )
         planned_matches = len(planned_terms & result_terms)
-        return planned_matches if planned_matches >= 2 else 0
+        return planned_matches if planned_matches >= 3 else 0
 
     @classmethod
     def _is_relevant_to_subject(cls, result, subject):
@@ -290,7 +295,13 @@ class GenericEvidenceProvider:
         for candidate in candidates:
             if not isinstance(candidate, str):
                 continue
-            candidate = candidate.strip()
+            candidate = re.sub(
+                r"\b(?:site|inurl|intitle|filetype):\S+",
+                " ",
+                candidate,
+                flags=re.IGNORECASE
+            )
+            candidate = " ".join(candidate.split())
             if not candidate or candidate in cleaned:
                 continue
             cleaned.append(candidate)

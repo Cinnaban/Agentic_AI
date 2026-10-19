@@ -1226,13 +1226,7 @@ class Hermes:
 
                     info_prompt = (
                         f"{message}\n\n"
-                        f"Intent: {intent}\n\n"
-                        f"Provide factual information "
-                        f"about {company_text}. "
-                        f"Do not perform valuation, "
-                        f"forecasting, investment "
-                        f"analysis, recommendations, "
-                        f"or financial evaluation."
+                        f"(Subject: {company_text})"
                     )
 
                     research_plan = (
