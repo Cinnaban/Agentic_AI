@@ -55,6 +55,21 @@ class GenericEvidenceProvider:
         "site", "www", "com", "http", "https"
     }
 
+    INTENT_WORDS = {
+        "list", "name", "names", "companies", "company", "competitor",
+        "competitors", "rival", "rivals", "market", "share", "shares",
+        "business", "industry", "top", "best", "major", "key", "main",
+        "players", "leading", "largest", "number", "many", "much", "type",
+        "types", "example", "examples", "thing", "things", "fact", "facts",
+        "work", "works", "working", "use", "used", "uses", "mean", "means",
+        "meaning", "definition", "define", "find", "make", "made", "go",
+        "take", "good", "great", "popular", "famous"
+    }
+    FRAME_WORDS = {
+        "list", "name", "give", "tell", "show", "find", "explain",
+        "describe", "please", "can", "could", "would", "whats", "what's"
+    }
+
     def __init__(
         self
     ):
@@ -113,6 +128,153 @@ class GenericEvidenceProvider:
                 term = term[:-1]
             terms.add(term)
         return terms
+
+    @staticmethod
+    def _gate_terms(text):
+        terms = set()
+        for token in re.findall(r"[a-z0-9]+", str(text or "").casefold()):
+            if token.endswith("ies") and len(token) > 4:
+                token = token[:-3] + "y"
+            elif (
+                token.endswith("es")
+                and len(token) > 4
+                and token[-3] in "sxz"
+            ):
+                token = token[:-2]
+            elif (
+                token.endswith("s")
+                and len(token) > 3
+                and not token.endswith(("ss", "us", "is"))
+            ):
+                token = token[:-1]
+            terms.add(token)
+        return terms
+
+    @classmethod
+    def _anchor_groups(cls, query, subject=None):
+        noise = cls.SEARCH_STOP_WORDS | cls.INTENT_WORDS
+        groups = []
+        has_proper = False
+
+        def scan(text, require_proper):
+            nonlocal has_proper
+            current = []
+            for token in re.findall(
+                r"[A-Za-z0-9][A-Za-z0-9'.&-]*", text
+            ) + [None]:
+                keep = (
+                    token is not None
+                    and len(token) >= 2
+                    and token.casefold() not in noise
+                )
+                if keep:
+                    proper = token[0].isupper() or any(
+                        c.isdigit() for c in token
+                    )
+                    if require_proper and not proper:
+                        keep = False
+                    elif proper:
+                        has_proper = True
+                if keep:
+                    current.append(token)
+                    continue
+                if current:
+                    terms = cls._gate_terms(" ".join(current))
+                    if terms:
+                        groups.append(terms)
+                    current = []
+
+        scan(str(query or ""), require_proper=True)
+        if not groups:
+            scan(str(query or ""), require_proper=False)
+        else:
+            proper_count = len(groups)
+            scan(str(query or ""), require_proper=False)
+            groups = groups[:proper_count] + [
+                group for group in groups[proper_count:]
+                if len(group) >= 2 and group not in groups[:proper_count]
+            ]
+        if subject:
+            scan(str(subject), require_proper=False)
+        return groups
+
+    @classmethod
+    def _passes_anchor_gate(cls, result, query, subject):
+        groups = cls._anchor_groups(query, subject)
+        if not groups:
+            return True
+        result_terms = cls._gate_terms(" ".join(
+            str(result.get(key) or "")
+            for key in ("title", "summary", "url", "content")
+        )[:6000])
+        for group in groups:
+            needed = max(1, -(-len(group) * 3 // 5))
+            if len(group & result_terms) >= needed:
+                return True
+        return False
+
+    @classmethod
+    def _focused_queries(cls, query, subject=None):
+        noise = cls.SEARCH_STOP_WORDS | cls.INTENT_WORDS
+        phrases = []
+        current = []
+        tokens = re.findall(r"[A-Za-z0-9][A-Za-z0-9'.&-]*", str(query or ""))
+        for token in tokens + [None]:
+            if token and len(token) >= 2 and token.casefold() not in noise:
+                current.append(token)
+            elif current:
+                phrases.append(" ".join(current))
+                current = []
+        if subject:
+            phrases.append(str(subject))
+        proper = [
+            phrase for phrase in phrases
+            if any(w[0].isupper() or w[0].isdigit() for w in phrase.split())
+        ]
+        phrases = proper or phrases
+        intent = []
+        lowered = str(query or "").casefold()
+        for word in re.findall(r"[a-z]+", lowered):
+            if (
+                word in cls.INTENT_WORDS
+                and word not in {
+                    "list", "name", "names", "many", "much", "companies",
+                    "company", "business", "industry", "major", "key",
+                    "main", "top", "best", "players", "leading", "largest"
+                }
+                and word not in intent
+            ):
+                intent.append(word)
+        if re.search(
+            r"\b(latest|recent|recently|news|today|current|currently|update|updates)\b",
+            lowered
+        ):
+            intent = ["latest", "news"]
+        dimension = " ".join(intent[:2])
+        queries = []
+        for phrase in phrases[:3]:
+            if dimension:
+                queries.append(f"{phrase} {dimension}")
+            queries.append(phrase)
+        return queries
+
+    @classmethod
+    def _keyword_query(cls, query):
+        words = []
+        for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9'.&-]*", str(query or "")):
+            lowered = token.casefold()
+            if (
+                lowered in cls.SEARCH_STOP_WORDS
+                or lowered in cls.FRAME_WORDS
+            ):
+                continue
+            words.append(token)
+        proper = [
+            word for word in words
+            if word[0].isupper() or any(c.isdigit() for c in word)
+        ]
+        rest = [word for word in words if word not in proper]
+        return " ".join((proper + rest)[:10])
 
     @classmethod
     def _relevance_score(cls, result, query, search_queries, subject):
@@ -202,7 +364,8 @@ class GenericEvidenceProvider:
         results,
         subject=None,
         query=None,
-        search_queries=None
+        search_queries=None,
+        strict=True
     ):
         if not isinstance(search_queries, list):
             search_queries = []
@@ -213,6 +376,15 @@ class GenericEvidenceProvider:
         planned_terms = cls._search_terms(" ".join(search_queries))
         should_filter_by_relevance = bool(topic_terms or planned_terms)
 
+        dimension_terms = cls._gate_terms(
+            " ".join(
+                word for word in re.findall(
+                    r"[a-z]+", str(query or "").casefold()
+                )
+                if word in cls.INTENT_WORDS
+                and word not in {"list", "name", "names", "many", "much"}
+            )
+        )
         social_hosts = (
             "reddit.com",
             "x.com",
@@ -238,7 +410,26 @@ class GenericEvidenceProvider:
                 ),
                 subject
             )
-            if should_filter_by_relevance and relevance == 0:
+            title_text = str(result.get("title") or "")
+            letters = [c for c in title_text if c.isalpha()]
+            if (
+                letters
+                and str(query or "").isascii()
+                and sum(not c.isascii() for c in letters) / len(letters) > 0.3
+            ):
+                continue
+            if strict and cls._anchor_groups(query, subject):
+                if not cls._passes_anchor_gate(result, query, subject):
+                    continue
+                relevance = max(relevance, 1) + len(
+                    dimension_terms & cls._gate_terms(
+                        " ".join(
+                            str(result.get(key) or "")
+                            for key in ("title", "summary")
+                        )
+                    )
+                )
+            elif should_filter_by_relevance and relevance == 0:
                 continue
             host, role = cls._source_details(
                 url,
@@ -279,17 +470,37 @@ class GenericEvidenceProvider:
         subject
     ):
         target = str(subject or query or "").strip()
+        keyword_query = self._keyword_query(query)
+        focused = self._focused_queries(query, subject)
         candidates = []
-        if subject:
+        multi_topic = len(self._anchor_groups(query, "")) > 1 or bool(
+            re.search(
+                r"\b(vs\.?|versus|compare|compared|comparison|difference|"
+                r"differences|between|and)\b",
+                str(query or ""),
+                re.IGNORECASE
+            )
+        )
+        if multi_topic:
+            candidates.append(str(query or "").strip())
+            candidates.append(keyword_query)
+            candidates.extend(focused[:2])
+        elif subject:
             candidates.extend([
                 f'"{target}" official website',
-                str(query or "").strip(),
+                *focused[:1],
+                keyword_query,
                 f'"{target}" overview'
             ])
         else:
-            candidates.append(str(query or "").strip())
+            candidates.extend([
+                *focused[:1],
+                keyword_query
+            ])
         if isinstance(search_queries, list):
             candidates.extend(search_queries)
+        candidates.append(str(query or "").strip())
+        asked_years = set(re.findall(r"\b(?:19|20)\d{2}\b", str(query or "")))
 
         cleaned = []
         for candidate in candidates:
@@ -300,6 +511,11 @@ class GenericEvidenceProvider:
                 " ",
                 candidate,
                 flags=re.IGNORECASE
+            )
+            candidate = re.sub(
+                r"\b(?:19|20)\d{2}\b",
+                lambda m: m.group(0) if m.group(0) in asked_years else " ",
+                candidate
             )
             candidate = " ".join(candidate.split())
             if not candidate or candidate in cleaned:
@@ -561,6 +777,46 @@ class GenericEvidenceProvider:
             query=query,
             search_queries=cleaned_queries
         )
+        if len(deduplicated) < 3:
+            seen_urls = {
+                self._normalize_url(item.get("url"))
+                for item in deduplicated
+            }
+            anchor_text = " ".join(
+                sorted({
+                    term
+                    for group in self._anchor_groups(query, subject)
+                    for term in group
+                })
+            )
+            extra_queries = [
+                item for item in (
+                    *self._focused_queries(query, subject),
+                    f"{anchor_text} overview facts".strip(),
+                    f"{anchor_text} news".strip()
+                    if requires_live_data else ""
+                ) if item and item not in cleaned_queries
+            ]
+            extra_results = []
+            for search_query in extra_queries:
+                for result in self.web.search(
+                    company={},
+                    query=search_query
+                ):
+                    if (
+                        isinstance(result, dict)
+                        and self._normalize_url(result.get("url"))
+                        not in seen_urls
+                    ):
+                        result["search_query"] = search_query
+                        extra_results.append(result)
+            if extra_results:
+                deduplicated = self._rank_and_filter_results(
+                    deduplicated + extra_results,
+                    subject=subject,
+                    query=query,
+                    search_queries=cleaned_queries + extra_queries
+                )
         deduplicated = self._add_official_homepage_candidate(
             deduplicated
         )
@@ -970,7 +1226,6 @@ class GenericEvidenceProvider:
 
             page_limit = 0
             
-        firecrawl_available = self.firecrawl.health_check()
         reference_archive = getattr(
             self,
             "reference_archive",
@@ -1071,15 +1326,11 @@ class GenericEvidenceProvider:
                             break
                         continue
 
-                if not firecrawl_available:
-                    continue
-
-
                 found_candidate = True
 
 
                 scraped = (
-                    self.firecrawl.retrieve(
+                    self.firecrawl.retrieve_page(
                         url
                     )
                 )

@@ -1,5 +1,6 @@
 import re
 import json
+import re
 import logging
 
 from agents.ollama_client import (
@@ -78,6 +79,12 @@ class GenericEvidenceAgent:
                     )
             }
 
+        evidence = self._focus_evidence(
+            message,
+            evidence,
+            research_plan
+        )
+
         task_type = str(
             research_plan.get("task_type", "")
         ).casefold()
@@ -107,6 +114,12 @@ OVERRIDING ACCURACY RULES:
   developments, lead with the most recent dated developments in
   the supplied sources and state their dates. Do not substitute a
   generic company or topic overview.
+- For list, ranking, or "which companies/who/what are" questions,
+  give the actual list: names plus any figures (such as market
+  share percentages) stated in the sources, each attributed with a
+  source ID. Say which figures are from which source and period.
+- If the sources do not answer the question, say so plainly in one
+  sentence. Never answer a different question than USER QUESTION.
 - A trailing "(Subject: ...)" line only names the subject; it is
   not part of the question.
 - Do not reinterpret it as a question about a subreddit,
@@ -485,6 +498,9 @@ content to understand and summarize the source.
 Keep the response concise unless the research plan
 requested deep evidence.
 
+USER QUESTION (answer exactly this, from the evidence above):
+{message}
+
 FINAL CHECK BEFORE RESPONDING:
 
 Verify that the answer names the subject asked about, that
@@ -498,7 +514,11 @@ social or community discussion.
         response = (
             self.ollama.generate(
                 prompt,
-                model=Config.HERMES_MODEL
+                model=getattr(
+                    Config,
+                    "GENERIC_EVIDENCE_MODEL",
+                    "mistral:7b"
+                )
             )
         )
 
@@ -561,6 +581,84 @@ social or community discussion.
                     []
                 )
         }
+
+    EXCERPT_BUDGET = 2400
+
+    @classmethod
+    def _focus_evidence(cls, message, evidence, research_plan):
+        from data.providers.generic_evidence_provider import (
+            GenericEvidenceProvider
+        )
+
+        terms_of = GenericEvidenceProvider._gate_terms
+        noise = (
+            GenericEvidenceProvider.SEARCH_STOP_WORDS
+            | GenericEvidenceProvider.FRAME_WORDS
+        )
+        question = {
+            term for term in terms_of(
+                " ".join((
+                    str(message or ""),
+                    " ".join(
+                        str(item).replace("_", " ")
+                        for item in research_plan.get(
+                            "requested_dimensions", []
+                        )
+                    )
+                ))
+            )
+            if term not in noise and len(term) > 2
+        }
+        wants_numbers = bool(
+            re.search(
+                r"\b(share|percent|how many|how much|revenue|rank|"
+                r"top|largest|biggest|size|population|price|cost)\b",
+                str(message or ""),
+                re.IGNORECASE
+            )
+        )
+        focused = dict(evidence)
+        results = []
+        for result in evidence.get("results", []):
+            if not isinstance(result, dict):
+                continue
+            result = dict(result)
+            content = result.get("content")
+            if isinstance(content, str) and len(content) > cls.EXCERPT_BUDGET:
+                chunks = []
+                for line in content.split("\n"):
+                    line = line.strip()
+                    while len(line) > 700:
+                        chunks.append(line[:700])
+                        line = line[700:]
+                    if len(line) > 30:
+                        chunks.append(line)
+                scored = []
+                for index, chunk in enumerate(chunks):
+                    hits = len(question & terms_of(chunk))
+                    if wants_numbers and re.search(r"\d+(?:\.\d+)?\s?%|\$\s?\d", chunk):
+                        hits += 1.5
+                    scored.append((hits, index, chunk))
+                chosen, used = [], 0
+                for hits, index, chunk in sorted(
+                    scored, key=lambda item: (-item[0], item[1])
+                ):
+                    if hits <= 0 or used + len(chunk) > cls.EXCERPT_BUDGET:
+                        continue
+                    chosen.append((index, chunk))
+                    used += len(chunk)
+                if chosen:
+                    result["content"] = "\n".join(
+                        chunk for _, chunk in sorted(chosen)
+                    )
+                else:
+                    result["content"] = content[:cls.EXCERPT_BUDGET]
+                result["content_note"] = (
+                    "Excerpts selected for relevance to the question"
+                )
+            results.append(result)
+        focused["results"] = results
+        return focused
 
     @classmethod
     def _contains_prompt_leak(cls, text):

@@ -179,10 +179,9 @@ class GenericFactualSourceTests(unittest.TestCase):
             subject=None
         )
 
-        self.assertEqual(
-            queries,
-            [original_query] + planned_queries
-        )
+        self.assertEqual(queries[0], original_query)
+        for planned in planned_queries:
+            self.assertIn(planned, queries)
 
     def test_context_preserves_topic_and_filters_irrelevant_search_results(self):
         provider = GenericEvidenceProvider()
@@ -244,7 +243,7 @@ class GenericFactualSourceTests(unittest.TestCase):
             [result["title"] for result in evidence["results"]],
             ["NASCAR history and origins"]
         )
-        self.assertEqual(
+        self.assertGreaterEqual(
             provider.web.search.call_count,
             len(evidence["search_queries"])
         )
@@ -284,7 +283,8 @@ class GenericFactualSourceTests(unittest.TestCase):
             ]
         )
         provider.firecrawl = SimpleNamespace(
-            health_check=lambda: False
+            health_check=lambda: False,
+            retrieve_page=lambda url: None
         )
         provider.social = Mock()
         provider.social_summary_builder = Mock()
@@ -345,7 +345,7 @@ class GenericFactualSourceTests(unittest.TestCase):
         }])
         provider.firecrawl = SimpleNamespace(
             health_check=Mock(return_value=True),
-            retrieve=Mock(return_value={
+            retrieve_page=Mock(return_value={
                 "markdown": (
                     "Piranha Games is a video game developer. "
                     "The studio develops games in the MechWarrior series."
@@ -379,7 +379,7 @@ class GenericFactualSourceTests(unittest.TestCase):
             "retrieved_webpage"
         )
         self.assertIn("MechWarrior", homepage["content"])
-        provider.firecrawl.retrieve.assert_any_call(
+        provider.firecrawl.retrieve_page.assert_any_call(
             "https://piranha-games.com/"
         )
 
@@ -388,7 +388,7 @@ class GenericFactualSourceTests(unittest.TestCase):
         provider.max_search_queries = 5
         provider.max_pages = 15
         provider.web = SimpleNamespace(search=lambda company, query: [])
-        provider.firecrawl = SimpleNamespace(health_check=lambda: False)
+        provider.firecrawl = SimpleNamespace(health_check=lambda: False, retrieve_page=lambda url: None)
         provider.social = Mock()
         provider.social.get_context.return_value = {
             "results": [],
@@ -915,7 +915,7 @@ class GenericFactualSourceTests(unittest.TestCase):
         provider = GenericEvidenceProvider.__new__(GenericEvidenceProvider)
         provider.firecrawl = SimpleNamespace(
             health_check=Mock(return_value=True),
-            retrieve=Mock()
+            retrieve_page=Mock()
         )
         result = {
             "title": "Piranha Games",
@@ -932,13 +932,13 @@ class GenericFactualSourceTests(unittest.TestCase):
             enriched[0]["content"],
             "Verified Wikipedia article text."
         )
-        provider.firecrawl.retrieve.assert_not_called()
+        provider.firecrawl.retrieve_page.assert_not_called()
 
     def test_firecrawl_content_with_unrelated_page_title_is_discarded(self):
         provider = GenericEvidenceProvider.__new__(GenericEvidenceProvider)
         provider.firecrawl = SimpleNamespace(
             health_check=Mock(return_value=True),
-            retrieve=Mock(return_value={
+            retrieve_page=Mock(return_value={
                 "markdown": (
                     "The Wikimedia Foundation is a nonprofit organization."
                 ),

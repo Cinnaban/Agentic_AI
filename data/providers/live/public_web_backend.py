@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from ddgs import (
     DDGS
 )
@@ -7,9 +9,12 @@ class PublicWebBackend:
 
     SOURCE = "Public Web Search"
 
+    REGION = "us-en"
+
     BACKENDS = (
-        "bing",
-        "google"
+        "google",
+        "yahoo",
+        "bing"
     )
 
 
@@ -146,51 +151,38 @@ class PublicWebBackend:
             return []
 
 
-        raw_results = []
-
-        for backend in self.BACKENDS:
-
-            try:
-
-                with DDGS() as ddgs:
-
-                    backend_results = list(
-                        ddgs.text(
-                            query,
-
-                            max_results=(
-                                self.max_results
-                            ),
-
-                            backend=backend
+        def fetch(backend):
+            for attempt in range(2):
+                try:
+                    with DDGS() as ddgs:
+                        return list(
+                            ddgs.text(
+                                query,
+                                region=self.REGION,
+                                max_results=self.max_results,
+                                backend=backend
+                            )
                         )
-                    )
+                except Exception as exc:
+                    if attempt == 1 or "No results" in repr(exc):
+                        print(
+                            "PublicWebBackend "
+                            f"{backend} error:",
+                            repr(exc)
+                        )
+                        return []
+            return []
 
+        with ThreadPoolExecutor(
+            max_workers=len(self.BACKENDS)
+        ) as pool:
+            per_backend = list(pool.map(fetch, self.BACKENDS))
 
-                if backend_results:
-
-                    raw_results.extend(
-                        backend_results
-                    )
-
-
-                if len(
-                    raw_results
-                ) >= self.max_results:
-
-                    break
-
-
-            except Exception as exc:
-
-                print(
-                    "PublicWebBackend "
-                    f"{backend} error:",
-                    repr(
-                        exc
-                    )
-                )
-
+        raw_results = []
+        for rank in range(self.max_results):
+            for backend_results in per_backend:
+                if rank < len(backend_results):
+                    raw_results.append(backend_results[rank])
 
         if not raw_results:
 
