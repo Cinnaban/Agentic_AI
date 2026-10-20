@@ -216,134 +216,62 @@ class FinancialTableFormatter:
         )
 
     def build_comparison_table(
-            self,
-            company_metrics
-        ):
-            if not isinstance(
-                company_metrics,
-                dict
-            ):
-                return ""
+        self,
+        company_metrics
+    ):
+        if not isinstance(company_metrics, dict) or not company_metrics:
+            return ""
 
-            tickers = list(
-                company_metrics.keys()
-            )
+        tickers = list(company_metrics.keys())
+        categories = [
+            ("Market & Valuation", "market"),
+            ("Reported Financials", "reported_financials"),
+            ("Quantitative Models", "quantitative_models"),
+            ("Risk", "risk"),
+        ]
+        sections = []
+        used = set()
 
-            if not tickers:
-                return ""
-
-            metric_keys = []
-
+        def rows_for(category):
+            keys = []
             for ticker in tickers:
-                metrics = company_metrics.get(
-                    ticker,
-                    {}
-                )
-
-                if not isinstance(
-                    metrics,
-                    dict
-                ):
-                    continue
-
-                for key in metrics.keys():
-                    if key not in metric_keys:
-                        metric_keys.append(
-                            key
-                        )
-
-            header = (
-                "| Metric | "
-                + " | ".join(
-                    tickers
-                )
-                + " |"
-            )
-
-            separator = (
-                "|---|"
-                + "---:|" * len(
-                    tickers
-                )
-            )
-
-            rows = [
-                header,
-                separator
-            ]
-
-            for key in metric_keys:
-
-                label = key
-
-                for ticker in tickers:
-                    metric = (
-                        company_metrics
-                        .get(
-                            ticker,
-                            {}
-                        )
-                        .get(
-                            key
-                        )
-                    )
-
-                    if isinstance(
-                        metric,
-                        dict
+                metrics = company_metrics.get(ticker) or {}
+                for key, metric in metrics.items():
+                    if (
+                        isinstance(metric, dict)
+                        and (category is None or metric.get("category") == category)
+                        and key not in keys
+                        and key not in used
                     ):
-                        label = metric.get(
-                            "label",
-                            key
-                        )
-
-                        break
-
-                values = []
-
+                        keys.append(key)
+            rows = []
+            for key in keys:
+                label, values = key, []
                 for ticker in tickers:
-
-                    metric = (
-                        company_metrics
-                        .get(
-                            ticker,
-                            {}
-                        )
-                        .get(
-                            key
-                        )
-                    )
-
-                    if isinstance(
-                        metric,
-                        dict
-                    ):
-                        value = (
-                            self.format_value(
-                                metric
-                            )
-                        )
+                    metric = (company_metrics.get(ticker) or {}).get(key)
+                    if isinstance(metric, dict):
+                        label = metric.get("label", key)
+                        formatted = self.format_value(metric)
                     else:
-                        value = "N/A"
+                        formatted = "-"
+                    values.append(formatted)
+                if all(v in ("-", "N/A", "", "None") for v in values):
+                    continue
+                rows.append([label] + values)
+                used.add(key)
+            return rows
 
-                    values.append(
-                        value
-                    )
-
-                row = (
-                    f"| {label} | "
-                    + " | ".join(
-                        values
-                    )
-                    + " |"
+        for title, category in categories:
+            rows = rows_for(category)
+            if rows:
+                sections.append(
+                    f"**{title}**\n\n"
+                    + table(["Metric"] + tickers, rows, aligns="l" + "r" * len(tickers))
                 )
-
-                rows.append(
-                    row
-                )
-
-            return "\n".join(
-                rows
+        rest = rows_for(None)
+        if rest:
+            sections.append(
+                "**Other Metrics**\n\n"
+                + table(["Metric"] + tickers, rest, aligns="l" + "r" * len(tickers))
             )
-
-            
+        return "\n\n".join(sections)

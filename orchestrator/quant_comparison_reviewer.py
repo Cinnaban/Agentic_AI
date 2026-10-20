@@ -1,6 +1,7 @@
 """Compares quant values and cross-referenced evidence across every ticker in a comparison request."""
 from orchestrator.quant_evidence_builder import headline_tone
 from orchestrator.quant_summary_reviewer import _number, _stance, _value
+from orchestrator.table_format import table
 
 RATING_KEYS = (
     ("recommendation", "model recommendation"),
@@ -42,10 +43,69 @@ class QuantComparisonReviewer:
             return ""
 
         lines = ["**Quant Comparison Summary**"]
-        lines += self._dimension_lines(company_metrics, profiles)
-        lines += self._ticker_lines(profiles)
+        dimensions = self._dimension_table(company_metrics, profiles)
+        if dimensions:
+            lines.append(dimensions)
+        lines.append(self._signal_table(profiles))
         lines.append(self._verdict(profiles))
-        return "\n".join(lines)
+        return "\n\n".join(lines)
+
+    def _dimension_table(self, company_metrics, profiles):
+        tickers = list(profiles)
+        rows = []
+        for key, label, higher_better in NUMERIC_DIMENSIONS:
+            values = {t: _number(_value(company_metrics[t], key)) for t in tickers}
+            known = {t: v for t, v in values.items() if v is not None}
+            if len(known) < 2:
+                continue
+            fmt = (lambda v: f"{v:.2f}") if key == "beta" else _pct
+            leader = (max if higher_better else min)(known, key=known.get)
+            rows.append(
+                [label.split(" (")[0].capitalize()]
+                + [fmt(values[t]) if values[t] is not None else "-" for t in tickers]
+                + [leader]
+            )
+        upsides = {t: _number(p["evidence"].get("target_upside")) for t, p in profiles.items()}
+        if len([v for v in upsides.values() if v is not None]) >= 2:
+            known = {t: v for t, v in upsides.items() if v is not None}
+            rows.append(
+                ["Analyst target upside"]
+                + [_pct(upsides[t]) if upsides[t] is not None else "-" for t in tickers]
+                + [max(known, key=known.get)]
+            )
+        for key, label in (("financial_strength_rating", "Financial strength"), ("momentum_rating", "Momentum")):
+            values = {t: _value(company_metrics[t], key) for t in tickers}
+            if len([v for v in values.values() if v not in (None, "", "N/A")]) >= 2:
+                rows.append(
+                    [label]
+                    + [values[t] if values[t] not in (None, "", "N/A") else "-" for t in tickers]
+                    + [""]
+                )
+        if not rows:
+            return ""
+        return table(["Dimension"] + tickers + ["Leader"], rows, aligns="l" + "r" * len(tickers) + "l")
+
+    def _signal_table(self, profiles):
+        rows = []
+        for ticker, p in sorted(profiles.items(), key=lambda item: item[1]["total"], reverse=True):
+            votes = p["quant_votes"] + p["checks"]
+            live = p["evidence"].get("live_quant") or {}
+            ic, hit = _number(live.get("ic")), _number(live.get("hit_rate"))
+            weak_edge = (ic is not None and ic < 0.03) or (hit is not None and hit < 0.52)
+            rows.append([
+                ticker,
+                f"{p['quant_score']:+d}",
+                f"{p['check_score']:+d}",
+                f"{p['total']:+d}",
+                str(sum(1 for _, v in votes if v > 0)),
+                str(sum(1 for _, v in votes if v < 0)),
+                "Low" if weak_edge else "OK",
+            ])
+        return table(
+            ["Ticker", "Quant", "Cross-ref", "Combined", "Supportive", "Cautionary", "Model edge"],
+            rows,
+            aligns="lrrrrrl",
+        )
 
     def _profile(self, metrics, evidence):
         votes = [

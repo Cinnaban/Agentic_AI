@@ -32,11 +32,11 @@ class QuantComparisonTests(unittest.TestCase):
     def test_compares_every_ticker(self):
         text = QuantComparisonReviewer().build(METRICS, EVIDENCE)
         for ticker in METRICS:
-            self.assertIn(f"**{ticker}**", text)
+            self.assertRegex(text, rf"(?m)^{ticker}\s")
         self.assertIn("Quant Comparison Summary", text)
-        self.assertIn("30-day forecast:** WDC", text)
+        self.assertRegex(text, r"30-day forecast .* WDC")
         self.assertIn("MU has the strongest combined signal", text)
-        self.assertIn("little predictive edge", text)
+        self.assertIn("Model edge", text)
 
     def test_works_without_cross_reference(self):
         text = QuantComparisonReviewer().build(METRICS, {})

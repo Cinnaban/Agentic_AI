@@ -1,0 +1,150 @@
+{
+  "job_id": "2f2b9a70-e272-4d50-ac0f-9f24fcfaf44d",
+  "status": "completed",
+  "created_at": "2026-10-19T19:31:17.045935",
+  "updated_at": "2026-10-19T19:33:20.234902",
+  "data": {
+    "message": "Analyze CSHI",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "CSHI",
+        "ticker": "CSHI",
+        "entity_type": "etf",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-10-20T02:31:17.041978+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Ultrashort Bond",
+            "family": "Neos Funds",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "CSHI": 0.0038,
+              "Category Average": 0.003835
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "CSHI": 0.0,
+              "Category Average": 0.6276
+            },
+            {
+              "key": "Total Net Assets",
+              "CSHI": 509712.16,
+              "Category Average": 509712.16
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.9943,
+            "stockPosition": -0.00029999999,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.006
+          },
+          "top_holdings": [],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.0,
+            "basic_materials": 0.0,
+            "consumer_defensive": 0.0,
+            "technology": 0.0,
+            "communication_services": 0.0,
+            "financial_services": 0.0,
+            "utilities": 0.0,
+            "industrials": 0.0,
+            "energy": 0.0,
+            "healthcare": 0.0
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "CSHI": 0.04204,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "CSHI": 0.19781,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "CSHI": 0.28613,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "CSHI": 0.05469,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "CSHI": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "CSHI": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "CSHI": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "CSHI": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "CSHI": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.9892
+          },
+          "status": "available"
+        }
+      }
+    ],
+    "required_agents": {
+      "quant": true,
+      "research": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": true,
+      "confidence": 20,
+      "issues": [],
+      "strengths": [
+        "Signal reconciliation is internally consistent"
+      ],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete",
+        "Independent challenger review incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}

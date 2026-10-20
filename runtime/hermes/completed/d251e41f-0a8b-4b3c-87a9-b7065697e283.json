@@ -1,0 +1,41 @@
+{
+  "job_id": "d251e41f-0a8b-4b3c-87a9-b7065697e283",
+  "status": "completed",
+  "created_at": "2026-10-19T21:27:26.845146",
+  "updated_at": "2026-10-19T21:31:37.345107",
+  "data": {
+    "message": "Analyze Robinhood",
+    "source": "telegram",
+    "companies": [
+      {
+        "name": "Robinhood Markets, Inc.",
+        "ticker": "HOOD",
+        "entity_type": "stock",
+        "ticker_source": "Yahoo Finance company search",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Capital Markets",
+          "sector": "Financial Services"
+        },
+        "industry": "Capital Markets",
+        "sector": "Financial Services"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Risk horizon differences do not match Signal Reconciliation",
+        "Risk failed to acknowledge quantitative uncertainty"
+      ],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

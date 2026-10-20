@@ -105,6 +105,7 @@ from orchestrator.financial_metric_builder import (
 from orchestrator.financial_table_formatter import (
     FinancialTableFormatter
 )
+from agents.consensus_agent import ConsensusAgent
 from orchestrator.quant_comparison_reviewer import (
     QuantComparisonReviewer
 )
@@ -172,6 +173,7 @@ class Hermes:
         self.quant_comparison_reviewer = (
             QuantComparisonReviewer()
         )
+        self.consensus_agent = ConsensusAgent()
         self.quant_evidence_builder = (
             QuantEvidenceBuilder(
                 web_fn=lambda company: (
@@ -1323,6 +1325,7 @@ class Hermes:
                     portfolio_context = {}
 
                     quant_data_by_ticker = {}
+                    quant_executions = {}
 
                     quant_enabled = bool(
                         getattr(
@@ -1440,6 +1443,9 @@ class Hermes:
                                     quant_data_by_ticker[
                                         ticker
                                     ] = quant_result
+                                    quant_executions[
+                                        ticker
+                                    ] = quant_execution
 
                             except Exception as quant_error:
                                 print(
@@ -1480,12 +1486,30 @@ class Hermes:
                             holdings_tables
                         )
                         holdings_text = holdings_tables(holdings)
-                        if holdings_text:
-                            portfolio_result["response"] = (
-                                holdings_text
-                                + "\n\n"
-                                + str(portfolio_result.get("response", ""))
+                        quant_section, consensus_inputs = (
+                            self._build_portfolio_quant_section(
+                                quant_executions
                             )
+                        )
+                        narrative = str(
+                            portfolio_result.get("response", "")
+                        )
+                        summary = self._consensus_summary(
+                            effective_message,
+                            {
+                                "holdings": holdings,
+                                "portfolio_context": portfolio_context,
+                                "portfolio_evaluation": narrative,
+                                **consensus_inputs
+                            }
+                        )
+                        portfolio_result["response"] = "\n\n".join(
+                            part for part in (
+                                holdings_text,
+                                quant_section,
+                                summary or narrative
+                            ) if part
+                        )
                     except Exception as table_error:
                         print(
                             "PORTFOLIO TABLE FAILED:",
@@ -2218,6 +2242,7 @@ class Hermes:
                 )
                 
                 quant_comparison = ""
+                evidence_by_ticker = {}
 
                 try:
                     evidence_by_ticker = (
@@ -2287,6 +2312,34 @@ class Hermes:
                 comparison_response = (
                     comparison_response.strip()
                 )
+
+                consensus_summary = self._consensus_summary(
+                    message,
+                    {
+                        "company_metrics": {
+                            t: {
+                                k: m.get("value")
+                                for k, m in ms.items()
+                                if isinstance(m, dict)
+                            }
+                            for t, ms in company_metrics.items()
+                            if isinstance(ms, dict)
+                        },
+                        "company_results": {
+                            t: {
+                                k: v for k, v in r.items()
+                                if k != "quant"
+                            }
+                            for t, r in company_results.items()
+                            if isinstance(r, dict)
+                        },
+                        "quant_cross_reference": evidence_by_ticker,
+                        "quant_comparison": quant_comparison,
+                        "comparison_analysis": comparison_response,
+                    }
+                )
+                if consensus_summary:
+                    comparison_response = consensus_summary
                 
                 if financial_table:
                     comparison_response = (
@@ -2487,7 +2540,8 @@ class Hermes:
                 response_text = (
                     self._build_company_response(
                         execution_results,
-                        quality_review
+                        quality_review,
+                        message=getattr(work_package, "original_message", "")
                     )
                 )
 
@@ -3184,6 +3238,46 @@ class Hermes:
             final += f" (Reviewer score: {int(llm_confidence)})"
         return final
 
+    def _consensus_summary(self, message, sources):
+        try:
+            return self.consensus_agent.synthesize(message, sources)
+        except Exception as exc:
+            print("CONSENSUS FAILED:", repr(exc))
+            return ""
+
+    def _build_portfolio_quant_section(self, quant_executions):
+        """Per-ticker quant tables plus a cross-ticker table; also returns data for the consensus agent."""
+        if not quant_executions:
+            return "", {}
+        metrics_by_ticker = (
+            self.financial_metric_builder.build_comparison(quant_executions)
+        )
+        evidence_by_ticker = self._build_comparison_evidence(quant_executions)
+        parts = []
+        for ticker, metrics in metrics_by_ticker.items():
+            table_text = self.financial_table_formatter.build_category_table(
+                metrics, "quantitative_models"
+            )
+            if table_text:
+                parts.append(f"**{ticker} Quant**\n\n{table_text}")
+        comparison = ""
+        try:
+            comparison = self.quant_comparison_reviewer.build(
+                metrics_by_ticker, evidence_by_ticker
+            )
+        except Exception as exc:
+            print("PORTFOLIO QUANT COMPARISON FAILED:", repr(exc))
+        if comparison:
+            parts.append(comparison)
+        return "\n\n".join(parts), {
+            "quant_metrics": {
+                t: {k: m.get("value") for k, m in ms.items() if isinstance(m, dict)}
+                for t, ms in metrics_by_ticker.items()
+            },
+            "quant_cross_reference": evidence_by_ticker,
+            "quant_comparison": comparison,
+        }
+
     def _build_comparison_evidence(
         self,
         company_results
@@ -3219,7 +3313,8 @@ class Hermes:
     def _build_company_response(
         self,
         execution_results,
-        quality_review
+        quality_review,
+        message=""
     ):
         
         
@@ -3316,6 +3411,24 @@ class Hermes:
             research = ""
 
 
+        consensus_summary = self._consensus_summary(
+            message or "",
+            {
+                "metrics": {
+                    k: m.get("value")
+                    for k, m in financial_metrics.items()
+                    if isinstance(m, dict)
+                },
+                "quant_cross_reference": quant_evidence,
+                "research": research,
+                "risk": risk,
+                "challenger": challenger_section,
+                "social": social_discussion_section,
+                "market_context": market_context,
+                "sentiment": execution_results.get("sentiment"),
+            }
+        )
+
         sections = []
 
         if financial_table:
@@ -3333,6 +3446,15 @@ class Hermes:
             print()
             print("EVIDENCE AVAILABILITY (debug only):")
             print(evidence_section)
+
+        if consensus_summary:
+            sections.append(
+                "**Summary**\n\n" + consensus_summary
+            )
+            research = ""
+            challenger_section = ""
+            social_discussion_section = ""
+            risk = {}
 
         if research.strip():
             sections.append(

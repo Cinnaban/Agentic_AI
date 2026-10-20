@@ -1,0 +1,81 @@
+{
+  "job_id": "be77396b-f100-42a8-994a-dc6e82deac52",
+  "status": "completed",
+  "created_at": "2026-10-19T21:36:16.895909",
+  "updated_at": "2026-10-19T21:39:44.490307",
+  "data": {
+    "message": "Compare Nvidia, Intel and AMD",
+    "source": "comparison_test",
+    "companies": [
+      {
+        "name": "AMD",
+        "ticker": "AMD",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      },
+      {
+        "name": "NVIDIA Corporation",
+        "ticker": "NVDA",
+        "entity_type": "stock",
+        "ticker_source": "Yahoo Finance company search",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      },
+      {
+        "name": "Intel Corporation",
+        "ticker": "INTC",
+        "entity_type": "stock",
+        "ticker_source": "Yahoo Finance company search",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "quant": true,
+      "sentiment": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the supplied comparison dimensions and evidence, here is a direct answer to your question:\n\nThe most significant difference between AMD, NVDA and INTC is their competitive positioning in the key AI accelerator market. \n\nWhile all three have strong PC market positions, only Nvidia currently has a dominant AI accelerator software ecosystem and brand. Intel's Gaudi AI chip is trying to directly compete with Nvidia, but Nvidia's lead in AI applications like gaming, data centers and self-driving cars makes it hard for Intel to quickly gain share. Nvidia's CUDA software ecosystem creates a high barrier to entry.\n\nThis competitive dynamics is what drives the key differences in predicted growth rates between the three. Nvidia is expected to continue to grow faster than the broader PC and semiconductor markets due to its AI moat. Intel is expected to have flat AI accelerator sales. AMD has the best chance to gain share, but is still expected to grow slower than Nvidia.\n\nIn terms of valuation metrics, Nvidia trades at the highest price to sales and earnings multiples due to its AI software moat. AMD and Intel trade at lower multiples more in line with their PC market positions.\n\nIn summary, while all three companies have strong PC market positions, the most significant competitive difference is Nvidia's AI software moat, which gives it faster revenue and earnings growth prospects compared to Intel and AMD. This explains the valuation premium Nvidia enjoys.\n\nThe key to assessing each company is to understand the dynamics of their competitive positioning in their key markets. Comparing their market share, growth rates, and valuation multiples directly to those of their closest competitors yields the most insight."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": null,
+    "final_status": "completed"
+  }
+}
