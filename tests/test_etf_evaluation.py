@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from orchestrator.comparison_intent import ComparisonIntent
 from agents.company_detection_agent import CompanyDetectionAgent
 from data.providers.etf_fund_provider import ETFFundProvider
 from orchestrator.financial_metric_builder import FinancialMetricBuilder
@@ -193,6 +194,7 @@ class ETFEvaluationTests(unittest.TestCase):
                 "response": ""
             }
         )
+        agent.ticker_lookup = SimpleNamespace(search=lambda query: [])
 
         result = agent.analyze("Evaluate SOXX")
 
@@ -206,10 +208,12 @@ class ETFEvaluationTests(unittest.TestCase):
                 "response": ""
             }
         )
+        detector.ticker_lookup = SimpleNamespace(search=lambda query: [])
         hermes = Hermes.__new__(Hermes)
         hermes.portfolio_request_parser = PortfolioRequestParser()
         hermes.job_factory = JobFactory()
         hermes.company_agent = detector
+        hermes.comparison_intent = ComparisonIntent()
         hermes.assignment_agent = AssignmentAgent()
         hermes.etf_fund_provider = ExplicitETFProvider()
 
