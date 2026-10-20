@@ -5,6 +5,7 @@ import json
 from agents.company_detection_agent import CompanyDetectionAgent
 from workers.agent_executor import AgentExecutor
 from orchestrator.hermes import Hermes
+from orchestrator.comparison_intent import ComparisonIntent
 from orchestrator.portfolio_request_parser import PortfolioRequestParser
 from job_queue.job_factory import JobFactory
 
@@ -84,6 +85,7 @@ class StockEvaluationRoutingTests(unittest.TestCase):
         self.hermes.portfolio_request_parser = (
             PortfolioRequestParser()
         )
+        self.hermes.comparison_intent = ComparisonIntent()
         self.hermes.job_factory = JobFactory()
         self.hermes.company_agent = CompanyAgent({
             "is_company_request": True,
