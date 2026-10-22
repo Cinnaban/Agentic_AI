@@ -45,7 +45,22 @@ class FirecrawlBackend:
             page = self.retrieve(url)
             if page:
                 return page
-        return self.retrieve_direct(url)
+        from data.providers.live.premium_sources import (
+            Crawl4AIBackend, ExaBackend
+        )
+        if not hasattr(self, "_crawl4ai"):
+            self._crawl4ai = Crawl4AIBackend()
+            self._exa = ExaBackend()
+        if self._crawl4ai.is_configured() and self._is_public_http_url(url.strip()):
+            page = self._crawl4ai.retrieve(url.strip())
+            if page:
+                return page
+        page = self.retrieve_direct(url)
+        if page:
+            return page
+        if self._exa.is_configured() and self._is_public_http_url(url.strip()):
+            return self._exa.retrieve(url.strip())
+        return None
 
     @staticmethod
     def _is_public_http_url(url):

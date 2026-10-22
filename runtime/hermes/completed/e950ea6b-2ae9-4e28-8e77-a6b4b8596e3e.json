@@ -1,0 +1,49 @@
+{
+  "job_id": "e950ea6b-2ae9-4e28-8e77-a6b4b8596e3e",
+  "status": "completed",
+  "created_at": "2026-10-20T10:18:15.034110",
+  "updated_at": "2026-10-20T10:18:44.877943",
+  "data": {
+    "message": "Analyze TSEM",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "TSEM",
+        "ticker": "TSEM",
+        "entity_type": "stock",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "quant": true
+    },
+    "quality_review": {
+      "approved": false,
+      "confidence": 0,
+      "issues": [
+        "Risk output unavailable"
+      ],
+      "strengths": [],
+      "limitations": [
+        "Financial data unavailable",
+        "SEC facts unavailable",
+        "SEC filings unavailable",
+        "Macroeconomic data unavailable",
+        "Public discussion evidence unavailable",
+        "Current news evidence unavailable",
+        "Live market context unavailable",
+        "Quantitative analysis incomplete",
+        "Risk analysis incomplete"
+      ],
+      "review_source": "heuristic_fallback"
+    },
+    "final_status": "completed"
+  }
+}

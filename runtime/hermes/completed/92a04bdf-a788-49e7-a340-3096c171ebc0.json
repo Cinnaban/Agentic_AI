@@ -1,0 +1,238 @@
+{
+  "job_id": "92a04bdf-a788-49e7-a340-3096c171ebc0",
+  "status": "completed",
+  "created_at": "2026-10-20T10:21:24.737763",
+  "updated_at": "2026-10-20T10:26:08.413763",
+  "data": {
+    "message": "Compare TSEM and INTC",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "TSEM",
+        "ticker": "TSEM",
+        "entity_type": "stock",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      },
+      {
+        "name": "INTC",
+        "ticker": "INTC",
+        "entity_type": "stock",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the supplied evidence, the Custom Analytical Formula, and cross-referenced quantitative and independent signals, it appears that Intel (INTC) has slightly outperformed Tamira (TSEM) in terms of market and valuation metrics, while Tamira has shown stronger growth and profitability. However, both companies exhibit similar levels of momentum and financial strength.\n\nComparison of key valuation metrics:\n- Intel's current price is $92.52 per share, while Tamira's is $180.31.\n- Tamira has a lower beta of 0.89, indicating lower volatility compared to Intel's 2.23 beta, which suggests higher risk.\n\nGrowth and Profitability:\n- Tamira's growth score is 1.0, indicating strong growth potential, while Intel's is 0.0, suggesting limited growth prospects.\n- Tamira's profitability score is also 1.0, reflecting good profitability, compared to Intel's 0.0 score, implying no profitability.\n\nHowever, the Custom Analytical Formula gives a higher score to Intel (0.4) than Tamira (0.6), mainly due to Intel's higher valuation score (1.0) and lower growth score (0.0), which is considered more important in the formula. The formula also takes into account momentum, profitability, and beta scores, with different weights for each.\n\nThe cross-referenced quantitative and independent signals show that Intel has a stronger combined signal (+4) compared to Tamira's weak signal (+0). Intel's 30-day forecast of -5.3% is better than Tamira's -13.7%, and Intel's 90-day forecast of +89.5% significantly outperforms Tamira's +46.8%. Additionally, Intel's model predicted move of +0.7% is more positive than Tamira's -0.5%.\n\nHowever, it is essential to consider the limitations of the Custom Analytical Formula and the quantitative models. The formula is a simplified high-level comparison and should not be relied upon as the sole basis for investment decisions. The weights and reasons for including each metric are subjective assumptions and may not be optimal or appropriate for all investors or comparison questions.\n\nIn conclusion, while Intel shows slightly stronger market and valuation metrics, Tamira demonstrates better growth and profitability potential. However, Intel has the overall stronger combined signal based on cross-referenced quantitative and independent evidence. Investors should consider this information, along with further fundamental analysis, risk assessment, and due diligence, before making any investment choices."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": {
+      "opportunity": "helpful",
+      "design": {
+        "name": "TSEM vs INTC Comparison Formula",
+        "purpose": "To compare the financial performance and potential of TSEM and INTC based on key metrics",
+        "components": [
+          {
+            "metric": "valuation_score",
+            "weight": 0.3,
+            "direction": "lower_is_better",
+            "reason": "A lower valuation score indicates the company may be undervalued relative to peers, potentially offering higher return potential"
+          },
+          {
+            "metric": "growth_score",
+            "weight": 0.3,
+            "direction": "higher_is_better",
+            "reason": "A higher growth score suggests the company has been growing revenue and earnings at a faster rate than its peers, indicating positive momentum"
+          },
+          {
+            "metric": "momentum_score",
+            "weight": 0.2,
+            "direction": "higher_is_better",
+            "reason": "A higher momentum score indicates the company's stock price has been trending upwards relative to its peers over the past 12 months, reflecting investor confidence"
+          },
+          {
+            "metric": "profitability_score",
+            "weight": 0.1,
+            "direction": "higher_is_better",
+            "reason": "A higher profitability score suggests the company is more efficient at converting revenue into profit margins, indicating strong financial health"
+          },
+          {
+            "metric": "beta",
+            "weight": 0.1,
+            "direction": "lower_is_better",
+            "reason": "A lower beta indicates the company's stock price is less volatile relative to the broader market, potentially making it a more stable investment"
+          }
+        ],
+        "how_created": "The formula was created by selecting key financial metrics that are commonly used to evaluate a company's financial health, growth potential, and investment risk. The weights were assigned based on the perceived importance of each metric in answering the specific question of comparing TSEM and INTC. Metrics were prioritized that provide insight into valuation, growth, momentum, profitability, and risk.",
+        "why_important": "By combining these five key metrics into a single formula, investors can quickly compare TSEM and INTC to identify which company appears to be in a stronger financial position, growing more rapidly, and offering more attractive risk/reward potential. This high-level comparison can help inform further analysis and investment decisions.",
+        "assumptions": [
+          "The formula assumes the selected metrics are reasonable proxies for evaluating the companies' overall financial health and potential. It also assumes the relative importance of each metric, as determined by the assigned weights, is appropriate for this specific comparison question.",
+          "The scores for each metric are based on the companies' historical data and may not fully capture future trends, risks, or other factors that could impact their performance."
+        ],
+        "limitations": [
+          "The formula provides a simplified, high-level comparison of TSEM and INTC and should not be relied upon as the sole basis for investment decisions. Further fundamental analysis, risk assessment, and due diligence is recommended before making any investment choices.",
+          "The weights and reasons for including each metric are subjective assumptions and may not be optimal or appropriate for all investors or comparison questions."
+        ]
+      },
+      "evaluation": {
+        "status": "completed",
+        "formula": {
+          "name": "TSEM vs INTC Comparison Formula",
+          "purpose": "To compare the financial performance and potential of TSEM and INTC based on key metrics",
+          "components": [
+            {
+              "metric": "valuation_score",
+              "weight": 0.3,
+              "direction": "lower_is_better",
+              "reason": "A lower valuation score indicates the company may be undervalued relative to peers, potentially offering higher return potential"
+            },
+            {
+              "metric": "growth_score",
+              "weight": 0.3,
+              "direction": "higher_is_better",
+              "reason": "A higher growth score suggests the company has been growing revenue and earnings at a faster rate than its peers, indicating positive momentum"
+            },
+            {
+              "metric": "momentum_score",
+              "weight": 0.2,
+              "direction": "higher_is_better",
+              "reason": "A higher momentum score indicates the company's stock price has been trending upwards relative to its peers over the past 12 months, reflecting investor confidence"
+            },
+            {
+              "metric": "profitability_score",
+              "weight": 0.1,
+              "direction": "higher_is_better",
+              "reason": "A higher profitability score suggests the company is more efficient at converting revenue into profit margins, indicating strong financial health"
+            },
+            {
+              "metric": "beta",
+              "weight": 0.1,
+              "direction": "lower_is_better",
+              "reason": "A lower beta indicates the company's stock price is less volatile relative to the broader market, potentially making it a more stable investment"
+            }
+          ],
+          "how_created": "The formula was created by selecting key financial metrics that are commonly used to evaluate a company's financial health, growth potential, and investment risk. The weights were assigned based on the perceived importance of each metric in answering the specific question of comparing TSEM and INTC. Metrics were prioritized that provide insight into valuation, growth, momentum, profitability, and risk.",
+          "why_important": "By combining these five key metrics into a single formula, investors can quickly compare TSEM and INTC to identify which company appears to be in a stronger financial position, growing more rapidly, and offering more attractive risk/reward potential. This high-level comparison can help inform further analysis and investment decisions.",
+          "assumptions": [
+            "The formula assumes the selected metrics are reasonable proxies for evaluating the companies' overall financial health and potential. It also assumes the relative importance of each metric, as determined by the assigned weights, is appropriate for this specific comparison question.",
+            "The scores for each metric are based on the companies' historical data and may not fully capture future trends, risks, or other factors that could impact their performance."
+          ],
+          "limitations": [
+            "The formula provides a simplified, high-level comparison of TSEM and INTC and should not be relied upon as the sole basis for investment decisions. Further fundamental analysis, risk assessment, and due diligence is recommended before making any investment choices.",
+            "The weights and reasons for including each metric are subjective assumptions and may not be optimal or appropriate for all investors or comparison questions."
+          ]
+        },
+        "scores": {
+          "TSEM": {
+            "score": 0.6,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 0.0,
+                "weight": 0.3,
+                "weighted_value": 0.0
+              },
+              "growth_score": {
+                "normalized_value": 1.0,
+                "weight": 0.3,
+                "weighted_value": 0.3
+              },
+              "momentum_score": {
+                "normalized_value": 0.5,
+                "weight": 0.2,
+                "weighted_value": 0.1
+              },
+              "profitability_score": {
+                "normalized_value": 1.0,
+                "weight": 0.1,
+                "weighted_value": 0.1
+              },
+              "beta": {
+                "normalized_value": 1.0,
+                "weight": 0.1,
+                "weighted_value": 0.1
+              }
+            }
+          },
+          "INTC": {
+            "score": 0.4,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 1.0,
+                "weight": 0.3,
+                "weighted_value": 0.3
+              },
+              "growth_score": {
+                "normalized_value": 0.0,
+                "weight": 0.3,
+                "weighted_value": 0.0
+              },
+              "momentum_score": {
+                "normalized_value": 0.5,
+                "weight": 0.2,
+                "weighted_value": 0.1
+              },
+              "profitability_score": {
+                "normalized_value": 0.0,
+                "weight": 0.1,
+                "weighted_value": 0.0
+              },
+              "beta": {
+                "normalized_value": 0.0,
+                "weight": 0.1,
+                "weighted_value": 0.0
+              }
+            }
+          }
+        },
+        "ranking": [
+          {
+            "ticker": "TSEM",
+            "score": 0.6
+          },
+          {
+            "ticker": "INTC",
+            "score": 0.4
+          }
+        ]
+      }
+    },
+    "final_status": "completed"
+  }
+}

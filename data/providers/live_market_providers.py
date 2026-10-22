@@ -270,7 +270,7 @@ class LiveMarketProvider:
 
 
             scraped = (
-                self.firecrawl.retrieve(
+                self.firecrawl.retrieve_page(
                     url
                 )
             )

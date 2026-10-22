@@ -1,0 +1,689 @@
+{
+  "job_id": "8d8ff68e-05d2-4a29-a31a-53b7193fcb0c",
+  "status": "completed",
+  "created_at": "2026-10-21T13:06:01.343029",
+  "updated_at": "2026-10-21T13:13:39.849776",
+  "data": {
+    "message": "Compare ARKK, SPY, VGT and XLK",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "ARKK",
+        "ticker": "ARKK",
+        "entity_type": "etf",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-10-21T20:06:00.672077+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Mid-Cap Growth",
+            "family": "ARK ETF Trust",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "ARKK": 0.0075,
+              "Category Average": 0.0104558
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "ARKK": 0.54,
+              "Category Average": 0.9136
+            },
+            {
+              "key": "Total Net Assets",
+              "ARKK": 85091.57,
+              "Category Average": 85091.57
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.0039,
+            "stockPosition": 0.958,
+            "bondPosition": 0.0004,
+            "preferredPosition": 0.0121,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.0255
+          },
+          "top_holdings": [
+            {
+              "key": "TSLA",
+              "Name": "Tesla Inc",
+              "Holding Percent": 0.0907964
+            },
+            {
+              "key": "SPCX",
+              "Name": "Space Exploration Technologies Corp Class A",
+              "Holding Percent": 0.0618494
+            },
+            {
+              "key": "TEM",
+              "Name": "Tempus AI Inc Class A common stock",
+              "Holding Percent": 0.0590518
+            },
+            {
+              "key": "CRCL",
+              "Name": "Circle Internet Group Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.0457332
+            },
+            {
+              "key": "CRSP",
+              "Name": "CRISPR Therapeutics AG",
+              "Holding Percent": 0.044548202
+            },
+            {
+              "key": "COIN",
+              "Name": "Coinbase Global Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.044038903
+            },
+            {
+              "key": "TWST",
+              "Name": "Twist Bioscience Corp",
+              "Holding Percent": 0.0437797
+            },
+            {
+              "key": "HOOD",
+              "Name": "Robinhood Markets Inc Class A",
+              "Holding Percent": 0.0386363
+            },
+            {
+              "key": "TXG",
+              "Name": "10x Genomics Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.034874
+            },
+            {
+              "key": "SHOP",
+              "Name": "Shopify Inc Registered Shs -A- Subord Vtg",
+              "Holding Percent": 0.0323825
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.118,
+            "basic_materials": 0.0,
+            "consumer_defensive": 0.0,
+            "technology": 0.26700002,
+            "communication_services": 0.0387,
+            "financial_services": 0.16,
+            "utilities": 0.0,
+            "industrials": 0.1149,
+            "energy": 0.0,
+            "healthcare": 0.3014
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "ARKK": 0.0,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "ARKK": 0.16675,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "ARKK": 0.85179,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "ARKK": 0.03861,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "ARKK": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "ARKK": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "ARKK": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "ARKK": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "ARKK": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0004
+          },
+          "status": "available"
+        }
+      },
+      {
+        "name": "SPY",
+        "ticker": "SPY",
+        "entity_type": "etf",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-10-17T03:16:44.984444+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Large Blend",
+            "family": "State Street Investment Management",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "SPY": 0.000945,
+              "Category Average": 0.0072176997
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "SPY": 0.03,
+              "Category Average": 0.9461
+            },
+            {
+              "key": "Total Net Assets",
+              "SPY": 542460.75,
+              "Category Average": 542460.75
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.0025,
+            "stockPosition": 0.9975,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.0
+          },
+          "top_holdings": [
+            {
+              "key": "NVDA",
+              "Name": "NVIDIA Corp",
+              "Holding Percent": 0.0836162
+            },
+            {
+              "key": "AAPL",
+              "Name": "Apple Inc",
+              "Holding Percent": 0.0735303
+            },
+            {
+              "key": "MSFT",
+              "Name": "Microsoft Corp",
+              "Holding Percent": 0.0576201
+            },
+            {
+              "key": "AMZN",
+              "Name": "Amazon.com Inc",
+              "Holding Percent": 0.0370001
+            },
+            {
+              "key": "GOOGL",
+              "Name": "Alphabet Inc Class A",
+              "Holding Percent": 0.030545799
+            },
+            {
+              "key": "AVGO",
+              "Name": "Broadcom Inc",
+              "Holding Percent": 0.0252788
+            },
+            {
+              "key": "GOOG",
+              "Name": "Alphabet Inc Class C",
+              "Holding Percent": 0.024504
+            },
+            {
+              "key": "META",
+              "Name": "Meta Platforms Inc Class A",
+              "Holding Percent": 0.0241938
+            },
+            {
+              "key": "MU",
+              "Name": "Micron Technology Inc",
+              "Holding Percent": 0.0182
+            },
+            {
+              "key": "TSLA",
+              "Name": "Tesla Inc",
+              "Holding Percent": 0.0151269
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.017,
+            "consumer_cyclical": 0.0874,
+            "basic_materials": 0.0156,
+            "consumer_defensive": 0.0433,
+            "technology": 0.4045,
+            "communication_services": 0.0995,
+            "financial_services": 0.111999996,
+            "utilities": 0.0188,
+            "industrials": 0.0754,
+            "energy": 0.034,
+            "healthcare": 0.0926
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "SPY": 0.04132,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "SPY": 0.19034,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "SPY": 0.27459,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "SPY": 0.05326,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "SPY": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "SPY": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "SPY": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "SPY": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "SPY": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      },
+      {
+        "name": "VGT",
+        "ticker": "VGT",
+        "entity_type": "etf",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-10-21T20:06:01.087965+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Technology",
+            "family": "Vanguard",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "VGT": 0.00090000004,
+              "Category Average": 0.009006999
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "VGT": 0.08,
+              "Category Average": 0.582
+            },
+            {
+              "key": "Total Net Assets",
+              "VGT": 730001.9,
+              "Category Average": 730001.9
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.0023,
+            "stockPosition": 0.9974,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.0002
+          },
+          "top_holdings": [
+            {
+              "key": "NVDA",
+              "Name": "NVIDIA Corp",
+              "Holding Percent": 0.1758716
+            },
+            {
+              "key": "AAPL",
+              "Name": "Apple Inc",
+              "Holding Percent": 0.1591342
+            },
+            {
+              "key": "MSFT",
+              "Name": "Microsoft Corp",
+              "Holding Percent": 0.111611605
+            },
+            {
+              "key": "MU",
+              "Name": "Micron Technology Inc",
+              "Holding Percent": 0.0445401
+            },
+            {
+              "key": "AVGO",
+              "Name": "Broadcom Inc",
+              "Holding Percent": 0.0411111
+            },
+            {
+              "key": "AMD",
+              "Name": "Advanced Micro Devices Inc",
+              "Holding Percent": 0.0367649
+            },
+            {
+              "key": "INTC",
+              "Name": "Intel Corp",
+              "Holding Percent": 0.0198507
+            },
+            {
+              "key": "CSCO",
+              "Name": "Cisco Systems Inc",
+              "Holding Percent": 0.0159966
+            },
+            {
+              "key": "LRCX",
+              "Name": "Lam Research Corp",
+              "Holding Percent": 0.0155525
+            },
+            {
+              "key": "PLTR",
+              "Name": "Palantir Technologies Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.0154874
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.00059999997,
+            "basic_materials": 0.0001,
+            "consumer_defensive": 0.0,
+            "technology": 0.99300003,
+            "communication_services": 0.0,
+            "financial_services": 0.0033000002,
+            "utilities": 0.0,
+            "industrials": 0.0029,
+            "energy": 0.0,
+            "healthcare": 0.0001
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "VGT": 0.03193,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "VGT": 0.09512,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "VGT": 0.13339,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "VGT": 0.03847,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "VGT": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "VGT": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "VGT": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "VGT": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "VGT": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      },
+      {
+        "name": "XLK",
+        "ticker": "XLK",
+        "entity_type": "etf",
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-10-21T20:06:01.333035+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Technology",
+            "family": "State Street Investment Management",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "XLK": 0.0008,
+              "Category Average": 0.009006999
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "XLK": 0.05,
+              "Category Average": 0.582
+            },
+            {
+              "key": "Total Net Assets",
+              "XLK": 919203.25,
+              "Category Average": 919203.25
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.0004,
+            "stockPosition": 0.9997,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.0
+          },
+          "top_holdings": [
+            {
+              "key": "NVDA",
+              "Name": "NVIDIA Corp",
+              "Holding Percent": 0.154659
+            },
+            {
+              "key": "AAPL",
+              "Name": "Apple Inc",
+              "Holding Percent": 0.136004
+            },
+            {
+              "key": "MSFT",
+              "Name": "Microsoft Corp",
+              "Holding Percent": 0.10657679
+            },
+            {
+              "key": "AMD",
+              "Name": "Advanced Micro Devices Inc",
+              "Holding Percent": 0.050590202
+            },
+            {
+              "key": "AVGO",
+              "Name": "Broadcom Inc",
+              "Holding Percent": 0.0467552
+            },
+            {
+              "key": "MU",
+              "Name": "Micron Technology Inc",
+              "Holding Percent": 0.0446581
+            },
+            {
+              "key": "INTC",
+              "Name": "Intel Corp",
+              "Holding Percent": 0.0338494
+            },
+            {
+              "key": "PLTR",
+              "Name": "Palantir Technologies Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.0243834
+            },
+            {
+              "key": "CSCO",
+              "Name": "Cisco Systems Inc",
+              "Holding Percent": 0.024036
+            },
+            {
+              "key": "LRCX",
+              "Name": "Lam Research Corp",
+              "Holding Percent": 0.0232913
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.0,
+            "basic_materials": 0.0,
+            "consumer_defensive": 0.0,
+            "technology": 1.0,
+            "communication_services": 0.0,
+            "financial_services": 0.0,
+            "utilities": 0.0,
+            "industrials": 0.0,
+            "energy": 0.0,
+            "healthcare": 0.0
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "XLK": 0.03121,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "XLK": 0.08417,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "XLK": 0.10803,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "XLK": 0.03738,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "XLK": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "XLK": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "XLK": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "XLK": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "XLK": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "quant": true,
+      "sentiment": true,
+      "risk": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the information provided, it seems that the user is asking for a comparison of ARKK, SPY, VGT, and XLK ETFs specifically in terms of their predicted returns over the next 180 days. \n\nTo answer this question, let's look at the 180-day forecast directly from the Financial Comparison Table I generated:\n\n- ARKK is predicted to rise by +4.27% over 180 days\n- SPY is predicted to climb by +13.22%\n- VGT is forecast to soar by +30.94%\n- XLK is expected to surge by +33.89%\n\nThe 180-day predictions show XLK and VGT are expected to have the largest gains at +33.89% and +30.94% respectively. ARKK is predicted to increase by +4.27%, while SPY is projected to rise by +13.22%, ranking it in the middle.\n\nSo in summary, according to the 180-day forecast provided in the supplied financial evidence, VGT and XLK look set to be the top performers, while ARKK and SPY are predicted to have more modest gains over the next 6 months.\n\nThe quantitative risk models also suggest VGT and XLK have the strongest overall risk profiles and highest financial stability, further supporting their potential as top picks.\n\nPlease note this analysis is strictly based on the specific 180-day forecast predictions and risk scores I calculated from the supplied financial evidence, and does not consider other potential factors that could impact these ETFs' performance. The 180-day forecasts and risk scores I've presented come from my quantitative analysis of the available data, and may be different from other forecasts and estimates.\n\nLet me know if you need any clarification or have additional analysis in mind! I'm happy to further explore other dimensions of this ETF comparison."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": false,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": null,
+    "final_status": "completed"
+  }
+}

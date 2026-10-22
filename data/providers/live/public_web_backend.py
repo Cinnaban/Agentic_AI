@@ -4,6 +4,11 @@ from ddgs import (
     DDGS
 )
 
+from data.providers.live.premium_sources import (
+    ExaBackend,
+    SerpApiBackend
+)
+
 
 class PublicWebBackend:
 
@@ -26,6 +31,8 @@ class PublicWebBackend:
         self.max_results = (
             max_results
         )
+        self.serpapi = SerpApiBackend(max_results)
+        self.exa = ExaBackend(max_results)
 
 
     def _normalize(
@@ -39,6 +46,10 @@ class PublicWebBackend:
         ):
 
             return None
+
+
+        if result.get("source_type") == "public_web":
+            return result
 
 
         title = result.get(
@@ -173,10 +184,32 @@ class PublicWebBackend:
                         return []
             return []
 
-        with ThreadPoolExecutor(
-            max_workers=len(self.BACKENDS)
-        ) as pool:
-            per_backend = list(pool.map(fetch, self.BACKENDS))
+        premium_sources = [
+            source.search for source in (self.serpapi, self.exa)
+            if source.is_configured()
+        ]
+
+        def run(task):
+            kind, argument = task
+            if kind == "ddgs":
+                return fetch(argument)
+            try:
+                return argument(query)
+            except Exception as exc:
+                print("PublicWebBackend premium error:", repr(exc))
+                return []
+
+        tasks = (
+            [("ddgs", backend) for backend in self.BACKENDS]
+            + [("premium", search) for search in premium_sources]
+        )
+        with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+            per_backend = list(pool.map(run, tasks))
+
+        premium_count = len(premium_sources)
+        premium_results = per_backend[len(per_backend) - premium_count:] if premium_count else []
+        ddgs_results = per_backend[:len(self.BACKENDS)]
+        per_backend = premium_results + ddgs_results
 
         raw_results = []
         for rank in range(self.max_results):
