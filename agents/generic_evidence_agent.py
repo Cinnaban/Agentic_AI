@@ -101,6 +101,30 @@ class GenericEvidenceAgent:
             return result
 
 
+        news_items = self._dated_items(message, results)
+        if news_items:
+            news_prompt = self._build_news_prompt(message, news_items)
+            response = self.ollama.generate(
+                news_prompt,
+                model=getattr(
+                    Config,
+                    "GENERIC_EVIDENCE_MODEL",
+                    "mistral:7b"
+                )
+            )
+            text = str(response.get("response", "") or "").strip()
+            if text and not self._contains_prompt_leak(text):
+                text = self._format_answer_and_sources(
+                    text,
+                    evidence.get("sources", [])
+                )
+                text = self._add_archive_notice(text, evidence)
+                return {
+                    "status": "completed",
+                    "response": text,
+                    "sources": evidence.get("sources", [])
+                }
+
         prompt = f"""
 You are answering a general informational question.
 
@@ -113,7 +137,9 @@ OVERRIDING ACCURACY RULES:
 - If USER QUESTION asks for the latest, recent, or current
   developments, lead with the most recent dated developments in
   the supplied sources and state their dates. Do not substitute a
-  generic company or topic overview.
+  generic company or topic overview. Use only facts found in the
+  supplied sources; never answer from memory or older knowledge, and
+  prefer sources with a published_at date.
 - For list, ranking, or "which companies/who/what are" questions,
   give the actual list: names plus any figures (such as market
   share percentages) stated in the sources, each attributed with a
@@ -583,6 +609,53 @@ social or community discussion.
         }
 
     EXCERPT_BUDGET = 2400
+
+    @staticmethod
+    def _dated_items(message, results):
+        from orchestrator.freshness_detector import FreshnessDetector
+
+        detector = FreshnessDetector()
+        if not (
+            detector.requires_live_data(str(message or ""))
+            or re.search(r"\bnews\b", str(message or ""), re.IGNORECASE)
+        ):
+            return []
+        dated = [
+            item for item in results
+            if isinstance(item, dict)
+            and re.match(r"\d{4}-\d{2}-\d{2}", str(item.get("published_at") or ""))
+            and item.get("source_id")
+        ]
+        dated.sort(key=lambda item: str(item["published_at"]), reverse=True)
+        return dated[:6] if len(dated) >= 2 else []
+
+    @staticmethod
+    def _build_news_prompt(message, items):
+        blocks = []
+        for item in items:
+            text = str(item.get("content") or item.get("summary") or "")
+            blocks.append(
+                f"[{item['source_id']}] {item.get('title')} "
+                f"({item.get('source_host') or item.get('source')}, "
+                f"{str(item['published_at'])[:10]})\n{text[:600]}"
+            )
+        joined = "\n\n".join(blocks)
+        return f"""Summarize the latest developments using ONLY the dated
+articles below. Do not use any outside or remembered knowledge. Do not
+mention any product, set, date or event that is not in the articles.
+
+ARTICLES (newest first):
+{joined}
+
+QUESTION: {message}
+
+Write exactly these three parts:
+Summary: one sentence on the most important recent development.
+Answer: write one sentence for EACH article above (skip only exact
+duplicates), newest first, each stating its development, its date and a
+citation like [S3] using the article IDs above.
+Assessment: one sentence on how current and well supported this is.
+"""
 
     @classmethod
     def _focus_evidence(cls, message, evidence, research_plan):

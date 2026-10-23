@@ -1571,7 +1571,13 @@ class Hermes:
 
                     return safe_response
                 
-                if requires_live_data:
+                if (
+                    requires_live_data
+                    and self.freshness_detector
+                    .is_financial_query(
+                        effective_message
+                    )
+                ):
 
                     live_context = (
                         self.live_market_provider

@@ -141,7 +141,8 @@ class PublicWebBackend:
     def search(
         self,
         company,
-        query
+        query,
+        news=False
     ):
 
         if not isinstance(
@@ -184,6 +185,32 @@ class PublicWebBackend:
                         return []
             return []
 
+        def fetch_news():
+            try:
+                with DDGS() as ddgs:
+                    items = list(
+                        ddgs.news(
+                            query,
+                            region=self.REGION,
+                            max_results=self.max_results
+                        )
+                    )
+            except Exception as exc:
+                print("PublicWebBackend news error:", repr(exc))
+                return []
+            return [
+                {
+                    "title": item.get("title"),
+                    "published_at": item.get("date"),
+                    "source": item.get("source") or self.SOURCE,
+                    "summary": item.get("body"),
+                    "url": item.get("url"),
+                    "source_type": "public_web"
+                }
+                for item in items
+                if item.get("title") and item.get("url")
+            ]
+
         premium_sources = [
             source.search for source in (self.serpapi, self.exa)
             if source.is_configured()
@@ -193,6 +220,8 @@ class PublicWebBackend:
             kind, argument = task
             if kind == "ddgs":
                 return fetch(argument)
+            if kind == "news":
+                return fetch_news()
             try:
                 return argument(query)
             except Exception as exc:
@@ -202,14 +231,17 @@ class PublicWebBackend:
         tasks = (
             [("ddgs", backend) for backend in self.BACKENDS]
             + [("premium", search) for search in premium_sources]
+            + ([("news", None)] if news else [])
         )
         with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
             per_backend = list(pool.map(run, tasks))
 
-        premium_count = len(premium_sources)
-        premium_results = per_backend[len(per_backend) - premium_count:] if premium_count else []
         ddgs_results = per_backend[:len(self.BACKENDS)]
-        per_backend = premium_results + ddgs_results
+        premium_results = per_backend[
+            len(self.BACKENDS):len(self.BACKENDS) + len(premium_sources)
+        ]
+        news_results = per_backend[len(self.BACKENDS) + len(premium_sources):]
+        per_backend = news_results + premium_results + ddgs_results
 
         raw_results = []
         for rank in range(self.max_results):

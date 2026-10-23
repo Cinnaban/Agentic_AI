@@ -454,8 +454,24 @@ class GenericEvidenceProvider:
             "reference": 2,
             "independent_or_other": 3
         }
+        wants_recent = FreshnessDetector().requires_live_data(
+            str(query or "")
+        )
+
+        def recency_rank(result):
+            if not wants_recent:
+                return 0
+            published = str(result.get("published_at") or "")
+            return 0 if re.match(r"\d{4}-\d{2}-\d{2}", published) else 1
+
+        def recency_key(result):
+            published = str(result.get("published_at") or "")[:10]
+            return tuple(-ord(c) for c in published) if wants_recent else ()
+
         ranked.sort(
             key=lambda item: (
+                recency_rank(item[1]),
+                recency_key(item[1]),
                 -item[0],
                 role_order.get(item[1].get("source_role"), 3),
                 item[1].get("source_host", "")
@@ -688,14 +704,27 @@ class GenericEvidenceProvider:
             results.append(wikipedia_result)
 
 
-        for search_query in (
+        news_mode = requires_live_data or bool(
+            re.search(
+                r"\b(news|newest|new releases?|announce\w*)\b",
+                str(query or ""),
+                re.IGNORECASE
+            )
+        )
+
+        for index, search_query in enumerate(
             cleaned_queries
         ):
+
+            search_kwargs = {}
+            if news_mode and index < 2:
+                search_kwargs["news"] = True
 
             web_results = (
                 self.web.search(
                     company={},
-                    query=search_query
+                    query=search_query,
+                    **search_kwargs
                 )
             )
 
