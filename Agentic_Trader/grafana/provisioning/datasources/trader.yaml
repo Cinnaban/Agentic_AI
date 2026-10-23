@@ -1,0 +1,9 @@
+apiVersion: 1
+datasources:
+  - name: Trader History
+    uid: trader-history
+    type: frser-sqlite-datasource
+    access: proxy
+    isDefault: true
+    jsonData:
+      path: /Users/bunnyhouse_mastercontrol/Agentic_AI/Agentic_Trader/state/trader_history.db

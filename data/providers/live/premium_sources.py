@@ -1,4 +1,4 @@
-"""Optional premium web sources (SerpAPI, Exa, Crawl4AI). Each stays disabled until configured."""
+"""Optional premium web sources (SerpAPI, Exa, Brave Search, Crawl4AI). Each stays disabled until configured."""
 import os
 import threading
 import time
@@ -89,6 +89,45 @@ class SerpApiBackend:
         answer = graph.get("answer") or graph.get("snippet")
         if answer and rows:
             rows[0]["summary"] = f"{answer} {rows[0].get('summary') or ''}".strip()
+        return [r for r in rows if r][: self.max_results]
+
+
+class BraveSearchBackend:
+    """Read-only Brave Search web/news API."""
+    SOURCE = "Brave Search"
+
+    def __init__(self, max_results=8):
+        self.api_key = os.getenv("BRAVE_SEARCH_API_KEY", "").strip()
+        self.max_results = max_results
+
+    def is_configured(self):
+        return bool(self.api_key)
+
+    def search(self, query, news=False):
+        if not self.is_configured() or not BUDGET.take("brave"):
+            return []
+        endpoint = "news" if news else "web"
+        try:
+            response = requests.get(
+                f"https://api.search.brave.com/res/v1/{endpoint}/search",
+                params={"q": query, "count": min(self.max_results, 20), "country": "us"},
+                headers={"X-Subscription-Token": self.api_key, "Accept": "application/json"},
+                timeout=20,
+            )
+            data = response.json() if response.status_code == 200 else {}
+        except (requests.RequestException, ValueError):
+            return []
+        items = data.get("results") if news else (data.get("web") or {}).get("results")
+        rows = [
+            _result(
+                item.get("title"),
+                item.get("url"),
+                item.get("description"),
+                self.SOURCE,
+                item.get("page_age") or item.get("age"),
+            )
+            for item in items or []
+        ]
         return [r for r in rows if r][: self.max_results]
 
 

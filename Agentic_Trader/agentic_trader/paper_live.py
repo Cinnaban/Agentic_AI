@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 
 from .config import STATE_DIR, Settings, load_env_files
+from .desk import AGENTS, LABELS, Desk
 from .paper_options import Income
 
 ET = ZoneInfo("America/New_York")
@@ -61,7 +62,7 @@ class Cfg:
         self.week_max = float(os.getenv("PAPER_WEEKLY_TARGET_MAX", "0.10"))
         # options income sleeve: cash-secured puts + covered calls only, never naked
         self.opt_enabled = os.getenv("PAPER_OPTIONS", "1") not in ("0", "false", "off")
-        self.opt_symbols = _csv("PAPER_OPTION_SYMBOLS", "F,SOFI,RIVN,SNAP,NIO,T,KVUE,CMCSA,PFE,SCHD")
+        self.opt_symbols = _csv("PAPER_OPTION_SYMBOLS", "F,SOFI,RIVN,SNAP,NIO,AAL,HBAN,NU,VALE,BB,RIG,LCID,T,KVUE,CMCSA,PFE")
         self.opt_pct = float(os.getenv("PAPER_OPTION_PCT", "0.35"))
         self.opt_min_dte = int(os.getenv("PAPER_OPTION_MIN_DTE", "5"))
         self.opt_max_dte = int(os.getenv("PAPER_OPTION_MAX_DTE", "14"))
@@ -72,6 +73,13 @@ class Cfg:
         self.opt_fee = float(os.getenv("PAPER_OPTION_FEE_PER_CONTRACT", "0.04"))
         self.opt_scan_min = int(os.getenv("PAPER_OPTION_SCAN_MIN", "30"))
         self.cooldown_min = int(os.getenv("PAPER_COOLDOWN_MIN", "30"))
+        self.opt_max_positions = int(os.getenv("PAPER_OPTION_MAX_POSITIONS", "3"))
+        self.opt_weekly_premium_goal = float(os.getenv("PAPER_OPTION_WEEKLY_PREMIUM_GOAL", "0.01"))
+        # growth agent: share of equity for core ETFs + hedge, optional "VOO:0.35,QQQ:0.25" weights, rebalance band
+        self.growth_pct = float(os.getenv("PAPER_GROWTH_PCT", str(self.core_pct)))
+        self.growth_weights = {k.strip().upper(): float(v) for k, v in
+                               (item.split(":") for item in os.getenv("PAPER_GROWTH_WEIGHTS", "").split(",") if ":" in item)}
+        self.rebalance_band = float(os.getenv("PAPER_REBALANCE_BAND", "0.25"))
 
 
 def now_et() -> datetime:
@@ -183,6 +191,8 @@ class PaperTrader:
         self.pdt_blocked = 0
         self.s.setdefault("options", [])
         self.income = Income(self)
+        self.desk = Desk(self)
+        self.plan = None
 
     # ---- helpers
     def _archive(self, old):
@@ -302,19 +312,6 @@ class PaperTrader:
         self.s["regime"] = reg
         return reg
 
-    def core_sleeve(self, quotes, t, equity):
-        target = equity * self.cfg.core_pct / max(1, len(self.cfg.etfs))
-        bars = self.data.bars(self.cfg.etfs, "day", 120, ttl=1800)
-        for sym in self.cfg.etfs:
-            q, closes = quotes.get(sym), [b["close"] for b in bars.get(sym, []) if b.get("close")]
-            if not q or not q.get("price") or len(closes) < 50:
-                continue
-            ma50, px, held = float(np.mean(closes[-50:])), q["price"], self.s["positions"].get(sym)
-            if held and px < ma50 * 0.985:
-                self.sell(sym, held["qty"], f"ETF trend break (below MA50 {ma50:.2f})", q, t)
-            elif not held and px > ma50:
-                self.buy(sym, min(target, self.s["cash"]), "core", f"ETF trend up (above MA50 {ma50:.2f})", q, t)
-
     def hedge_sleeve(self, quotes, t, equity, reg):
         sym = self.cfg.hedge
         q = quotes.get(sym)
@@ -331,8 +328,10 @@ class PaperTrader:
             self.sell(sym, min(held["qty"], (cur - want) / q["price"]) if want > 0 else held["qty"],
                       f"hedge down: {why}", q, t)
 
-    def day_sleeve(self, quotes, t, equity, reg, phase_hm):
+    def day_sleeve(self, quotes, t, equity, reg, phase_hm, mandate=None):
         c = self.cfg
+        day_pct = mandate.budget_pct if mandate else c.day_pct
+        scale = (mandate.scale if mandate else 1.0)
         day_syms = [s for s, p in self.s["positions"].items() if p["sleeve"] == "day"]
         flatten = phase_hm >= FLATTEN_AT
         sig = {}
@@ -352,14 +351,14 @@ class PaperTrader:
                       f"signal flipped ({score:+.2f})" if score is not None and score <= -0.10 else None)
             if reason:
                 self.sell(sym, p["qty"], reason, q, t)
-        if flatten or phase_hm >= NO_ENTRY_AFTER:
+        if flatten or phase_hm >= NO_ENTRY_AFTER or (mandate and not mandate.allow_new):
             return
         if self.pdt_limited() and self.day_trades_5d(t) >= c.pdt_max:
             return
         if equity / self.s["day"]["open_equity"] - 1 >= c.daily_max:
             return  # daily goal reached: bank it, no new day entries
         open_n = sum(1 for p in self.s["positions"].values() if p["sleeve"] == "day")
-        budget = equity * c.day_pct - sum(p["qty"] * (quotes.get(s, {}).get("price") or p["avg"])
+        budget = equity * day_pct * scale - sum(p["qty"] * (quotes.get(s, {}).get("price") or p["avg"])
                                           for s, p in self.s["positions"].items() if p["sleeve"] == "day")
         sentiment = self._sentiment(c.day_symbols)
         ranked = sorted(((self.day_rank(m, sentiment.get(s)), s, m) for s, m in sig.items()
@@ -373,7 +372,7 @@ class PaperTrader:
                     or (cd and (t - datetime.fromisoformat(cd)).total_seconds() < c.cooldown_min * 60)):
                 continue
             vol = m.get("realized_vol_ann") or 0.3
-            size = min(budget, equity * c.day_pct / c.max_day_positions * reg["day_scale"] * min(1.0, 0.35 / max(vol, 0.05)))
+            size = min(budget, equity * day_pct / c.max_day_positions * scale * min(1.0, 0.35 / max(vol, 0.05)))
             if self.buy(sym, size, "day", f"signal {score:+.2f}, RSI {m.get('rsi14') or 0:.0f}, vol {vol:.0%}", q, t):
                 open_n += 1
                 budget -= size
@@ -432,20 +431,19 @@ class PaperTrader:
                 print("[paper] option settle failed:", repr(exc))
         if phase == "open" and hm >= (9, 35):
             equity = self.equity(quotes)
-            if self.cfg.opt_enabled:
-                try:
-                    self.income.enforce(quotes, t)
-                    self.income.manage(t)
-                    self.income.scan(quotes, t, equity)
-                except Exception as exc:
-                    print("[paper] options failed:", repr(exc))
             reg = self.volatility()
-            for fn, args in ((self.day_sleeve, (quotes, t, equity, reg, hm)), (self.core_sleeve, (quotes, t, equity)),
-                             (self.hedge_sleeve, (quotes, t, equity, reg))):
+            self.plan = self.desk.orchestrator.plan(quotes, t, equity, reg)
+            m = self.plan.mandates
+            steps = []
+            if self.cfg.opt_enabled:
+                steps.append(("options", lambda: self.desk.options.run(quotes, t, equity, m["options"])))
+            steps += [("day", lambda: self.desk.day.run(quotes, t, equity, m["day"], reg, hm)),
+                      ("growth", lambda: self.desk.growth.run(quotes, t, equity, m["growth"], reg))]
+            for name, fn in steps:
                 try:
-                    fn(*args)
+                    fn()
                 except Exception as exc:
-                    print(f"[paper] {fn.__name__} failed:", repr(exc))
+                    print(f"[paper] {name} agent failed:", repr(exc))
         equity = self.equity(quotes)
         self.s["equity_log"].append([t.isoformat(), equity])
         self.s["equity_log"] = self.s["equity_log"][-4000:]
@@ -499,6 +497,30 @@ class PaperTrader:
     def goal_line(name, ret, lo, hi):
         state = "below target" if ret < lo else "on target" if ret <= hi else "above target"
         return f"{name}: {ret:+.2%} vs goal {lo:.0%}-{hi:.0%} ({state})"
+
+    def desk_lines(self, quotes, equity, t):
+        desk, cfg = self.s.get("desk") or {}, self.cfg
+        if not desk.get("mandates"):
+            return []
+        rows = self.desk.orchestrator.attribution(quotes, t)
+        week_open = self.s["week"]["open_equity"]
+        premium_wk = sum(float(x["px"]) * 100 * x["qty"] for x in self.s["trades"]
+                         if x["side"] == "option" and x["desc"].startswith("SELL TO OPEN")
+                         and x["ts"][:10] >= (t - timedelta(days=t.weekday())).date().isoformat())
+        L = ["", f"Desk (orchestrator, stance {desk['stance']}): day {desk['day_ret']:+.2%} / week {desk['week_ret']:+.2%}"]
+        L += [f"- Orchestrator: {n}" for n in desk.get("notes", [])]
+        for a in AGENTS:
+            m, r = desk["mandates"][a], rows[a]
+            line = (f"- {LABELS[a]}: budget {m['budget_pct'] * m['scale']:.0%}, deployed {_money(r['value'])} "
+                    f"({r['value'] / equity:.0%}), realized today {_money(r['today'], True)} / week {_money(r['week'], True)}, "
+                    f"open {_money(r['open'], True)}")
+            if a == "options":
+                line += (f", premium this week {_money(premium_wk)} vs goal "
+                         f"{_money(cfg.opt_weekly_premium_goal * week_open)}")
+            if not m["allow_new"]:
+                line += " [holding]"
+            L.append(line)
+        return L
 
     def summary(self, t, quotes, equity, daily):
         s, cfg = self.s, self.cfg
@@ -562,6 +584,10 @@ class PaperTrader:
               f"Premium sold {'today' if daily else 'this period'}: {_money(premium)} | "
               f"Collateral reserved: {_money(self.income.collateral())}"]
         L += self.income.lines(quotes) or ["- no open options"]
+        note = (s.get("desk") or {}).get("options_note")
+        if note and not self.income.opts:
+            L.append(f"Last scan: {note}")
+        L += self.desk_lines(quotes, equity, t)
         L += ["", "Goals:", self.goal_line("Day", equity / s["day"]["open_equity"] - 1, cfg.daily_min, cfg.daily_max),
               self.goal_line("Week", equity / s["week"]["open_equity"] - 1, cfg.week_min, cfg.week_max)]
         limited = self.pdt_limited()
@@ -603,6 +629,12 @@ def status_text(t=None):
     for o in st.get("options", []):
         L += [f"- option: {o['sym']} {o['exp']} {o['strike']:g}{'C' if o['type'] == 'call' else 'P'} x{o['qty']} "
               f"({'covered call' if o['type'] == 'call' else 'cash-secured put'}), credit ${o['credit']:.2f}"]
+    desk = st.get("desk") or {}
+    if desk.get("stance"):
+        L += ["", f"Desk stance: {desk['stance']} (day {desk['day_ret']:+.2%}, week {desk['week_ret']:+.2%})"]
+        L += [f"- {n}" for n in desk.get("notes", [])]
+        if desk.get("options_note"):
+            L.append(f"- Options: {desk['options_note']}")
     reg = st.get("regime") or {}
     if reg:
         L += ["", "Volatility regime:", f"{reg['name']} (hedge target {reg['hedge_target']:.0%})"]

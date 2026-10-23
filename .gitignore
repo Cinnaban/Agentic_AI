@@ -36,3 +36,4 @@ run_discord_bot.sh
 run_telegram_bot.sh
 etf_update_launchd_error.log
 etf_update_launchd.log
+grafana_login.txt

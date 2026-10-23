@@ -5,6 +5,7 @@ from ddgs import (
 )
 
 from data.providers.live.premium_sources import (
+    BraveSearchBackend,
     ExaBackend,
     SerpApiBackend
 )
@@ -33,6 +34,7 @@ class PublicWebBackend:
         )
         self.serpapi = SerpApiBackend(max_results)
         self.exa = ExaBackend(max_results)
+        self.brave = BraveSearchBackend(max_results)
 
 
     def _normalize(
@@ -212,7 +214,7 @@ class PublicWebBackend:
             ]
 
         premium_sources = [
-            source.search for source in (self.serpapi, self.exa)
+            source.search for source in (self.serpapi, self.exa, self.brave)
             if source.is_configured()
         ]
 

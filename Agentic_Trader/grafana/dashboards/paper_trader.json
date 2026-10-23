@@ -1,0 +1,907 @@
+{
+ "uid": "paper-trader",
+ "title": "Paper Trader",
+ "tags": [
+  "trader"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 2,
+ "refresh": "1m",
+ "time": {
+  "from": "now-30d",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "id": 1,
+   "title": "Equity",
+   "type": "stat",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT equity FROM account",
+     "rawQueryText": "SELECT equity FROM account",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 2,
+   "title": "Total return",
+   "type": "stat",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT total_return_pct FROM account",
+     "rawQueryText": "SELECT total_return_pct FROM account",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 3,
+   "title": "Realized P&L",
+   "type": "stat",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT realized_total FROM account",
+     "rawQueryText": "SELECT realized_total FROM account",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 4,
+   "title": "Fees paid",
+   "type": "stat",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT fees_total FROM account",
+     "rawQueryText": "SELECT fees_total FROM account",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 5,
+   "title": "Cash",
+   "type": "stat",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT cash FROM account",
+     "rawQueryText": "SELECT cash FROM account",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 6,
+   "title": "Regime",
+   "type": "stat",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 20,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT regime FROM account",
+     "rawQueryText": "SELECT regime FROM account",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 7,
+   "title": "Equity curve",
+   "type": "timeseries",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 4,
+    "w": 16,
+    "h": 9
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT ts AS time, equity FROM equity ORDER BY ts",
+     "rawQueryText": "SELECT ts AS time, equity FROM equity ORDER BY ts",
+     "queryType": "time series",
+     "timeColumns": [
+      "time"
+     ]
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 8,
+   "title": "Return since start (%)",
+   "type": "timeseries",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 4,
+    "w": 8,
+    "h": 9
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT ts AS time, return_pct FROM equity ORDER BY ts",
+     "rawQueryText": "SELECT ts AS time, return_pct FROM equity ORDER BY ts",
+     "queryType": "time series",
+     "timeColumns": [
+      "time"
+     ]
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 9,
+   "title": "Daily return (%)",
+   "type": "barchart",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 13,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT day, return_pct FROM daily ORDER BY day",
+     "rawQueryText": "SELECT day, return_pct FROM daily ORDER BY day",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "xField": "day",
+    "showValue": "auto"
+   }
+  },
+  {
+   "id": 10,
+   "title": "Daily realized P&L ($)",
+   "type": "barchart",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 13,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT day, realized FROM daily ORDER BY day",
+     "rawQueryText": "SELECT day, realized FROM daily ORDER BY day",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "xField": "day",
+    "showValue": "auto"
+   }
+  },
+  {
+   "id": 11,
+   "title": "Realized P&L by symbol",
+   "type": "barchart",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 21,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT symbol, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY symbol ORDER BY realized DESC",
+     "rawQueryText": "SELECT symbol, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY symbol ORDER BY realized DESC",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "xField": "symbol",
+    "showValue": "auto"
+   }
+  },
+  {
+   "id": 12,
+   "title": "Realized P&L by sleeve",
+   "type": "barchart",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 21,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT sleeve, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY sleeve",
+     "rawQueryText": "SELECT sleeve, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY sleeve",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "xField": "sleeve",
+    "showValue": "auto"
+   }
+  },
+  {
+   "id": 13,
+   "title": "Win rate by sleeve",
+   "type": "table",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 21,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT sleeve, COUNT(*) AS closes, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct FROM trades WHERE side='sell' GROUP BY sleeve",
+     "rawQueryText": "SELECT sleeve, COUNT(*) AS closes, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct FROM trades WHERE side='sell' GROUP BY sleeve",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 14,
+   "title": "Open positions (at cost)",
+   "type": "table",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 37,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT symbol, sleeve, ROUND(qty,4) AS qty, ROUND(avg,2) AS avg_price, ROUND(cost,2) AS cost FROM positions ORDER BY cost DESC",
+     "rawQueryText": "SELECT symbol, sleeve, ROUND(qty,4) AS qty, ROUND(avg,2) AS avg_price, ROUND(cost,2) AS cost FROM positions ORDER BY cost DESC",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 15,
+   "title": "Daily summary",
+   "type": "table",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 37,
+    "w": 16,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT day, ROUND(open_equity,2) AS open, ROUND(close_equity,2) AS close, ROUND(return_pct,3) AS return_pct, ROUND(realized,2) AS realized, ROUND(fees,2) AS fees, trades FROM daily ORDER BY day DESC",
+     "rawQueryText": "SELECT day, ROUND(open_equity,2) AS open, ROUND(close_equity,2) AS close, ROUND(return_pct,3) AS return_pct, ROUND(realized,2) AS realized, ROUND(fees,2) AS fees, trades FROM daily ORDER BY day DESC",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 16,
+   "title": "Trade history",
+   "type": "table",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 45,
+    "w": 24,
+    "h": 12
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT ts AS time, side, symbol, sleeve, ROUND(qty,4) AS qty, price, ROUND(value,2) AS value, ROUND(realized,2) AS realized, fee, reason FROM trades ORDER BY ts DESC",
+     "rawQueryText": "SELECT ts AS time, side, symbol, sleeve, ROUND(qty,4) AS qty, price, ROUND(value,2) AS value, ROUND(realized,2) AS realized, fee, reason FROM trades ORDER BY ts DESC",
+     "queryType": "table",
+     "timeColumns": [
+      "time"
+     ]
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 17,
+   "title": "Realized P&L by agent",
+   "type": "barchart",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 29,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT agent, ROUND(SUM(realized),2) AS realized FROM trades WHERE realized<>0 OR side='sell' GROUP BY agent",
+     "rawQueryText": "SELECT agent, ROUND(SUM(realized),2) AS realized FROM trades WHERE realized<>0 OR side='sell' GROUP BY agent",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "xField": "agent",
+    "showValue": "auto"
+   }
+  },
+  {
+   "id": 18,
+   "title": "Options premium sold by day ($)",
+   "type": "barchart",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 29,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT day, ROUND(SUM(value),2) AS premium FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day",
+     "rawQueryText": "SELECT day, ROUND(SUM(value),2) AS premium FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "xField": "day",
+    "showValue": "auto"
+   }
+  },
+  {
+   "id": 19,
+   "title": "Realized P&L by agent and day",
+   "type": "barchart",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 29,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT day, agent, ROUND(SUM(realized),2) AS realized FROM trades GROUP BY day, agent ORDER BY day",
+     "rawQueryText": "SELECT day, agent, ROUND(SUM(realized),2) AS realized FROM trades GROUP BY day, agent ORDER BY day",
+     "queryType": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 0
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "xField": "day",
+    "showValue": "auto"
+   }
+  }
+ ],
+ "editable": true
+}

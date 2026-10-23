@@ -112,3 +112,13 @@ Telegram sends tables as `<pre>` blocks; long replies split between tables, neve
 - **Limited-loss only (hard rule):** `paper_options.py` accepts only cash-secured puts and covered calls (`ALLOWED_KINDS`); anything else raises
   `UnlimitedRiskRefused`. Each position's worst case is computed and shown in summaries, and a per-cycle risk guard force-closes any short
   option that is not fully covered/secured. Option placement tools (`place_option_order`, exercise) are not callable by the data client.
+
+## Grafana dashboard (local)
+
+`agentic_trader/grafana_export.py` rebuilds `state/trader_history.db` (SQLite, read-only view of
+`state/paper_live.json`) every 60 seconds via the `com.bunnyhouse.trader-grafana-export` launch agent.
+Grafana (Homebrew, `brew services start grafana`) provisions the `Trader History` datasource and the
+`Paper Trader` dashboard from `grafana/`. Open http://localhost:3000/d/paper-trader (anonymous viewer,
+bound to 127.0.0.1). Requires the `frser-sqlite-datasource` plugin
+(`grafana cli --homepath /opt/homebrew/opt/grafana/share/grafana plugins install frser-sqlite-datasource`)
+and symlinks of `grafana/provisioning/*/trader.yaml` into `/opt/homebrew/etc/grafana/provisioning/`.
