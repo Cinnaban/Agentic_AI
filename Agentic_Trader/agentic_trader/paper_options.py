@@ -12,6 +12,21 @@ import math
 from datetime import date, datetime
 
 MULT = 100
+# Only strategies with a finite, known worst case may ever be opened. Anything else is refused.
+ALLOWED_KINDS = {"put": "cash_secured_put", "call": "covered_call"}
+
+
+class UnlimitedRiskRefused(RuntimeError):
+    pass
+
+
+def max_loss(o):
+    """Worst-case loss in dollars for a short option position, or None if it is not provably finite."""
+    if o["type"] == "put":  # stock to zero, collateral held in cash
+        return max(0.0, (o["strike"] - o["credit"]) * MULT * o["qty"])
+    if o["type"] == "call":  # shares already owned: loss is the shares falling to zero (finite)
+        return None if o.get("kind") != "covered_call" else MULT * o["qty"] * o["strike"]
+    return None
 
 
 def _label(o):
@@ -41,8 +56,8 @@ class Income:
         return (p["qty"] if p and p["sleeve"] == "income" else 0.0) - self.covered_shares(sym)
 
     def naked_violations(self):
-        """Empty when every short option is fully covered or cash-secured."""
-        bad = []
+        """Empty when every short option is fully covered or cash-secured and has a finite worst case."""
+        bad = [f"{o['sym']} {o['type']} has no finite worst case" for o in self.opts if max_loss(o) is None]
         for sym in {o["sym"] for o in self.opts if o["type"] == "call"}:
             p = self.tr.s["positions"].get(sym)
             if not p or p["qty"] + 1e-6 < self.covered_shares(sym):
@@ -58,6 +73,8 @@ class Income:
 
     # ---- order simulation
     def sell_to_open(self, kind, sym, contract, quote, qty, t):
+        if kind not in ALLOWED_KINDS or not isinstance(qty, int) or qty < 1:
+            raise UnlimitedRiskRefused(f"refused {kind!r} x{qty}: only cash-secured puts and covered calls are allowed")
         s, c = self.tr.s, self.tr.cfg
         credit, fee = quote["bid"], c.opt_fee * qty
         if kind == "put" and self.tr.free_cash() < contract["strike"] * MULT * qty:
@@ -66,11 +83,14 @@ class Income:
             return False
         if not credit or credit < 0.05:
             return False
+        probe = {"type": kind, "strike": contract["strike"], "credit": credit, "qty": qty, "kind": ALLOWED_KINDS[kind]}
+        if max_loss(probe) is None:
+            raise UnlimitedRiskRefused("worst case is not provably finite")
         s["cash"] += credit * MULT * qty - fee
         s["fees_total"] += fee
         o = {"id": contract["id"], "sym": sym, "type": kind, "strike": contract["strike"], "exp": contract["exp"],
              "qty": qty, "credit": credit, "mark": quote.get("mark") or credit, "opened": t.isoformat(), "fee_open": fee,
-             "kind": "cash_secured_put" if kind == "put" else "covered_call"}
+             "kind": ALLOWED_KINDS[kind]}
         self.opts.append(o)
         self._log(t, f"SELL TO OPEN {_label(o)} x{qty} @ ${credit:.2f} (+${credit * MULT * qty:,.2f} premium, "
                   f"{'cash-secured' if kind == 'put' else 'covered'})", o, fee, reason=f"premium {credit / contract['strike']:.1%} of strike")
@@ -219,11 +239,27 @@ class Income:
             except Exception as exc:
                 print(f"[paper] option scan {sym} failed:", repr(exc))
 
+    def enforce(self, quotes, t):
+        """Safety net every cycle: if any short option is somehow not covered/secured, close it at the ask."""
+        if not self.naked_violations():
+            return
+        print("[paper] RISK GUARD: uncovered option detected, closing:", self.naked_violations())
+        qs = {}
+        try:
+            qs = self.tr.data.option_quotes([o["id"] for o in self.opts])
+        except Exception:
+            pass
+        for o in list(self.opts):
+            if o["type"] == "call" and self.covered_shares(o["sym"]) > ((self.tr.s["positions"].get(o["sym"]) or {}).get("qty", 0)) + 1e-6 \
+                    or max_loss(o) is None or (o["type"] == "put" and self.tr.s["cash"] + 1e-6 < self.collateral()):
+                q = qs.get(o["id"]) or {}
+                self.buy_to_close(o, q.get("ask") or q.get("mark") or o.get("mark") or o["credit"], "risk guard: not fully covered", t)
+
     def lines(self, quotes):
         out = []
         for o in sorted(self.opts, key=lambda o: (o["exp"], o["sym"])):
             kind = "covered call" if o["type"] == "call" else "cash-secured put"
             under = (quotes.get(o["sym"]) or {}).get("price")
-            out.append(f"- {_label(o)} x{o['qty']} ({kind}): credit ${o['credit']:.2f}, mark ${(o.get('mark') or o['credit']):.2f}"
+            out.append(f"- {_label(o)} x{o['qty']} ({kind}, max loss ${max_loss(o):,.0f}): credit ${o['credit']:.2f}, mark ${(o.get('mark') or o['credit']):.2f}"
                        + (f", stock ${under:,.2f}" if under else ""))
         return out

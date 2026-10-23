@@ -388,3 +388,32 @@ def test_options_income_never_naked_and_wheel(tmp_path):
     assert "SOFI" not in tr.s["positions"] and not inc.opts
     assert tr.s["realized_total"] > 0
     assert tr.goal_line("Day", 0.03, 0.02, 0.05).endswith("(on target)")
+
+
+def test_options_only_limited_loss(tmp_path):
+    import pytest
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from agentic_trader import paper_live as pl
+    from agentic_trader.paper_options import UnlimitedRiskRefused, max_loss
+    from agentic_trader.robinhood.mcp_client import RobinhoodMCP, ReadOnlyViolation
+    t = datetime(2026, 10, 22, 11, 0, tzinfo=ZoneInfo("America/New_York"))
+    tr = pl.PaperTrader(type("D", (), {})(), type("N", (), {"post": lambda *a: None})(),
+                        pl.Store(mirror=tmp_path / "s.json", storage=False), pl.Cfg(), lambda: t, lambda s: {})
+    c = {"id": "x", "strike": 20.0, "exp": "2026-10-30", "type": "call"}
+    for kind in ("straddle", "short_call", "naked"):
+        with pytest.raises(UnlimitedRiskRefused):
+            tr.income.sell_to_open(kind, "F", c, {"bid": 1, "ask": 1.1}, 1, t)
+    with pytest.raises(UnlimitedRiskRefused):
+        tr.income.sell_to_open("call", "F", c, {"bid": 1, "ask": 1.1}, 0, t)
+    assert max_loss({"type": "call", "kind": "short_call", "strike": 20, "credit": 1, "qty": 1}) is None
+    assert max_loss({"type": "put", "kind": "cash_secured_put", "strike": 20, "credit": 0.5, "qty": 1}) == 1950
+    # a corrupted uncovered call is detected and force-closed by the guard
+    tr.s["options"].append({"id": "z", "sym": "F", "type": "call", "strike": 20.0, "exp": "2026-10-30", "qty": 1,
+                            "credit": 0.5, "mark": 0.6, "opened": t.isoformat(), "fee_open": 0, "kind": "covered_call"})
+    assert tr.income.naked_violations()
+    tr.income.enforce({}, t)
+    assert not tr.s["options"]
+    # the MCP client has no way to place or exercise options
+    with pytest.raises(ReadOnlyViolation):
+        RobinhoodMCP(allow={"place_option_order"}).call("place_option_order", {})

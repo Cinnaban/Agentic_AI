@@ -434,6 +434,7 @@ class PaperTrader:
             equity = self.equity(quotes)
             if self.cfg.opt_enabled:
                 try:
+                    self.income.enforce(quotes, t)
                     self.income.manage(t)
                     self.income.scan(quotes, t, equity)
                 except Exception as exc:

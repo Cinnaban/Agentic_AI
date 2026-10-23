@@ -109,3 +109,6 @@ Telegram sends tables as `<pre>` blocks; long replies split between tables, neve
   and a strike at or above cost. The paper account does not short stock, so "covered puts" are implemented as cash-secured puts.
   Skips names with earnings inside the window, illiquid contracts, and falling stocks; takes profit at 75%, stops puts at 3x credit,
   settles/assigns at expiry. Fee estimate `PAPER_OPTION_FEE_PER_CONTRACT`. Live option orders remain impossible (data tools only).
+- **Limited-loss only (hard rule):** `paper_options.py` accepts only cash-secured puts and covered calls (`ALLOWED_KINDS`); anything else raises
+  `UnlimitedRiskRefused`. Each position's worst case is computed and shown in summaries, and a per-cycle risk guard force-closes any short
+  option that is not fully covered/secured. Option placement tools (`place_option_order`, exercise) are not callable by the data client.
