@@ -100,3 +100,12 @@ Only Telegram can reach Robinhood account tools (Discord is market-data only). C
 Portfolio, stock and ETF evaluations (Discord, Telegram, `/review`, `/portfolio`) render as monospace tables
 (`agentic_trader/tables.py`). Pasted portfolios may include a trailing sector column (`Ticker Weight Sector`).
 Telegram sends tables as `<pre>` blocks; long replies split between tables, never inside one.
+
+## Goals and options income (paper only)
+- **Goals:** day +2-5%, week +5-10% (`PAPER_DAILY_TARGET_MIN/MAX`, `PAPER_WEEKLY_TARGET_MIN/MAX`). They are measured and shown in every summary
+  ("below / on / above target") but the bot does not add risk to chase them; once the daily max is reached it stops opening new day trades.
+- **Options income sleeve** (`paper_options.py`, `PAPER_OPTIONS=0` disables): sells cash-secured puts and, after assignment, covered calls
+  (a "wheel") using real Robinhood option quotes. Never naked: puts need strike x 100 cash reserved, calls need 100 unencumbered income shares
+  and a strike at or above cost. The paper account does not short stock, so "covered puts" are implemented as cash-secured puts.
+  Skips names with earnings inside the window, illiquid contracts, and falling stocks; takes profit at 75%, stops puts at 3x credit,
+  settles/assigns at expiry. Fee estimate `PAPER_OPTION_FEE_PER_CONTRACT`. Live option orders remain impossible (data tools only).

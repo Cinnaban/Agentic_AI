@@ -354,3 +354,37 @@ def test_day_rank_blends_regression_and_sentiment():
     base = {"signal_score": 0.3}
     good = {"signal_score": 0.3, "scorecard": {"ic": 0.2}}
     assert PaperTrader.day_rank(good, 1.0) > PaperTrader.day_rank(base) > PaperTrader.day_rank(base, -1.0)
+
+
+def test_options_income_never_naked_and_wheel(tmp_path):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from agentic_trader import paper_live as pl
+    ET = ZoneInfo("America/New_York")
+    t = datetime(2026, 10, 22, 11, 0, tzinfo=ET)
+    tr = pl.PaperTrader(type("D", (), {})(), type("N", (), {"post": lambda *a: None})(),
+                        pl.Store(mirror=tmp_path / "s.json", storage=False), pl.Cfg(), lambda: t, lambda s: {})
+    inc = tr.income
+    put = {"id": "p1", "strike": 20.0, "exp": "2026-10-30", "type": "put"}
+    q = {"bid": 0.40, "ask": 0.45, "mark": 0.42}
+    # cash-secured put: reserves strike x 100, premium credited net of fee
+    assert inc.sell_to_open("put", "SOFI", put, q, 1, t)
+    assert inc.collateral() == 2000 and tr.free_cash() < tr.s["cash"] and not inc.naked_violations()
+    # cannot sell a put the free cash does not secure
+    big = {"id": "p2", "strike": 60.0, "exp": "2026-10-30", "type": "put"}
+    assert not inc.sell_to_open("put", "XYZ", big, q, 1, t)
+    # naked call refused (no shares)
+    call = {"id": "c1", "strike": 22.0, "exp": "2026-10-30", "type": "call"}
+    assert not inc.sell_to_open("call", "SOFI", call, q, 1, t)
+    # put assigned at expiry -> 100 income shares, premium kept
+    cash0 = tr.s["cash"]
+    inc.settle(inc.opts[0], 19.0, t)
+    assert tr.s["positions"]["SOFI"]["qty"] == 100 and abs(tr.s["cash"] - (cash0 - 2000)) < 1e-6 and not inc.opts
+    # covered call now allowed, shares locked while it is open
+    assert inc.sell_to_open("call", "SOFI", call, q, 1, t) and not inc.naked_violations()
+    assert not tr.sell("SOFI", 100, "x", _q(19, t), t)
+    # called away: shares sold at strike, position gone
+    inc.settle(inc.opts[0], 23.0, t)
+    assert "SOFI" not in tr.s["positions"] and not inc.opts
+    assert tr.s["realized_total"] > 0
+    assert tr.goal_line("Day", 0.03, 0.02, 0.05).endswith("(on target)")

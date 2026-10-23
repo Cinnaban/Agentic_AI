@@ -3,7 +3,7 @@
 - Starts with PAPER_START_CASH ($5,000). Orders are simulated here; nothing is ever sent to Robinhood.
 - State lives in the shared_storage cache (namespace `paper_trader`) with a JSON mirror in state/.
 - Sleeves: ETF core (trend-filtered), day trader (live-quote quant signal, inverse-vol sizing, flat by close),
-  and a volatility hedge (VIX + SPY realized vol -> long-only inverse ETF + smaller day-trade size).
+  a cash-secured-put/covered-call income sleeve (paper_options.py), and a volatility hedge (VIX + SPY realized vol -> long-only inverse ETF + smaller day-trade size).
 - Posts a summary every 30 minutes to the realtime Discord channel and a daily summary to the updates channel.
 - Fees: zero commission; SEC fee + FINRA TAF on sells (min $0.01); buys fill at the ask and sells at the bid.
 """
@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 
 from .config import STATE_DIR, Settings, load_env_files
+from .paper_options import Income
 
 ET = ZoneInfo("America/New_York")
 NAMESPACE, STORE_KEY = "paper_trader", "account_v1"
@@ -53,6 +54,23 @@ class Cfg:
         self.pdt_free_min = float(os.getenv("PAPER_PDT_FREE_MIN_EQUITY", "2000"))
         self.pdt_max = int(os.getenv("PAPER_PDT_MAX_DAY_TRADES", "3"))
         self.pdt_legacy_equity = float(os.getenv("PAPER_PDT_LEGACY_EQUITY", "25000"))
+        # targets are goals to measure against, not instructions to add risk
+        self.daily_min = float(os.getenv("PAPER_DAILY_TARGET_MIN", "0.02"))
+        self.daily_max = float(os.getenv("PAPER_DAILY_TARGET_MAX", "0.05"))
+        self.week_min = float(os.getenv("PAPER_WEEKLY_TARGET_MIN", "0.05"))
+        self.week_max = float(os.getenv("PAPER_WEEKLY_TARGET_MAX", "0.10"))
+        # options income sleeve: cash-secured puts + covered calls only, never naked
+        self.opt_enabled = os.getenv("PAPER_OPTIONS", "1") not in ("0", "false", "off")
+        self.opt_symbols = _csv("PAPER_OPTION_SYMBOLS", "F,SOFI,RIVN,SNAP,NIO,T,KVUE,CMCSA,PFE,SCHD")
+        self.opt_pct = float(os.getenv("PAPER_OPTION_PCT", "0.35"))
+        self.opt_min_dte = int(os.getenv("PAPER_OPTION_MIN_DTE", "5"))
+        self.opt_max_dte = int(os.getenv("PAPER_OPTION_MAX_DTE", "14"))
+        self.opt_otm = float(os.getenv("PAPER_OPTION_OTM", "0.04"))
+        self.opt_min_oi = int(os.getenv("PAPER_OPTION_MIN_OI", "25"))
+        self.opt_take_profit = float(os.getenv("PAPER_OPTION_TAKE_PROFIT", "0.75"))
+        self.opt_stop_mult = float(os.getenv("PAPER_OPTION_STOP_MULT", "3"))
+        self.opt_fee = float(os.getenv("PAPER_OPTION_FEE_PER_CONTRACT", "0.04"))
+        self.opt_scan_min = int(os.getenv("PAPER_OPTION_SCAN_MIN", "30"))
         self.cooldown_min = int(os.getenv("PAPER_COOLDOWN_MIN", "30"))
 
 
@@ -117,6 +135,7 @@ class Store:
 def new_state(cfg, ts):
     return {"version": 1, "created": ts.isoformat(), "start_cash": cfg.start_cash, "cash": cfg.start_cash,
             "positions": {}, "trades": [], "fees_total": 0.0, "realized_total": 0.0, "equity_log": [],
+            "options": [], "week": {"id": None, "open_equity": cfg.start_cash},
             "day": {"date": None, "open_equity": cfg.start_cash, "spy_open": None, "eod_posted": False},
             "last_summary": {"ts": ts.isoformat(), "equity": cfg.start_cash}, "cooldown": {}, "regime": {}}
 
@@ -162,6 +181,8 @@ class PaperTrader:
             self.s = None
         self.s = self.s or new_state(self.cfg, clock())
         self.pdt_blocked = 0
+        self.s.setdefault("options", [])
+        self.income = Income(self)
 
     # ---- helpers
     def _archive(self, old):
@@ -197,11 +218,15 @@ class PaperTrader:
 
     def universe(self):
         c = self.cfg
-        return sorted(set(c.etfs) | set(c.day_symbols) | {c.hedge, "SPY"} | set(self.s["positions"]))
+        return sorted(set(c.etfs) | set(c.day_symbols) | {c.hedge, "SPY"} | set(self.s["positions"])
+                      | (set(c.opt_symbols) if c.opt_enabled else set()))
 
     def equity(self, quotes):
-        return self.s["cash"] + sum(p["qty"] * (quotes.get(sym, {}).get("price") or p["avg"])
-                                    for sym, p in self.s["positions"].items())
+        return (self.s["cash"] + sum(p["qty"] * (quotes.get(sym, {}).get("price") or p["avg"])
+                                     for sym, p in self.s["positions"].items()) - self.income.liability())
+
+    def free_cash(self):
+        return self.s["cash"] - self.income.collateral()
 
     @staticmethod
     def fill_px(q, side):
@@ -227,7 +252,7 @@ class PaperTrader:
     # ---- order simulation
     def buy(self, sym, usd, sleeve, reason, q, t):
         px = self.fill_px(q, "buy")
-        usd = min(usd, self.s["cash"])
+        usd = min(usd, self.free_cash())
         if not px or usd < self.cfg.min_trade:
             return False
         qty = round(usd / px, 6)
@@ -247,7 +272,7 @@ class PaperTrader:
         if self.day_trade_blocked(pos["opened"], t):
             self.pdt_blocked += 1
             return False
-        qty = min(qty, pos["qty"])
+        qty = min(qty, pos["qty"] - self.income.covered_shares(sym))
         px = self.fill_px(q, "sell")
         if not px or qty <= 0:
             return False
@@ -331,6 +356,8 @@ class PaperTrader:
             return
         if self.pdt_limited() and self.day_trades_5d(t) >= c.pdt_max:
             return
+        if equity / self.s["day"]["open_equity"] - 1 >= c.daily_max:
+            return  # daily goal reached: bank it, no new day entries
         open_n = sum(1 for p in self.s["positions"].values() if p["sleeve"] == "day")
         budget = equity * c.day_pct - sum(p["qty"] * (quotes.get(s, {}).get("price") or p["avg"])
                                           for s, p in self.s["positions"].items() if p["sleeve"] == "day")
@@ -392,9 +419,25 @@ class PaperTrader:
             self.s["day"] = day = {"date": t.date().isoformat(), "open_equity": last,
                                    "spy_open": spy.get("prev_close"), "eod_posted": False}
             self.s["last_summary"] = {"ts": t.isoformat(), "equity": last}
+        wid = "%d-W%02d" % t.isocalendar()[:2]
+        if self.s.get("week", {}).get("id") != wid:
+            monday = (t - timedelta(days=t.weekday())).date().isoformat()
+            prior = [e for ts, e in self.s["equity_log"] if ts[:10] < monday]
+            self.s["week"] = {"id": wid, "open_equity": prior[-1] if prior else self.s["start_cash"]}
         hm = (t.hour, t.minute)
+        if self.cfg.opt_enabled or self.s["options"]:
+            try:
+                self.income.settle_expired(quotes, t)
+            except Exception as exc:
+                print("[paper] option settle failed:", repr(exc))
         if phase == "open" and hm >= (9, 35):
             equity = self.equity(quotes)
+            if self.cfg.opt_enabled:
+                try:
+                    self.income.manage(t)
+                    self.income.scan(quotes, t, equity)
+                except Exception as exc:
+                    print("[paper] options failed:", repr(exc))
             reg = self.volatility()
             for fn, args in ((self.day_sleeve, (quotes, t, equity, reg, hm)), (self.core_sleeve, (quotes, t, equity)),
                              (self.hedge_sleeve, (quotes, t, equity, reg))):
@@ -451,6 +494,11 @@ class PaperTrader:
         word = "trending up" if slope > 0.0015 else "trending down" if slope < -0.0015 else "flat / range-bound"
         return f"{word} ({slope:+.2%} over the last ~{len(recent) * self.cfg.cycle // 60} min)"
 
+    @staticmethod
+    def goal_line(name, ret, lo, hi):
+        state = "below target" if ret < lo else "on target" if ret <= hi else "above target"
+        return f"{name}: {ret:+.2%} vs goal {lo:.0%}-{hi:.0%} ({state})"
+
     def summary(self, t, quotes, equity, daily):
         s, cfg = self.s, self.cfg
         since = datetime.fromisoformat(s["last_summary"]["ts"])
@@ -460,6 +508,9 @@ class PaperTrader:
         pl, day_pl, tot_pl = equity - base, equity - s["day"]["open_equity"], equity - s["start_cash"]
         fees = sum(x["fee"] for x in trades)
         sells = [x for x in trades if x["side"] == "sell"]
+        opt_trades = [x for x in trades if x["side"] == "option"]
+        opt_real = [x for x in opt_trades if "realized" in x]
+        premium = sum(float(x["px"]) * 100 * x["qty"] for x in opt_trades if x["desc"].startswith("SELL TO OPEN"))
         closed = [x for x in sells if x.get("closed")]
         invested = equity - s["cash"]
         reg = s.get("regime") or {}
@@ -473,13 +524,17 @@ class PaperTrader:
         L += [f"Since start: {_money(tot_pl, True)} ({tot_pl / s['start_cash']:+.2%})", "",
               "Fees paid:", f"{'Today' if daily else 'This period'}: {_money(fees)} | Total: {_money(s['fees_total'])}", "",
               "Realized P/L (after fees):",
-              f"{'Today' if daily else 'This period'}: {_money(sum(x['realized'] for x in sells), True)} | "
+              f"{'Today' if daily else 'This period'}: {_money(sum(x['realized'] for x in sells + opt_real), True)} | "
               f"Total: {_money(s['realized_total'], True)}", "",
               "Equity:", f"{_money(equity)} (cash {_money(s['cash'])} / invested {_money(invested)})", "",
               "Trades:"]
-        L += [f"- {x['side'].upper()} {x['sym']} {x['qty']:g} @ {_money(x['px'])} ({_money(x['value'])})"
-              + (f", net {_money(x['realized'], True)} after {_money(x['fee'])} fees" if x["side"] == "sell" else "")
-              + f" [{x['reason']}]" for x in trades[-12:]] or ["- none"]
+        def _tline(x):
+            if x["side"] == "option":
+                return f"- {x['desc']}" + (f", net {_money(x['realized'], True)}" if "realized" in x else "") + f" [{x['reason']}]"
+            return (f"- {x['side'].upper()} {x['sym']} {x['qty']:g} @ {_money(x['px'])} ({_money(x['value'])})"
+                    + (f", net {_money(x['realized'], True)} after {_money(x['fee'])} fees" if x["side"] == "sell" else "")
+                    + f" [{x['reason']}]")
+        L += [_tline(x) for x in trades[-12:]] or ["- none"]
         if len(trades) > 12:
             L.append(f"- ...and {len(trades) - 12} earlier")
         L += ["", "Holdings maintained:"] + self._holdings(quotes, equity) + ["", "Holdings let go:"]
@@ -502,6 +557,12 @@ class PaperTrader:
                   else "No closed trades today",
                   f"Daily goal +10%: {'met' if day_pl / s['day']['open_equity'] >= 0.10 else 'not met'} "
                   f"(today {day_pl / s['day']['open_equity']:+.2%})"]
+        L += ["", "Options income (covered calls / cash-secured puts only, never naked):",
+              f"Premium sold {'today' if daily else 'this period'}: {_money(premium)} | "
+              f"Collateral reserved: {_money(self.income.collateral())}"]
+        L += self.income.lines(quotes) or ["- no open options"]
+        L += ["", "Goals:", self.goal_line("Day", equity / s["day"]["open_equity"] - 1, cfg.daily_min, cfg.daily_max),
+              self.goal_line("Week", equity / s["week"]["open_equity"] - 1, cfg.week_min, cfg.week_max)]
         limited = self.pdt_limited()
         L += ["", "Day-trade rule:",
               (f"Limited: {self.day_trades_5d(t)}/{cfg.pdt_max} day trades used (5 business days)" if limited else
@@ -538,6 +599,9 @@ def status_text(t=None):
          f"{(eq / st['start_cash'] - 1):+.2%})", "", "Fees paid:", _money(st["fees_total"]), "",
          "Realized P/L (after fees):", _money(st["realized_total"], True), "", "Holdings:"]
     L += [f"- {s} ({p['sleeve']}): {p['qty']:g} sh @ {_money(p['avg'])}" for s, p in sorted(st["positions"].items())] or ["- none"]
+    for o in st.get("options", []):
+        L += [f"- option: {o['sym']} {o['exp']} {o['strike']:g}{'C' if o['type'] == 'call' else 'P'} x{o['qty']} "
+              f"({'covered call' if o['type'] == 'call' else 'cash-secured put'}), credit ${o['credit']:.2f}"]
     reg = st.get("regime") or {}
     if reg:
         L += ["", "Volatility regime:", f"{reg['name']} (hedge target {reg['hedge_target']:.0%})"]

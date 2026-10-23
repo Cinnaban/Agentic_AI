@@ -149,6 +149,28 @@ class RobinhoodData:
                                     for b in r.get("bars", []) if not b.get("interpolated")]
         return out
 
+    def option_expirations(self, symbol: str) -> list[str]:
+        chains = self._call("get_option_chains", {"underlying_symbol": symbol.upper()}, 3600).get("chains", [])
+        return sorted({d for c in chains if c.get("symbol") == symbol.upper() and c.get("can_open_position")
+                       for d in c.get("expiration_dates", [])})
+
+    def option_contracts(self, symbol: str, expiration: str, kind: str) -> list[dict]:
+        res = self._call("get_option_instruments", {"chain_symbol": symbol.upper(), "expiration_dates": expiration,
+                                                    "type": kind}, 3600).get("instruments", [])
+        return [{"id": i["id"], "strike": _f(i["strike_price"]), "exp": i["expiration_date"], "type": i["type"]}
+                for i in res if i.get("state") == "active" and i.get("tradability") == "tradable"]
+
+    def option_quotes(self, ids: list[str]) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        for i in range(0, len(ids), 20):
+            for r in self._call("get_option_quotes", {"instrument_ids": ids[i:i + 20]}, 45).get("results", []):
+                q = r.get("quote") or {}
+                if q.get("instrument_id"):
+                    out[q["instrument_id"]] = {"bid": _f(q.get("bid_price")), "ask": _f(q.get("ask_price")),
+                                               "mark": _f(q.get("adjusted_mark_price")) or _f(q.get("mark_price")),
+                                               "oi": q.get("open_interest") or 0, "delta": _f(q.get("delta"))}
+        return out
+
     def vix(self):
         """Latest VIX index value, or None."""
         try:

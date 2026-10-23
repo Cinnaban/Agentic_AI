@@ -15,7 +15,7 @@ SAFE_TOOLS = frozenset({
     "get_equity_fundamentals", "get_equity_analyst_ratings", "get_equity_price_book", "get_equity_tradability",
     "get_index_quotes", "get_index_historicals", "get_indexes", "get_earnings_calendar", "get_earnings_results",
     "get_financials", "get_sec_filing_index", "get_sec_filing", "get_sec_filing_facts", "get_sec_filing_facts_catalog",
-    "get_option_chains", "get_option_quotes", "get_option_historicals", "get_crypto_quotes", "get_currency_pairs",
+    "get_option_chains", "get_option_instruments", "get_option_quotes", "get_option_historicals", "get_crypto_quotes", "get_currency_pairs",
 })
 # Account tools: reachable ONLY through RobinhoodMCP.call_account (used by the Telegram Robinhood handler).
 # No options, crypto, margin, transfer, watchlist, alert, scan or exercise tools.
