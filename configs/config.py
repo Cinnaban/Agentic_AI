@@ -15,7 +15,7 @@ class Config:
     # ==========================================
     # Ollama / Models
     # ==========================================
-    QWEN_MODEL = "qwen3:30b"
+    QWEN_MODEL = "qwen3.8:27b"
     GEMMA_MODEL = "gemma4:12b"
     HERMES_MODEL = "hermes3:latest"
     DEEPSEEK_MODEL = "deepseek-r1:14b"
