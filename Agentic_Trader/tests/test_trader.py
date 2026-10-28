@@ -220,7 +220,7 @@ def _pt(tmp_path, quotes_fn, analyze_fn, clock):
             return {s: quotes_fn(s) for s in syms}
 
         def bars(self, syms, interval, days, **kw):
-            return {s: [{"close": 100 + i * 0.1} for i in range(120)] for s in syms}
+            return {s: [{"close": 100 + i * 0.1 + (0.6 if i % 2 else 0.0)} for i in range(120)] for s in syms}
 
         def vix(self):
             return 17.0
@@ -254,23 +254,27 @@ def test_paper_live_cycle_fees_and_summaries(tmp_path):
     assert tr.step() == "open"
     held = tr.s["positions"]
     assert "NVDA" in held and held["NVDA"]["sleeve"] == "day"
-    assert {"VOO", "QQQ", "SCHD", "VXUS"} <= set(held)  # core sleeve deployed
-    assert "SH" in held  # VIX 17 -> normal regime -> 5% hedge
+    # one trade per agent per day: the day agent's NVDA entry plus exactly one growth action
+    assert len([x for x in tr.s["trades"] if x["side"] in ("buy", "sell")]) == 2
+    assert len(set(held) - {"NVDA"}) == 1
     assert not note.sent  # first half-hour slot is 10:00
     clk["t"] = datetime(2026, 10, 14, 10, 0, tzinfo=ET)
     tr.step()
     assert note.sent and note.sent[0][0] == "realtime"
     assert "Profit/Loss (net of fees):\n" in note.sent[0][1] and "Holdings maintained:" in note.sent[0][1]
-    # day stop-out is a loss that includes the sell fee
+    # the day trade is held (no intraday stop) until the end-of-day close, a loss that includes the sell fee
     clk["t"] = datetime(2026, 10, 14, 10, 5, tzinfo=ET)
     px["NVDA"] = 195.0
     tr.step()
+    assert "NVDA" in tr.s["positions"]
+    clk["t"] = datetime(2026, 10, 14, 15, 51, tzinfo=ET)
+    tr.step()
     assert "NVDA" not in tr.s["positions"] and tr.s["fees_total"] >= 0.01
     last = [x for x in tr.s["trades"] if x["sym"] == "NVDA"][-1]
-    assert last["realized"] < 0 and "stop" in last["reason"]
+    assert last["realized"] < 0 and "end-of-day" in last["reason"]
     # equity = start + realized + unrealized, with fees already deducted from cash
     eq = tr.equity({s: _q(px.get(s, 120.0), clk["t"]) for s in tr.universe()})
-    assert abs(eq - tr.s["start_cash"]) < 15
+    assert abs(eq - tr.s["start_cash"]) < 45  # ~7.5 sh x $5 loss + fees
     # flatten + end of day summary goes to the updates channel exactly once
     clk["t"] = datetime(2026, 10, 14, 16, 5, tzinfo=ET)
     assert tr.step() == "close" and tr.step() == "close"

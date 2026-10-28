@@ -122,3 +122,13 @@ Grafana (Homebrew, `brew services start grafana`) provisions the `Trader History
 bound to 127.0.0.1). Requires the `frser-sqlite-datasource` plugin
 (`grafana cli --homepath /opt/homebrew/opt/grafana/share/grafana plugins install frser-sqlite-datasource`)
 and symlinks of `grafana/provisioning/*/trader.yaml` into `/opt/homebrew/etc/grafana/provisioning/`.
+
+## One trade per day (growth and day agents)
+The growth (long) agent and the day agent each get exactly **one trade per day**, taken early in the open (entry window 9:35-10:30 ET).
+Candidates are ranked on prediction (quant signal + regression IC + 5-day outlook), market sentiment (analyst mix, target upside),
+financial evaluation (P/E, size, dividend) and market trend (MA20/MA50, slope) - see `single_trade.py`. If nothing qualifies, no trade that day.
+- Day agent: buys the single best-ranked name (`PAPER_SINGLE_MIN_SCORE`, RSI < 75), holds it, and closes it at 15:50 ET. No intraday stop/target
+  unless `PAPER_DAY_INTRADAY_EXITS=1`.
+- Growth agent: its one action is the top-priority of: trend-break sell > urgent hedge change > best ETF buy > hedge adjust > over-weight trim
+  (`PAPER_GROWTH_MIN_SCORE`). It builds target weights one ETF per day.
+- Options agent: unchanged, trades through the day (cash-secured puts / covered calls only).

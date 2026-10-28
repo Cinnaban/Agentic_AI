@@ -149,6 +149,10 @@ class RobinhoodData:
                                     for b in r.get("bars", []) if not b.get("interpolated")]
         return out
 
+    def fundamentals(self, symbols: list[str]) -> dict[str, dict]:
+        res = self._call("get_equity_fundamentals", {"symbols": [x.upper() for x in symbols]}, 3600).get("results", [])
+        return {r["symbol"]: r for r in res if r.get("symbol")}
+
     def option_expirations(self, symbol: str) -> list[str]:
         chains = self._call("get_option_chains", {"underlying_symbol": symbol.upper()}, 3600).get("chains", [])
         return sorted({d for c in chains if c.get("symbol") == symbol.upper() and c.get("can_open_position")

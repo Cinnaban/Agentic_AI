@@ -161,31 +161,54 @@ class GrowthAgent:
         total = sum(picked.values()) or 1.0
         return {s: w / total for s, w in picked.items()}
 
-    def run(self, quotes, t, equity, mandate, reg):
+    def run(self, quotes, t, equity, mandate, reg, hm=(9, 35)):
+        """One trade per day, early in the open: the highest-priority of (protective sell, hedge change,
+        best-ranked ETF buy, over-weight rebalance). Protective actions outrank buys."""
+        from . import single_trade as st
         tr, c = self.tr, self.tr.cfg
+        one = tr.single_state()
+        if "growth" in one:
+            return
+        if hm >= st.ENTRY_END:
+            one["growth"] = {"sym": None, "note": "no qualifying action in the entry window; no trade today"}
+            return
         etf_budget = equity * max(0.0, mandate.budget_pct - (reg.get("hedge_target") or 0.0)) * mandate.scale
         weights = self.weights()
-        bars = tr.data.bars(list(weights), "day", 120, ttl=1800)
+        bars = tr.data.bars(list(weights), "day", 150, ttl=1800)
+        ev = st.evaluate(list(weights), tr.data, quotes, bars=bars)
+        cands = []  # (priority, run, label)
         for sym, w in weights.items():
-            q, closes = quotes.get(sym), [b["close"] for b in bars.get(sym, []) if b.get("close")]
-            if not q or not q.get("price") or len(closes) < 50:
+            q, e = quotes.get(sym), ev.get(sym)
+            if not q or not q.get("price") or not e:
                 continue
-            ma50, px, held = float(np.mean(closes[-50:])), q["price"], tr.s["positions"].get(sym)
+            px, held, ma50 = q["price"], tr.s["positions"].get(sym), e["ma50"]
             target = etf_budget * w
             if held and px < ma50 * 0.985:
-                tr.sell(sym, held["qty"], f"ETF trend break (below MA50 {ma50:.2f})", q, t)
-            elif not held and px > ma50 and mandate.allow_new:
-                tr.buy(sym, min(target, tr.free_cash()), "core", f"ETF trend up (above MA50 {ma50:.2f})", q, t)
+                cands.append((3.0, lambda sym=sym, held=held, q=q, ma50=ma50: tr.sell(
+                    sym, held["qty"], f"ETF trend break (below MA50 {ma50:.2f})", q, t), f"sell {sym}"))
             elif held:
                 cur = held["qty"] * px
                 if cur > target * (1 + c.rebalance_band) and cur - target >= c.min_trade:
-                    tr.sell(sym, min(held["qty"], (cur - target) / px),
-                            f"rebalance: {cur / equity:.0%} vs {target / equity:.0%} target weight", q, t)
-                elif (px > ma50 and mandate.allow_new and cur < target * (1 - c.rebalance_band)
-                      and target - cur >= max(c.min_trade, 25)):
-                    tr.buy(sym, min(target - cur, tr.free_cash()), "core",
-                           f"rebalance: {cur / equity:.0%} vs {target / equity:.0%} target weight", q, t)
-        tr.hedge_sleeve(quotes, t, equity, reg)
+                    cands.append((0.4, lambda sym=sym, held=held, q=q, cur=cur, target=target, px=px: tr.sell(
+                        sym, min(held["qty"], (cur - target) / px),
+                        f"rebalance: {cur / equity:.0%} vs {target / equity:.0%} target weight", q, t), f"trim {sym}"))
+            if px > ma50 and mandate.allow_new and e["score"] >= c.growth_min_score and e["coverage"] >= c.single_min_coverage:
+                cur = held["qty"] * px if held else 0.0
+                gap = min(target - cur, tr.free_cash())
+                if gap >= max(c.min_trade, 25 if held else 0) and (not held or cur < target * (1 - c.rebalance_band)):
+                    cands.append((e["score"], lambda sym=sym, q=q, gap=gap, e=e: tr.buy(
+                        sym, gap, "core", f"single daily trade: {st.why(e)}", q, t), f"buy {sym}"))
+        plan = tr.hedge_plan(quotes, equity, reg)
+        if plan:
+            side, sym, amt, why, urgent = plan
+            q = quotes[sym]
+            fn = (lambda: tr.buy(sym, amt, "hedge", why, q, t)) if side == "buy" else (lambda: tr.sell(sym, amt, why, q, t))
+            cands.append((2.0 if urgent else 0.5, fn, f"hedge {side}"))
+        tr.s["desk"]["growth_candidates"] = [(lab, round(p, 3)) for p, _, lab in sorted(cands, key=lambda x: -x[0])[:6]]
+        for _, fn, label in sorted(cands, key=lambda x: -x[0]):
+            if fn():
+                one["growth"] = {"sym": label.split()[-1], "note": label}
+                return
 
 
 class DayAgent:

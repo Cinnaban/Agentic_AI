@@ -95,13 +95,22 @@ def test_growth_agent_buys_to_weights_and_rebalances(tmp_path, monkeypatch):
     quotes = {"VOO": _q(112.0), "QQQ": _q(112.0)}
     equity = tr.equity(quotes)
     mandate = tr.desk.orchestrator.plan(quotes, T, equity, REG).mandates["growth"]
-    tr.desk.growth.run(quotes, T, equity, mandate, REG)
+    def day_run():
+        tr.s["day"].pop("single", None)  # a new trading day
+        before = len(tr.s["trades"])
+        tr.desk.growth.run(quotes, T, equity, mandate, REG)
+        tr.desk.growth.run(quotes, T, equity, mandate, REG)  # same day: must not trade again
+        return tr.s["trades"][before:]
+
+    assert len(day_run()) == 1  # exactly one action per day
+    for _ in range(4):
+        assert len(day_run()) <= 1
     voo, qqq = (tr.s["positions"][s]["qty"] * 112.0 for s in ("VOO", "QQQ"))
     assert voo > qqq * 2.5
-    # a position far above its target weight is trimmed back
+    # a position far above its target weight is trimmed back (one trade, on a later day)
     tr.s["positions"]["QQQ"]["qty"] *= 3
-    tr.desk.growth.run(quotes, T, equity, mandate, REG)
-    assert any(x["side"] == "sell" and x["sym"] == "QQQ" and "rebalance" in x["reason"] for x in tr.s["trades"])
+    new = day_run()
+    assert len(new) == 1 and new[0]["side"] == "sell" and new[0]["sym"] == "QQQ" and "rebalance" in new[0]["reason"]
 
 
 def test_attribution_and_summary_lines(tmp_path, monkeypatch):

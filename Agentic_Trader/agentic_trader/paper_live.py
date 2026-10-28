@@ -80,6 +80,11 @@ class Cfg:
         self.growth_weights = {k.strip().upper(): float(v) for k, v in
                                (item.split(":") for item in os.getenv("PAPER_GROWTH_WEIGHTS", "").split(",") if ":" in item)}
         self.rebalance_band = float(os.getenv("PAPER_REBALANCE_BAND", "0.25"))
+        # growth + day agents: one trade per day each, taken early in the open (options agent is unrestricted)
+        self.single_min_score = float(os.getenv("PAPER_SINGLE_MIN_SCORE", "0.15"))
+        self.growth_min_score = float(os.getenv("PAPER_GROWTH_MIN_SCORE", "0.0"))
+        self.single_min_coverage = float(os.getenv("PAPER_SINGLE_MIN_COVERAGE", "0.5"))
+        self.day_intraday_exits = os.getenv("PAPER_DAY_INTRADAY_EXITS", "0") in ("1", "true", "on")
 
 
 def now_et() -> datetime:
@@ -312,70 +317,73 @@ class PaperTrader:
         self.s["regime"] = reg
         return reg
 
-    def hedge_sleeve(self, quotes, t, equity, reg):
+    def hedge_plan(self, quotes, equity, reg):
+        """The hedge adjustment the regime calls for, or None: (side, sym, usd_or_qty, reason, urgent)."""
         sym = self.cfg.hedge
         q = quotes.get(sym)
         if not q or not q.get("price"):
-            return
+            return None
         held = self.s["positions"].get(sym)
         cur = (held["qty"] * q["price"]) if held else 0.0
         want = equity * reg["hedge_target"]
         band = max(self.cfg.min_trade, equity * 0.025)
         why = f"{reg['name']} volatility (VIX {reg['vix'] or 0:.1f}, SPY 20d vol {(reg['spy_vol20'] or 0):.0%})"
         if want - cur > band:
-            self.buy(sym, want - cur, "hedge", f"hedge up: {why}", q, t)
-        elif cur - want > band and held:
-            self.sell(sym, min(held["qty"], (cur - want) / q["price"]) if want > 0 else held["qty"],
-                      f"hedge down: {why}", q, t)
+            return ("buy", sym, want - cur, f"hedge up: {why}", reg["name"] in ("elevated", "stressed"))
+        if cur - want > band and held:
+            qty = min(held["qty"], (cur - want) / q["price"]) if want > 0 else held["qty"]
+            return ("sell", sym, qty, f"hedge down: {why}", False)
+        return None
+
+    def single_state(self):
+        return self.s["day"].setdefault("single", {})
 
     def day_sleeve(self, quotes, t, equity, reg, phase_hm, mandate=None):
+        """One entry per day, early in the open, held until the end-of-day flatten (no re-entry)."""
+        from . import single_trade as st
         c = self.cfg
         day_pct = mandate.budget_pct if mandate else c.day_pct
         scale = (mandate.scale if mandate else 1.0)
-        day_syms = [s for s, p in self.s["positions"].items() if p["sleeve"] == "day"]
+        one = self.single_state()
         flatten = phase_hm >= FLATTEN_AT
-        sig = {}
-        try:
-            sig = self.analyze(c.day_symbols)
-        except Exception as exc:
-            print("[paper] analyze failed:", repr(exc))
-        for sym in day_syms:
+        for sym in [s for s, p in self.s["positions"].items() if p["sleeve"] == "day"]:
             p, q = self.s["positions"][sym], quotes.get(sym, {})
             px = q.get("price")
             if not px:
                 continue
             ret = px / p["avg"] - 1
-            score = (sig.get(sym) or {}).get("signal_score")
-            reason = ("end-of-day flatten" if flatten else f"stop {ret:+.1%}" if ret <= -c.stop else
-                      f"target {ret:+.1%}" if ret >= c.target else
-                      f"signal flipped ({score:+.2f})" if score is not None and score <= -0.10 else None)
+            reason = ("end-of-day close of the day's single trade" if flatten else
+                      f"stop {ret:+.1%}" if c.day_intraday_exits and ret <= -c.stop else
+                      f"target {ret:+.1%}" if c.day_intraday_exits and ret >= c.target else None)
             if reason:
                 self.sell(sym, p["qty"], reason, q, t)
-        if flatten or phase_hm >= NO_ENTRY_AFTER or (mandate and not mandate.allow_new):
+        if "day" in one or flatten:
+            return
+        if phase_hm >= st.ENTRY_END:
+            one["day"] = {"sym": None, "note": "no qualifying setup in the entry window; no trade today"}
+            return
+        if mandate and not mandate.allow_new:
             return
         if self.pdt_limited() and self.day_trades_5d(t) >= c.pdt_max:
+            one["day"] = {"sym": None, "note": "day-trade limit reached; no trade today"}
             return
-        if equity / self.s["day"]["open_equity"] - 1 >= c.daily_max:
-            return  # daily goal reached: bank it, no new day entries
-        open_n = sum(1 for p in self.s["positions"].values() if p["sleeve"] == "day")
-        budget = equity * day_pct * scale - sum(p["qty"] * (quotes.get(s, {}).get("price") or p["avg"])
-                                          for s, p in self.s["positions"].items() if p["sleeve"] == "day")
-        sentiment = self._sentiment(c.day_symbols)
-        ranked = sorted(((self.day_rank(m, sentiment.get(s)), s, m) for s, m in sig.items()
-                         if isinstance(m, dict) and "error" not in m and s in c.day_symbols), reverse=True)
-        for score, sym, m in ranked:
-            if open_n >= c.max_day_positions or budget < c.min_trade:
-                break
-            q = quotes.get(sym)
-            cd = self.s["cooldown"].get(sym)
-            if (sym in self.s["positions"] or not q or score < c.entry or (m.get("rsi14") or 50) >= 75
-                    or (cd and (t - datetime.fromisoformat(cd)).total_seconds() < c.cooldown_min * 60)):
-                continue
-            vol = m.get("realized_vol_ann") or 0.3
-            size = min(budget, equity * day_pct / c.max_day_positions * scale * min(1.0, 0.35 / max(vol, 0.05)))
-            if self.buy(sym, size, "day", f"signal {score:+.2f}, RSI {m.get('rsi14') or 0:.0f}, vol {vol:.0%}", q, t):
-                open_n += 1
-                budget -= size
+        try:
+            quants = self.analyze(c.day_symbols)
+        except Exception as exc:
+            print("[paper] analyze failed:", repr(exc))
+            quants = {}
+        ev = st.evaluate(c.day_symbols, self.data, quotes, quants)
+        ranked = sorted(((e["score"], s) for s, e in ev.items()
+                         if e["coverage"] >= c.single_min_coverage and (e["rsi"] or 50) < 75), reverse=True)
+        self.s.setdefault("desk", {})["day_ranking"] = [(s, round(sc, 3)) for sc, s in ranked[:6]]
+        if not ranked or ranked[0][0] < c.single_min_score:
+            return  # keep looking until the window closes
+        score, sym = ranked[0]
+        q, e = quotes[sym], ev[sym]
+        vol = e["vol"] or 0.3
+        size = min(self.free_cash(), equity * day_pct * scale * min(1.0, 0.35 / max(vol, 0.05)))
+        if self.buy(sym, size, "day", f"single daily trade: {st.why(e)}, RSI {e['rsi'] or 0:.0f}, vol {vol:.0%}", q, t):
+            one["day"] = {"sym": sym, "note": st.why(e)}
 
     # ---- main cycle
     def _sentiment(self, symbols):
@@ -438,7 +446,7 @@ class PaperTrader:
             if self.cfg.opt_enabled:
                 steps.append(("options", lambda: self.desk.options.run(quotes, t, equity, m["options"])))
             steps += [("day", lambda: self.desk.day.run(quotes, t, equity, m["day"], reg, hm)),
-                      ("growth", lambda: self.desk.growth.run(quotes, t, equity, m["growth"], reg))]
+                      ("growth", lambda: self.desk.growth.run(quotes, t, equity, m["growth"], reg, hm))]
             for name, fn in steps:
                 try:
                     fn()
@@ -520,6 +528,12 @@ class PaperTrader:
             if not m["allow_new"]:
                 line += " [holding]"
             L.append(line)
+        one = self.s["day"].get("single", {})
+        for key, label in (("growth", "Growth agent"), ("day", "Day agent")):
+            r = one.get(key)
+            L.append(f"- {label} daily trade (1 per day, early open): "
+                     + (f"{r['note']}" if r else "not yet taken (waiting for the entry window to qualify)"))
+        L.append("- Options agent: no daily limit")
         return L
 
     def summary(self, t, quotes, equity, daily):
