@@ -197,7 +197,8 @@ class GrowthAgent:
                 gap = min(target - cur, tr.free_cash())
                 if gap >= max(c.min_trade, 25 if held else 0) and (not held or cur < target * (1 - c.rebalance_band)):
                     cands.append((e["score"], lambda sym=sym, q=q, gap=gap, e=e: tr.buy(
-                        sym, gap, "core", f"single daily trade: {st.why(e)}", q, t), f"buy {sym}"))
+                        sym, gap, "core", f"single daily trade: {st.why(e)}, stop -{tr.stop_for('core', e['vol']):.1%}", q, t,
+                        vol_ann=e["vol"]), f"buy {sym}"))
         plan = tr.hedge_plan(quotes, equity, reg)
         if plan:
             side, sym, amt, why, urgent = plan

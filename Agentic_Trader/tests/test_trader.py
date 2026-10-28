@@ -262,16 +262,13 @@ def test_paper_live_cycle_fees_and_summaries(tmp_path):
     tr.step()
     assert note.sent and note.sent[0][0] == "realtime"
     assert "Profit/Loss (net of fees):\n" in note.sent[0][1] and "Holdings maintained:" in note.sent[0][1]
-    # the day trade is held (no intraday stop) until the end-of-day close, a loss that includes the sell fee
+    # a -2.5% drop breaches the day stop: a loss that includes the sell fee
     clk["t"] = datetime(2026, 10, 14, 10, 5, tzinfo=ET)
     px["NVDA"] = 195.0
     tr.step()
-    assert "NVDA" in tr.s["positions"]
-    clk["t"] = datetime(2026, 10, 14, 15, 51, tzinfo=ET)
-    tr.step()
     assert "NVDA" not in tr.s["positions"] and tr.s["fees_total"] >= 0.01
     last = [x for x in tr.s["trades"] if x["sym"] == "NVDA"][-1]
-    assert last["realized"] < 0 and "end-of-day" in last["reason"]
+    assert last["realized"] < 0 and "stop loss" in last["reason"]
     # equity = start + realized + unrealized, with fees already deducted from cash
     eq = tr.equity({s: _q(px.get(s, 120.0), clk["t"]) for s in tr.universe()})
     assert abs(eq - tr.s["start_cash"]) < 45  # ~7.5 sh x $5 loss + fees

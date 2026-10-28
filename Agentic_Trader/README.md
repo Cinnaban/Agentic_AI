@@ -132,3 +132,9 @@ financial evaluation (P/E, size, dividend) and market trend (MA20/MA50, slope) -
 - Growth agent: its one action is the top-priority of: trend-break sell > urgent hedge change > best ETF buy > hedge adjust > over-weight trim
   (`PAPER_GROWTH_MIN_SCORE`). It builds target weights one ETF per day.
 - Options agent: unchanged, trades through the day (cash-secured puts / covered calls only).
+
+## Stop losses and weekly goal
+- Day agent: stop = 1.5x the stock's daily volatility from cost, clamped to 1.5-3.5%. Growth agent (ETFs): 3x daily vol, clamped to 5-9%
+  (`PAPER_DAY_STOP_*`, `PAPER_GROWTH_STOP_*`). The stop is stored on the position at entry and checked every cycle; stop exits are protective
+  and do not count against the one-entry-per-day limit (no re-entry the same day). The hedge (SH) and option-assigned shares are not stopped.
+- Weekly goal is now ~10% (band 8-12%); it is measured and reported, and the desk banks gains above the top of the band. It never raises risk caps to chase it.

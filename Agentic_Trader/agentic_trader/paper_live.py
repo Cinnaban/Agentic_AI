@@ -46,6 +46,13 @@ class Cfg:
         self.cycle = int(os.getenv("PAPER_CYCLE_SECONDS", "300"))
         self.entry = float(os.getenv("PAPER_ENTRY_SIGNAL", "0.20"))
         self.stop = float(os.getenv("PAPER_STOP_PCT", "0.015"))
+        # volatility-scaled stop losses (fraction of cost), clamped to a sensible range per agent
+        self.day_stop_mult = float(os.getenv("PAPER_DAY_STOP_VOL_MULT", "1.5"))
+        self.day_stop_min = float(os.getenv("PAPER_DAY_STOP_MIN", "0.015"))
+        self.day_stop_max = float(os.getenv("PAPER_DAY_STOP_MAX", "0.035"))
+        self.growth_stop_mult = float(os.getenv("PAPER_GROWTH_STOP_VOL_MULT", "3.0"))
+        self.growth_stop_min = float(os.getenv("PAPER_GROWTH_STOP_MIN", "0.05"))
+        self.growth_stop_max = float(os.getenv("PAPER_GROWTH_STOP_MAX", "0.09"))
         self.target = float(os.getenv("PAPER_TARGET_PCT", "0.02"))
         self.max_day_positions = int(os.getenv("PAPER_MAX_DAY_POSITIONS", "3"))
         self.min_trade = float(os.getenv("PAPER_MIN_TRADE_USD", "5"))
@@ -58,8 +65,8 @@ class Cfg:
         # targets are goals to measure against, not instructions to add risk
         self.daily_min = float(os.getenv("PAPER_DAILY_TARGET_MIN", "0.02"))
         self.daily_max = float(os.getenv("PAPER_DAILY_TARGET_MAX", "0.05"))
-        self.week_min = float(os.getenv("PAPER_WEEKLY_TARGET_MIN", "0.05"))
-        self.week_max = float(os.getenv("PAPER_WEEKLY_TARGET_MAX", "0.10"))
+        self.week_min = float(os.getenv("PAPER_WEEKLY_TARGET_MIN", "0.08"))
+        self.week_max = float(os.getenv("PAPER_WEEKLY_TARGET_MAX", "0.12"))
         # options income sleeve: cash-secured puts + covered calls only, never naked
         self.opt_enabled = os.getenv("PAPER_OPTIONS", "1") not in ("0", "false", "off")
         self.opt_symbols = _csv("PAPER_OPTION_SYMBOLS", "F,SOFI,RIVN,SNAP,NIO,AAL,HBAN,NU,VALE,BB,RIG,LCID,T,KVUE,CMCSA,PFE")
@@ -265,7 +272,29 @@ class PaperTrader:
         return "idle"
 
     # ---- order simulation
-    def buy(self, sym, usd, sleeve, reason, q, t):
+    def stop_for(self, sleeve, vol_ann):
+        """Stop-loss distance from cost: a multiple of the stock's daily volatility, clamped per agent."""
+        c = self.cfg
+        daily = (vol_ann or 0.3) / math.sqrt(252)
+        mult, lo, hi = ((c.day_stop_mult, c.day_stop_min, c.day_stop_max) if sleeve == "day"
+                        else (c.growth_stop_mult, c.growth_stop_min, c.growth_stop_max))
+        return min(hi, max(lo, mult * daily))
+
+    def protect(self, quotes, t):
+        """Stop losses for the day and growth agents. Protective exits are not entries, so they sit outside the
+        one-trade-per-day entry limit. Hedge and options-income shares are not stopped here."""
+        for sym, p in list(self.s["positions"].items()):
+            q = quotes.get(sym) or {}
+            if p["sleeve"] in ("day", "core") and not p.get("stop_pct"):
+                p["stop_pct"] = round(self.stop_for(p["sleeve"], None), 4)  # positions opened before stops existed
+            stop = p.get("stop_pct")
+            if p["sleeve"] not in ("day", "core") or not stop or not q.get("price"):
+                continue
+            ret = q["price"] / p["avg"] - 1
+            if ret <= -stop:
+                self.sell(sym, p["qty"], f"stop loss {ret:+.1%} (limit -{stop:.1%})", q, t)
+
+    def buy(self, sym, usd, sleeve, reason, q, t, vol_ann=None):
         px = self.fill_px(q, "buy")
         usd = min(usd, self.free_cash())
         if not px or usd < self.cfg.min_trade:
@@ -275,6 +304,8 @@ class PaperTrader:
         pos = self.s["positions"].setdefault(sym, {"qty": 0.0, "avg": 0.0, "sleeve": sleeve, "opened": t.isoformat()})
         pos["avg"] = (pos["avg"] * pos["qty"] + cost) / (pos["qty"] + qty)
         pos["qty"] = round(pos["qty"] + qty, 6)
+        if sleeve in ("day", "core"):
+            pos["stop_pct"] = round(self.stop_for(sleeve, vol_ann), 4)
         self.s["cash"] -= cost
         self.s["trades"].append({"ts": t.isoformat(), "side": "buy", "sym": sym, "qty": qty, "px": px, "fee": 0.0,
                                  "sleeve": sleeve, "reason": reason, "value": cost})
@@ -353,7 +384,6 @@ class PaperTrader:
                 continue
             ret = px / p["avg"] - 1
             reason = ("end-of-day close of the day's single trade" if flatten else
-                      f"stop {ret:+.1%}" if c.day_intraday_exits and ret <= -c.stop else
                       f"target {ret:+.1%}" if c.day_intraday_exits and ret >= c.target else None)
             if reason:
                 self.sell(sym, p["qty"], reason, q, t)
@@ -382,7 +412,8 @@ class PaperTrader:
         q, e = quotes[sym], ev[sym]
         vol = e["vol"] or 0.3
         size = min(self.free_cash(), equity * day_pct * scale * min(1.0, 0.35 / max(vol, 0.05)))
-        if self.buy(sym, size, "day", f"single daily trade: {st.why(e)}, RSI {e['rsi'] or 0:.0f}, vol {vol:.0%}", q, t):
+        if self.buy(sym, size, "day", f"single daily trade: {st.why(e)}, RSI {e['rsi'] or 0:.0f}, vol {vol:.0%}, "
+                                           f"stop -{self.stop_for('day', vol):.1%}", q, t, vol_ann=vol):
             one["day"] = {"sym": sym, "note": st.why(e)}
 
     # ---- main cycle
@@ -437,6 +468,11 @@ class PaperTrader:
                 self.income.settle_expired(quotes, t)
             except Exception as exc:
                 print("[paper] option settle failed:", repr(exc))
+        if phase == "open":
+            try:
+                self.protect(quotes, t)
+            except Exception as exc:
+                print("[paper] stop-loss check failed:", repr(exc))
         if phase == "open" and hm >= (9, 35):
             equity = self.equity(quotes)
             reg = self.volatility()
