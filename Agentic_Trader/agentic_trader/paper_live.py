@@ -43,16 +43,37 @@ class Cfg:
         self.etfs = _csv("PAPER_ETFS", "VOO,QQQ,SCHD,VXUS")
         self.day_symbols = _csv("PAPER_DAY_SYMBOLS", "NVDA,AAPL,AMD,TSLA,MSFT,META")
         self.hedge = os.getenv("PAPER_HEDGE_SYMBOL", "SH").upper()
-        self.cycle = int(os.getenv("PAPER_CYCLE_SECONDS", "300"))
+        self.cycle = int(os.getenv("PAPER_CYCLE_SECONDS", "120"))
         self.entry = float(os.getenv("PAPER_ENTRY_SIGNAL", "0.20"))
         self.stop = float(os.getenv("PAPER_STOP_PCT", "0.015"))
         # volatility-scaled stop losses (fraction of cost), clamped to a sensible range per agent
         self.day_stop_mult = float(os.getenv("PAPER_DAY_STOP_VOL_MULT", "1.5"))
-        self.day_stop_min = float(os.getenv("PAPER_DAY_STOP_MIN", "0.015"))
-        self.day_stop_max = float(os.getenv("PAPER_DAY_STOP_MAX", "0.035"))
+        self.day_stop_min, self.day_stop_max = 0.015, 0.035  # fallback only for day positions without an ATR stop
         self.growth_stop_mult = float(os.getenv("PAPER_GROWTH_STOP_VOL_MULT", "3.0"))
         self.growth_stop_min = float(os.getenv("PAPER_GROWTH_STOP_MIN", "0.05"))
         self.growth_stop_max = float(os.getenv("PAPER_GROWTH_STOP_MAX", "0.09"))
+        # intraday day-trader (multiple trades per day, volatility-sized, hard stops)
+        self.day_max_trades = int(os.getenv("PAPER_DAY_MAX_TRADES", "8"))
+        self.day_max_open = int(os.getenv("PAPER_DAY_MAX_OPEN", "2"))
+        self.risk_pct = float(os.getenv("PAPER_DAY_RISK_PCT", "0.005"))          # equity risked per trade at the stop
+        self.max_position_pct = float(os.getenv("PAPER_DAY_MAX_POSITION_PCT", "0.15"))
+        self.day_loss_limit = float(os.getenv("PAPER_DAY_LOSS_LIMIT", "0.015"))  # realized day-agent loss that halts entries
+        self.atr_stop_mult = float(os.getenv("PAPER_DAY_ATR_STOP_MULT", "2.5"))
+        self.stop_min = float(os.getenv("PAPER_DAY_STOP_MIN", "0.008"))
+        self.stop_max = float(os.getenv("PAPER_DAY_STOP_MAX", "0.025"))
+        self.target_r = float(os.getenv("PAPER_DAY_TARGET_R", "2.0"))
+        self.breakeven_r = float(os.getenv("PAPER_DAY_BREAKEVEN_R", "1.0"))
+        self.trail_start_r = float(os.getenv("PAPER_DAY_TRAIL_START_R", "1.5"))
+        self.trail_r = float(os.getenv("PAPER_DAY_TRAIL_R", "1.0"))
+        self.stall_min = int(os.getenv("PAPER_DAY_STALL_MIN", "90"))
+        self.min_rvol = float(os.getenv("PAPER_DAY_MIN_RVOL", "1.1"))
+        self.min_bias = float(os.getenv("PAPER_DAY_MIN_BIAS", "0.0"))
+        self.max_rsi = float(os.getenv("PAPER_DAY_MAX_RSI", "72"))
+        self.min_daily_atr = float(os.getenv("PAPER_DAY_MIN_DAILY_ATR", "0.012"))
+        self.max_daily_atr = float(os.getenv("PAPER_DAY_MAX_DAILY_ATR", "0.07"))
+        self.reentry_min = int(os.getenv("PAPER_DAY_REENTRY_MIN", "30"))
+        self.day_entry_start = (10, 0)
+        self.day_entry_end = (15, 0)
         self.target = float(os.getenv("PAPER_TARGET_PCT", "0.02"))
         self.max_day_positions = int(os.getenv("PAPER_MAX_DAY_POSITIONS", "3"))
         self.min_trade = float(os.getenv("PAPER_MIN_TRADE_USD", "5"))
@@ -291,10 +312,13 @@ class PaperTrader:
             if p["sleeve"] not in ("day", "core") or not stop or not q.get("price"):
                 continue
             ret = q["price"] / p["avg"] - 1
-            if ret <= -stop:
+            if p.get("stop_px"):
+                if q["price"] <= p["stop_px"]:
+                    self.sell(sym, p["qty"], f"stop loss {ret:+.1%} (stop {p['stop_px']:.2f})", q, t)
+            elif ret <= -stop:
                 self.sell(sym, p["qty"], f"stop loss {ret:+.1%} (limit -{stop:.1%})", q, t)
 
-    def buy(self, sym, usd, sleeve, reason, q, t, vol_ann=None):
+    def buy(self, sym, usd, sleeve, reason, q, t, vol_ann=None, extra=None):
         px = self.fill_px(q, "buy")
         usd = min(usd, self.free_cash())
         if not px or usd < self.cfg.min_trade:
@@ -304,7 +328,9 @@ class PaperTrader:
         pos = self.s["positions"].setdefault(sym, {"qty": 0.0, "avg": 0.0, "sleeve": sleeve, "opened": t.isoformat()})
         pos["avg"] = (pos["avg"] * pos["qty"] + cost) / (pos["qty"] + qty)
         pos["qty"] = round(pos["qty"] + qty, 6)
-        if sleeve in ("day", "core"):
+        if extra:
+            pos.update(extra)
+        if sleeve in ("day", "core") and not pos.get("stop_px"):
             pos["stop_pct"] = round(self.stop_for(sleeve, vol_ann), 4)
         self.s["cash"] -= cost
         self.s["trades"].append({"ts": t.isoformat(), "side": "buy", "sym": sym, "qty": qty, "px": px, "fee": 0.0,
@@ -369,52 +395,97 @@ class PaperTrader:
     def single_state(self):
         return self.s["day"].setdefault("single", {})
 
+    def day_agent_pl_today(self, t):
+        today = t.date().isoformat()
+        return sum(x.get("realized", 0.0) for x in self.s["trades"]
+                   if x.get("sleeve") == "day" and x["ts"][:10] == today and "realized" in x)
+
+    def day_entries_today(self, t):
+        today = t.date().isoformat()
+        return sum(1 for x in self.s["trades"] if x.get("sleeve") == "day" and x["side"] == "buy" and x["ts"][:10] == today)
+
     def day_sleeve(self, quotes, t, equity, reg, phase_hm, mandate=None):
-        """One entry per day, early in the open, held until the end-of-day flatten (no re-entry)."""
-        from . import single_trade as st
+        """Intraday trader: manages open positions every cycle, and takes new setups until the cut-off."""
+        from . import day_strategy as ds
         c = self.cfg
-        day_pct = mandate.budget_pct if mandate else c.day_pct
-        scale = (mandate.scale if mandate else 1.0)
-        one = self.single_state()
+        note = self.s.setdefault("desk", {})
         flatten = phase_hm >= FLATTEN_AT
-        for sym in [s for s, p in self.s["positions"].items() if p["sleeve"] == "day"]:
+        day_syms = [s for s, p in self.s["positions"].items() if p["sleeve"] == "day"]
+        watch = sorted(set(c.day_symbols) | set(day_syms) | {"SPY"})
+        daily = self.data.bars(watch, "day", 120, ttl=1800)
+        bars5 = self.data.bars(watch, "5minute", 6, ttl=60)
+        snap = {}
+        for sym in watch:
+            try:
+                snap[sym] = ds.analyze(bars5.get(sym, []), daily.get(sym, []), (quotes.get(sym) or {}).get("price"), t.date())
+            except Exception as exc:
+                print(f"[paper] day analyze {sym} failed:", repr(exc))
+                snap[sym] = None
+        for sym in day_syms:
             p, q = self.s["positions"][sym], quotes.get(sym, {})
             px = q.get("price")
             if not px:
                 continue
-            ret = px / p["avg"] - 1
-            reason = ("end-of-day close of the day's single trade" if flatten else
-                      f"target {ret:+.1%}" if c.day_intraday_exits and ret >= c.target else None)
+            if flatten:
+                self.sell(sym, p["qty"], "end-of-day flat (day trades are never held overnight)", q, t)
+                continue
+            reason, new_stop = ds.manage(p, snap.get(sym), px, phase_hm, c)
+            if new_stop and new_stop > (p.get("stop_px") or 0):
+                p["stop_px"] = round(new_stop, 4)
             if reason:
                 self.sell(sym, p["qty"], reason, q, t)
-        if "day" in one or flatten:
-            return
-        if phase_hm >= st.ENTRY_END:
-            one["day"] = {"sym": None, "note": "no qualifying setup in the entry window; no trade today"}
+        if flatten or phase_hm < c.day_entry_start or phase_hm >= c.day_entry_end:
             return
         if mandate and not mandate.allow_new:
+            note["day_note"] = mandate.note or "orchestrator hold"
             return
         if self.pdt_limited() and self.day_trades_5d(t) >= c.pdt_max:
-            one["day"] = {"sym": None, "note": "day-trade limit reached; no trade today"}
+            note["day_note"] = "day-trade limit reached"
             return
-        try:
-            quants = self.analyze(c.day_symbols)
-        except Exception as exc:
-            print("[paper] analyze failed:", repr(exc))
-            quants = {}
-        ev = st.evaluate(c.day_symbols, self.data, quotes, quants)
-        ranked = sorted(((e["score"], s) for s, e in ev.items()
-                         if e["coverage"] >= c.single_min_coverage and (e["rsi"] or 50) < 75), reverse=True)
-        self.s.setdefault("desk", {})["day_ranking"] = [(s, round(sc, 3)) for sc, s in ranked[:6]]
-        if not ranked or ranked[0][0] < c.single_min_score:
-            return  # keep looking until the window closes
-        score, sym = ranked[0]
-        q, e = quotes[sym], ev[sym]
-        vol = e["vol"] or 0.3
-        size = min(self.free_cash(), equity * day_pct * scale * min(1.0, 0.35 / max(vol, 0.05)))
-        if self.buy(sym, size, "day", f"single daily trade: {st.why(e)}, RSI {e['rsi'] or 0:.0f}, vol {vol:.0%}, "
-                                           f"stop -{self.stop_for('day', vol):.1%}", q, t, vol_ann=vol):
-            one["day"] = {"sym": sym, "note": st.why(e)}
+        if self.day_agent_pl_today(t) <= -c.day_loss_limit * equity:
+            note["day_note"] = f"daily loss limit hit ({self.day_agent_pl_today(t):+.2f}); no more day entries"
+            return
+        if self.day_entries_today(t) >= c.day_max_trades:
+            note["day_note"] = f"max {c.day_max_trades} day entries reached"
+            return
+        open_now = [s for s, p in self.s["positions"].items() if p["sleeve"] == "day"]
+        if len(open_now) >= c.day_max_open:
+            note["day_note"] = f"{len(open_now)} positions open (max {c.day_max_open})"
+            return
+        spy = snap.get("SPY")
+        if spy and spy["price"] < spy["vwap"] and spy["ema9"] < spy["ema21"]:
+            note["day_note"] = "market filter: SPY below VWAP with EMA9<EMA21; standing aside"
+            return
+        scale = (mandate.scale if mandate else 1.0)
+        cands, why_not = [], {}
+        for sym in c.day_symbols:
+            m, q = snap.get(sym), quotes.get(sym)
+            if not m or not q or sym in self.s["positions"]:
+                continue
+            cd = self.s["cooldown"].get(sym)
+            if cd and (t - datetime.fromisoformat(cd)).total_seconds() < c.reentry_min * 60:
+                why_not[sym] = "cooling down after last exit"
+                continue
+            kind_strength, detail = ds.setup(m, c)
+            if kind_strength:
+                cands.append((kind_strength[1] + 0.3 * ds.daily_bias(m), sym, kind_strength[0], detail, m))
+            else:
+                why_not[sym] = detail
+        note["day_note"] = ("; ".join(f"{s}: {r}" for s, r in list(why_not.items())[:4])) if not cands else "setups: " + \
+            ", ".join(f"{s} {k}" for _, s, k, _, _ in sorted(cands, reverse=True))
+        for score, sym, kind, detail, m in sorted(cands, key=lambda x: -x[0]):
+            if len(open_now) >= c.day_max_open or self.day_entries_today(t) >= c.day_max_trades:
+                break
+            plan = ds.plan_trade(m, c, equity, self.free_cash(), scale)
+            if plan["notional"] < max(c.min_trade, 25):
+                continue
+            q = quotes[sym]
+            extra = {"stop_px": round(plan["stop"], 4), "stop_pct": round(plan["stop_pct"], 4),
+                     "target_px": round(plan["target"], 4), "r_per_share": plan["risk_per_share"], "high": q["price"],
+                     "opened_hm": phase_hm[0] * 60 + phase_hm[1], "setup": kind}
+            if self.buy(sym, plan["notional"], "day", f"{kind}: {detail}; stop {plan['stop']:.2f} (-{plan['stop_pct']:.1%}), "
+                        f"target {plan['target']:.2f}, risk ${plan['risk_usd']:.0f}", q, t, extra=extra):
+                open_now.append(sym)
 
     # ---- main cycle
     def _sentiment(self, symbols):
@@ -565,10 +636,12 @@ class PaperTrader:
                 line += " [holding]"
             L.append(line)
         one = self.s["day"].get("single", {})
-        for key, label in (("growth", "Growth agent"), ("day", "Day agent")):
-            r = one.get(key)
-            L.append(f"- {label} daily trade (1 per day, early open): "
-                     + (f"{r['note']}" if r else "not yet taken (waiting for the entry window to qualify)"))
+        r = one.get("growth")
+        L.append("- Growth agent daily trade (1 per day, early open): "
+                 + (f"{r['note']}" if r else "not yet taken (waiting for the entry window to qualify)"))
+        L.append(f"- Day agent: {self.day_entries_today(t)}/{cfg.day_max_trades} entries today, realized "
+                 f"{_money(self.day_agent_pl_today(t), True)} (loss limit -{cfg.day_loss_limit:.1%}); "
+                 f"{desk.get('day_note', 'scanning')}")
         L.append("- Options agent: no daily limit")
         return L
 

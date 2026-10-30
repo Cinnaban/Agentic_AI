@@ -138,3 +138,6 @@ financial evaluation (P/E, size, dividend) and market trend (MA20/MA50, slope) -
   (`PAPER_DAY_STOP_*`, `PAPER_GROWTH_STOP_*`). The stop is stored on the position at entry and checked every cycle; stop exits are protective
   and do not count against the one-entry-per-day limit (no re-entry the same day). The hedge (SH) and option-assigned shares are not stopped.
 - Weekly goal is now ~10% (band 8-12%); it is measured and reported, and the desk banks gains above the top of the band. It never raises risk caps to chase it.
+
+## Day trader (multiple intraday trades)
+Uses 5-minute bars: VWAP, EMA9/21, RSI, ATR, opening range and relative volume. Setups: opening-range breakout and VWAP/EMA pullback, only when SPY is not weak. Every entry has an ATR-based stop, a ~2R target, break-even at 1R and a trailing stop; it also exits on trend failure or stall, and flattens at 15:50. Size is risk-based (0.5% of equity per trade). Limits: 8 entries/day, 2 open, 1.5% daily loss halt, 30 min re-entry cooldown. Tunables: `PAPER_DAY_*` (see `.env.example`). Growth stays at 1 trade/day; goals are measured, not chased.

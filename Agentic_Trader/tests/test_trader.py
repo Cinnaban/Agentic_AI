@@ -253,10 +253,11 @@ def test_paper_live_cycle_fees_and_summaries(tmp_path):
                    lambda syms: {"NVDA": {"signal_score": 0.5, "rsi14": 55, "realized_vol_ann": 0.35}}, lambda: clk["t"])
     assert tr.step() == "open"
     held = tr.s["positions"]
-    assert "NVDA" in held and held["NVDA"]["sleeve"] == "day"
-    # one trade per agent per day: the day agent's NVDA entry plus exactly one growth action
-    assert len([x for x in tr.s["trades"] if x["side"] in ("buy", "sell")]) == 2
-    assert len(set(held) - {"NVDA"}) == 1
+    # the growth agent makes its single early-open action (the day agent needs intraday setups, covered in test_day_strategy)
+    assert len([x for x in tr.s["trades"] if x["side"] in ("buy", "sell")]) == 1 and len(held) == 1
+    tr.s["positions"]["NVDA"] = {"qty": 7.5, "avg": 200.1, "sleeve": "day", "opened": clk["t"].isoformat(),
+                                 "stop_px": 196.0, "stop_pct": 0.02}
+    tr.s["cash"] -= 7.5 * 200.1
     assert not note.sent  # first half-hour slot is 10:00
     clk["t"] = datetime(2026, 10, 14, 10, 0, tzinfo=ET)
     tr.step()
