@@ -173,6 +173,13 @@ class MessageRouter:
                     "Hermes returned an invalid result"
             }
 
+        if result.get("status") != "failed" and isinstance(result.get("response"), str):
+            try:
+                from orchestrator.direct_answer import DirectAnswerAgent
+                result["response"] = DirectAnswerAgent().apply(text, result["response"])
+            except Exception as exc:
+                print("DIRECT ANSWER SKIPPED:", repr(exc))
+
         result[
             "source"
         ] = source
