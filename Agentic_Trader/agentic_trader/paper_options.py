@@ -69,10 +69,11 @@ class Income:
     def _log(self, t, desc, o, fee, **extra):
         self.tr.s["trades"].append({"ts": t.isoformat(), "side": "option", "sym": o["sym"], "qty": o["qty"],
                                     "px": extra.pop("px", o["credit"]), "fee": fee, "sleeve": "income",
-                                    "reason": extra.pop("reason", ""), "value": 0.0, "desc": desc, **extra})
+                                    "reason": extra.pop("reason", ""), "value": 0.0, "desc": desc,
+                                    **({"strat": o["strat"]} if o.get("strat") else {}), **extra})
 
     # ---- order simulation
-    def sell_to_open(self, kind, sym, contract, quote, qty, t):
+    def sell_to_open(self, kind, sym, contract, quote, qty, t, strat=None):
         if kind not in ALLOWED_KINDS or not isinstance(qty, int) or qty < 1:
             raise UnlimitedRiskRefused(f"refused {kind!r} x{qty}: only cash-secured puts and covered calls are allowed")
         s, c = self.tr.s, self.tr.cfg
@@ -90,7 +91,7 @@ class Income:
         s["fees_total"] += fee
         o = {"id": contract["id"], "sym": sym, "type": kind, "strike": contract["strike"], "exp": contract["exp"],
              "qty": qty, "credit": credit, "mark": quote.get("mark") or credit, "opened": t.isoformat(), "fee_open": fee,
-             "kind": ALLOWED_KINDS[kind]}
+             "kind": ALLOWED_KINDS[kind], **({"strat": strat} if strat else {})}
         self.opts.append(o)
         self._log(t, f"SELL TO OPEN {_label(o)} x{qty} @ ${credit:.2f} (+${credit * MULT * qty:,.2f} premium, "
                   f"{'cash-secured' if kind == 'put' else 'covered'})", o, fee, reason=f"premium {credit / contract['strike']:.1%} of strike")

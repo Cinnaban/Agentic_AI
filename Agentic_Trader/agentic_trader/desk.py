@@ -1,5 +1,5 @@
-"""Paper-only trading desk: an orchestrator that aligns a growth agent, an options-income agent and the
-day-trading agent on the daily and weekly goals.
+"""Paper-only trading desk: an orchestrator that aligns a growth agent, an options sub-manager (with one agent per
+options strategy) and a day-trading team (one agent per intraday strategy) on the daily and weekly goals.
 
 Nothing here places a real order. The orchestrator only sets budgets and risk dials (a `Mandate`) for each
 agent; the agents trade through the same paper broker methods as before, so every existing guard still applies
@@ -10,13 +10,13 @@ Goals are measured, never chased: falling short of a goal never raises a cap abo
 from __future__ import annotations
 
 import os
-from collections import Counter
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import timedelta
 
 import numpy as np
 
-from .paper_options import MULT
+from .day_agents import DayDesk
+from .options_agents import OptionsManager
 
 AGENTS = ("growth", "options", "day")
 LABELS = {"growth": "Growth agent", "options": "Options agent", "day": "Day agent"}
@@ -212,150 +212,9 @@ class GrowthAgent:
                 return
 
 
-class DayAgent:
-    """The existing day-trading sleeve, run inside the budget and risk dials the orchestrator hands it."""
-
-    def __init__(self, trader):
-        self.tr = trader
-
-    def run(self, quotes, t, equity, mandate, reg, hm):
-        self.tr.day_sleeve(quotes, t, equity, reg, hm, mandate)
-
-
-class OptionsAgent:
-    """Cash-secured puts and covered calls only. Scans a wide universe, ranks every candidate by
-    delta-adjusted annualised yield, and opens the best ones that fit the budget. Records why nothing opened."""
-
-    DELTA_RANGE = (0.04, 0.35)
-    MIN_OTM = 0.02
-
-    def __init__(self, trader):
-        self.tr = trader
-
-    def run(self, quotes, t, equity, mandate):
-        inc = self.tr.income
-        inc.enforce(quotes, t)
-        inc.manage(t)
-        if not mandate.allow_new:
-            self._note(f"no new options: {mandate.note or 'orchestrator hold'}")
-            return
-        self.scan(quotes, t, equity, mandate)
-
-    def _note(self, text):
-        self.tr.s.setdefault("desk", {})["options_note"] = text
-
-    def _earnings(self, days, today):
-        try:
-            rows = self.tr.data.earnings(days)
-        except Exception:
-            return {}
-        out = {}
-        for e in rows:
-            rep = e.get("report") or {}
-            d = rep.get("date")
-            if not d or d < today.isoformat() or (d == today.isoformat() and rep.get("timing") == "am"):
-                continue
-            out[e.get("symbol")] = min(d, out.get(e.get("symbol"), d))
-        return out
-
-    def _best_put(self, sym, px, t, earn_date, room):
-        d, c = self.tr.data, self.tr.cfg
-        best = None
-        exps = [e for e in d.option_expirations(sym)
-                if c.opt_min_dte <= (date.fromisoformat(e) - t.date()).days <= c.opt_max_dte][:2]
-        for exp in exps:
-            if earn_date and earn_date <= exp:
-                continue
-            dte = (date.fromisoformat(exp) - t.date()).days
-            strikes = [x for x in d.option_contracts(sym, exp, "put")
-                       if x["strike"] <= px * (1 - max(c.opt_otm, self.MIN_OTM)) and x["strike"] * MULT <= room]
-            strikes = sorted(strikes, key=lambda x: -x["strike"])[:6]
-            if not strikes:
-                continue
-            quotes = d.option_quotes([x["id"] for x in strikes])
-            for x in strikes:
-                oq = quotes.get(x["id"])
-                if not self.tr.income._liquid(oq, c):
-                    continue
-                delta = abs(oq.get("delta") or 0)
-                if delta and not self.DELTA_RANGE[0] <= delta <= self.DELTA_RANGE[1]:
-                    continue
-                score = oq["bid"] / x["strike"] / dte * 365 * (1 - delta)
-                if best is None or score > best[3]:
-                    best = (x, oq, dte, score)
-        return best
-
-    def scan(self, quotes, t, equity, mandate):
-        tr, c, s, inc = self.tr, self.tr.cfg, self.tr.s, self.tr.income
-        last = s.get("opt_scan")
-        if last and (t - datetime.fromisoformat(last)).total_seconds() < c.opt_scan_min * 60:
-            return
-        if not ((10, 0) <= (t.hour, t.minute) < (15, 30)):
-            return
-        s["opt_scan"] = t.isoformat()
-        stats = Counter()
-        earn = self._earnings(c.opt_max_dte, t.date())
-        taken = set(c.etfs) | set(c.day_symbols) | {c.hedge}
-        budget = equity * mandate.budget_pct * mandate.scale
-        used = inc.collateral() + sum(p["qty"] * ((quotes.get(sym) or {}).get("price") or p["avg"])
-                                      for sym, p in s["positions"].items() if p["sleeve"] == "income")
-        room = min(budget - used, tr.free_cash())
-
-        for sym, pos in list(s["positions"].items()):
-            if pos["sleeve"] != "income":
-                continue
-            px = (quotes.get(sym) or {}).get("price")
-            if not px or inc.uncovered_shares(sym) < MULT or any(o["sym"] == sym for o in inc.opts):
-                continue
-            try:
-                pick = inc._pick(sym, "call", px, pos["avg"], t)
-                if pick and inc.sell_to_open("call", sym, pick[0], pick[1], int(inc.uncovered_shares(sym) // MULT), t):
-                    stats["covered_calls"] += 1
-            except Exception as exc:
-                print(f"[paper] covered call {sym} failed:", repr(exc))
-
-        open_puts = sum(1 for o in inc.opts if o["type"] == "put")
-        held = {o["sym"] for o in inc.opts} | set(s["positions"])
-        candidates = []
-        for sym in c.opt_symbols:
-            q = quotes.get(sym) or {}
-            px = q.get("price")
-            if sym in taken or sym in held:
-                stats["already held"] += 1
-            elif not px:
-                stats["no quote"] += 1
-            elif px * MULT * (1 - max(c.opt_otm, self.MIN_OTM)) > room:
-                stats["too large for budget"] += 1
-            elif (q.get("change_pct") or 0) < -0.03:
-                stats["falling >3%"] += 1
-            else:
-                try:
-                    best = self._best_put(sym, px, t, earn.get(sym), room)
-                except Exception as exc:
-                    print(f"[paper] option scan {sym} failed:", repr(exc))
-                    stats["data error"] += 1
-                    continue
-                if best:
-                    candidates.append((best[3], sym, best))
-                else:
-                    stats["earnings or no liquid strike" if sym in earn else "no liquid strike"] += 1
-        opened = 0
-        for score, sym, (contract, oq, dte, _) in sorted(candidates, key=lambda x: -x[0]):
-            if open_puts >= c.opt_max_positions or contract["strike"] * MULT > room:
-                continue
-            if inc.sell_to_open("put", sym, contract, oq, 1, t):
-                open_puts += 1
-                opened += 1
-                room -= contract["strike"] * MULT
-        parts = [f"{n} {why}" for why, n in stats.most_common() if why != "covered_calls"]
-        self._note(f"scanned {len(c.opt_symbols)} names: opened {opened} put(s)"
-                   + (f", {stats['covered_calls']} call(s)" if stats["covered_calls"] else "")
-                   + (f"; skipped {', '.join(parts)}" if parts else ""))
-
-
 class Desk:
     def __init__(self, trader):
         self.orchestrator = Orchestrator(trader)
         self.growth = GrowthAgent(trader)
-        self.options = OptionsAgent(trader)
-        self.day = DayAgent(trader)
+        self.options = OptionsManager(trader)  # sub-manager: reports to the orchestrator, runs the options agents
+        self.day = DayDesk(trader)  # one independent agent per day-trading strategy

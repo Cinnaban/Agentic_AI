@@ -141,3 +141,9 @@ financial evaluation (P/E, size, dividend) and market trend (MA20/MA50, slope) -
 
 ## Day trader (multiple intraday trades)
 Uses 5-minute bars: VWAP, EMA9/21, RSI, ATR, opening range and relative volume. Setups: opening-range breakout and VWAP/EMA pullback, only when SPY is not weak. Every entry has an ATR-based stop, a ~2R target, break-even at 1R and a trailing stop; it also exits on trend failure or stall, and flattens at 15:50. Size is risk-based (0.5% of equity per trade). Limits: 8 entries/day, 2 open, 1.5% daily loss halt, 30 min re-entry cooldown. Tunables: `PAPER_DAY_*` (see `.env.example`). Growth stays at 1 trade/day; goals are measured, not chased.
+
+## Agent teams
+The orchestrator sets goals, budgets and risk dials; it never trades. Two teams report to it:
+- **Day team** (`day_agents.py`): one independent agent per strategy — ORB (opening-range breakout), PULLBACK (VWAP/EMA pullback), MOMENTUM (day-high breakout), REVERSION (oversold bounce, VWAP target). Same day budget (split into equal slices), same rules (ATR stop on every entry, risk-based size, break-even/trail, flat at 15:50). Each agent has its own entry cap, loss limit and one open position; the desk adds team caps, the SPY filter and shared exits. Choose agents with `PAPER_DAY_STRATEGIES`.
+- **Options sub-manager** (`options_agents.py`): owns the risk guard, marks/exits and the capital split, and runs yield puts, defensive puts and covered calls. Cash-secured puts and covered calls only; nothing else can be opened.
+Trades are tagged with the owning agent (`strat`) and each agent's results appear in the summaries.

@@ -126,3 +126,54 @@ def test_attribution_and_summary_lines(tmp_path, monkeypatch):
     assert rows["day"]["today"] == 5.0 and rows["options"]["today"] == 2.0 and rows["growth"]["today"] == 0.0
     text = "\n".join(tr.desk_lines({}, 5000, T))
     assert "Orchestrator" in text and "Options agent" in text and "Growth agent" in text and "Day agent" in text
+
+
+def test_options_manager_splits_agents_by_delta_and_tags_trades(tmp_path, monkeypatch):
+    chains = {"AAA": {"strikes": [9.0], "bid": lambda k: 0.30}, "BBB": {"strikes": [9.0], "bid": lambda k: 0.30}}
+    tr = trader(tmp_path, Data(chains), monkeypatch, PAPER_OPTION_SYMBOLS="AAA,BBB", PAPER_OPTION_MAX_POSITIONS=3)
+    quotes = {s: _q(10) for s in ("AAA", "BBB")}
+    tr.desk.options.run(quotes, T, tr.equity(quotes), tr.desk.orchestrator.plan(quotes, T, 5000, REG).mandates["options"])
+    # fake delta is 0.2: only the yield agent's 0.15-0.35 band accepts it; the defensive agent (<=0.15) does not
+    assert {o["strat"] for o in tr.s["options"]} == {"yield_puts"}
+    rep = tr.s["desk"]["options_agents"]
+    assert set(rep) == {"yield_puts", "defensive_puts", "covered_calls"} and rep["yield_puts"]["open"] == len(tr.s["options"])
+    assert all(x.get("strat") == "yield_puts" for x in tr.s["trades"] if x["side"] == "option")
+    assert not tr.income.naked_violations()
+
+
+def _snap(**kw):
+    m = dict(price=100.0, vwap=99.5, ema9=100.0, ema21=99.0, rsi=60, rsi_prev=58, atr5=0.3, atr5_pct=0.003,
+             daily_atr_pct=0.025, or_high=99.8, or_low=98.5, or_done=True, rvol=1.5, last_close=100.0,
+             last_low=99.7, day_open=99.0, day_high=100.0, day_low=98.5, daily_ma20=98.0, daily_ma50=95.0,
+             prev_close=98.8, above_vwap_share=0.8)
+    m.update(kw)
+    return m
+
+
+def test_day_team_agents_run_own_strategy_inside_shared_budget(tmp_path, monkeypatch):
+    tr = trader(tmp_path, Data(), monkeypatch, PAPER_DAY_SYMBOLS="AAA,BBB,CCC,DDD")
+    spy = _snap(price=500, vwap=499)
+    snaps = {"SPY": spy, "AAA": _snap(), "BBB": _snap(), "CCC": _snap(), "DDD": _snap()}
+    monkeypatch.setattr(type(tr.desk.day), "_snapshots", lambda self, q, t: snaps)
+    quotes = {s: _q(100) for s in snaps}
+    equity = tr.equity(quotes)
+    mandate = tr.desk.orchestrator.plan(quotes, T, equity, REG).mandates["day"]
+    tr.desk.day.run(quotes, T, equity, mandate, REG, (11, 0))
+    held = tr.s["positions"]
+    strats = [p["strat"] for p in held.values()]
+    assert len(strats) == len(set(strats)) >= 2  # each agent holds at most one position, each with its own strategy
+    assert all(p["stop_px"] < 100 for p in held.values())  # every entry carries a stop
+    deployed = sum(p["qty"] * 100 for p in held.values())
+    assert deployed <= equity * tr.cfg.day_pct * 1.01
+    rep = tr.s["desk"]["day_agents"]
+    assert set(rep) == {"ORB", "PULLBACK", "MOMENTUM", "REVERSION"}
+    assert all(x.get("strat") for x in tr.s["trades"] if x["side"] == "buy")
+
+
+def test_reversion_is_independent_of_trend_strategies():
+    from agentic_trader import day_strategy as ds
+    c = pl.Cfg()
+    dip = _snap(price=98.9, vwap=99.8, ema9=99.2, ema21=99.6, rsi=36, rsi_prev=30, day_low=98.7, last_low=98.7,
+                last_close=98.95)
+    assert ds.reversion(dip, c)[0][0] == "REVERSION"
+    assert ds.orb(dip, c)[0] is None and ds.momentum(dip, c)[0] is None
