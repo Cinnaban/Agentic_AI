@@ -151,7 +151,9 @@ class PublicReferenceArchiveTests(unittest.TestCase):
             provider.freshness_detector = FreshnessDetector()
             provider.max_pages = 15
             provider.max_search_queries = 5
-            provider.web = SimpleNamespace(search=lambda company, query: [])
+            provider.web = SimpleNamespace(
+                search=lambda company, query, **kwargs: []
+            )
             provider.firecrawl = SimpleNamespace(
                 health_check=lambda: False
             )
