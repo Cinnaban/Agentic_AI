@@ -147,3 +147,7 @@ The orchestrator sets goals, budgets and risk dials; it never trades. Two teams 
 - **Day team** (`day_agents.py`): one independent agent per strategy — ORB (opening-range breakout), PULLBACK (VWAP/EMA pullback), MOMENTUM (day-high breakout), REVERSION (oversold bounce, VWAP target). Same day budget (split into equal slices), same rules (ATR stop on every entry, risk-based size, break-even/trail, flat at 15:50). Each agent has its own entry cap, loss limit and one open position; the desk adds team caps, the SPY filter and shared exits. Choose agents with `PAPER_DAY_STRATEGIES`.
 - **Options sub-manager** (`options_agents.py`): owns the risk guard, marks/exits and the capital split, and runs yield puts, defensive puts and covered calls. Cash-secured puts and covered calls only; nothing else can be opened.
 Trades are tagged with the owning agent (`strat`) and each agent's results appear in the summaries.
+
+## Market data APIs (Alpha Vantage, Kaggle)
+- `agentic_trader/market_apis/alpha_vantage.py`: cached, budget-guarded client (quote, FX, economic series, movers). Free tier is 25 requests/day; premium-only endpoints (OVERVIEW, NEWS_SENTIMENT) are detected and skipped. The root bots add it to replies for economic, forex, stock/ETF and market queries (`data/providers/live/alpha_vantage_backend.py`); the Robinhood real-time quote stays authoritative for price.
+- `agentic_trader/market_apis/kaggle.py`: public dataset search/metadata/download (no credentials needed) into `<shared_storage>/market_datasets/kaggle/`, capped by `KAGGLE_MAX_DOWNLOAD_MB`.

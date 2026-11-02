@@ -21,6 +21,9 @@ from data.providers.live.robinhood_backend import (
 from data.providers.live.firecrawl_backend import (
     FirecrawlBackend
 )
+from data.providers.live.alpha_vantage_backend import (
+    AlphaVantageBackend
+)
 
 
 class LiveMarketProvider:
@@ -197,7 +200,8 @@ class LiveMarketProvider:
 
         self.backends = [
             PublicTopicNewsBackend(),
-            RobinhoodBackend()
+            RobinhoodBackend(),
+            AlphaVantageBackend()
         ]
 
         self.firecrawl = (
@@ -256,7 +260,7 @@ class LiveMarketProvider:
                 continue
 
 
-            if result.get("authoritative"):
+            if result.get("authoritative") or result.get("no_scrape"):
                 continue
 
             url = result.get(
@@ -537,10 +541,15 @@ class LiveMarketProvider:
             "ranking_policy": (
                 "Results are ranked: rank 0 = real-time broker quote "
                 "(authoritative for current price, change and analyst "
-                "consensus); rank 1-2 = news and scraped pages, which may "
-                "be hours or days stale. If a scraped price conflicts with "
-                "the rank 0 quote, use the rank 0 quote."
-                if has_realtime else "Results are ranked by source type."
+                "consensus); rank 1 = API data (Alpha Vantage economic, forex, "
+                "commodity and market indicators, each with an as-of date); "
+                "rank 2 = news and scraped pages, which may be hours or days "
+                "stale. If a scraped price conflicts with the rank 0 quote, "
+                "use the rank 0 quote."
+                if has_realtime else
+                "Results are ranked by source type: rank 1 = API data "
+                "(Alpha Vantage, with as-of dates), rank 2 = news and "
+                "scraped pages."
             ),
             "available":
                 bool(results),

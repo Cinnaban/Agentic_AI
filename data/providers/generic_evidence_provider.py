@@ -20,6 +20,9 @@ from data.providers.live.public_topic_news_backend import (
 from data.providers.live.firecrawl_backend import (
     FirecrawlBackend
 )
+from data.providers.live.alpha_vantage_backend import (
+    AlphaVantageBackend
+)
 
 from data.providers.social.social_evidence_provider import (
     SocialEvidenceProvider
@@ -85,6 +88,8 @@ class GenericEvidenceProvider:
         self.firecrawl = (
             FirecrawlBackend()
         )
+
+        self.alpha_vantage = AlphaVantageBackend()
 
         self.social = (
             SocialEvidenceProvider()
@@ -917,6 +922,13 @@ class GenericEvidenceProvider:
                 archived_query
             )
 
+        # live API data is added after archiving so stale economic readings are never stored for reuse
+        api_results = self._api_results(query, subject)
+        if api_results:
+            enriched = api_results + list(enriched)
+            for index, result in enumerate(enriched, start=1):
+                result["source_id"] = f"S{index}"
+
         archived_results = [
             result
             for result in enriched
@@ -1196,6 +1208,19 @@ class GenericEvidenceProvider:
         for index, result in enumerate(selected, start=1):
             result["source_id"] = f"S{index}"
         return selected
+
+    def _api_results(self, query, subject):
+        """Alpha Vantage economic/forex/market data when the question is relevant; [] otherwise (and on any failure)."""
+        try:
+            results = self.alpha_vantage.search({}, query)
+        except Exception as exc:
+            print("ALPHA VANTAGE SKIPPED:", repr(exc))
+            return []
+        for result in results:
+            result.setdefault("content", result.get("summary", ""))
+            result.update({"source_role": "api_data", "evidence_level": "api_data", "page_kind": "api",
+                           "source_host": "alphavantage.co"})
+        return results
 
     def _add_official_homepage_candidate(self, results):
         for result in results:
