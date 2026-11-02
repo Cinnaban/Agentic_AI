@@ -210,7 +210,8 @@ The evidence may contain:
 When social_summary exists:
 - prefer it over individual posts
 - summarize recurring themes
-- avoid repeating every post
+- avoid repeating every post, but quote 2-4 concrete
+  examples (specific rumors, opinions, reactions) with source tags
 - identify major discussion topics
 ``
 
@@ -445,6 +446,23 @@ SOCIAL EVIDENCE RULES:
 - When social evidence is used:
   clearly distinguish discussion
   from verified evidence.
+
+- For speculation, rumor, opinion, sentiment, or
+  "what are people saying" questions, do not describe
+  public discussion only in general terms. Name 2-4
+  concrete examples from the retrieved evidence, each
+  with its source tag, for example:
+  - a specific rumor, leak, or prediction and who
+    reported it ([S1])
+  - a recurring user or developer opinion or complaint
+  - a community reaction to a specific event, release,
+    or earnings report
+  - a point where discussion conflicts with official
+    or authoritative sources
+  Label each example as speculation, opinion, or
+  reaction. If the retrieved evidence contains no
+  concrete examples, say so plainly instead of
+  inventing typical themes.
 
 - If public discussion conflicts with
   authoritative evidence, authoritative

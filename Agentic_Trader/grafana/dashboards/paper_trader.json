@@ -6,7 +6,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "refresh": "1m",
   "time": {
     "from": "now-30d",
@@ -893,7 +893,7 @@
     },
     {
       "id": 9,
-      "title": "Daily return (%)",
+      "title": "Daily return (%) - whole portfolio",
       "type": "barchart",
       "datasource": {
         "type": "frser-sqlite-datasource",
@@ -902,7 +902,7 @@
       "gridPos": {
         "x": 0,
         "y": 36,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "targets": [
@@ -946,251 +946,7 @@
     },
     {
       "id": 10,
-      "title": "Daily realized P&L ($)",
-      "type": "barchart",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "trader-history"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 36,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "trader-history"
-          },
-          "refId": "A",
-          "queryText": "SELECT day, realized FROM daily ORDER BY day",
-          "rawQueryText": "SELECT day, realized FROM daily ORDER BY day",
-          "queryType": "table"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "xField": "day",
-        "showValue": "auto"
-      }
-    },
-    {
-      "id": 11,
-      "title": "Realized P&L by symbol",
-      "type": "barchart",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "trader-history"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 44,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "trader-history"
-          },
-          "refId": "A",
-          "queryText": "SELECT symbol, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY symbol ORDER BY realized DESC",
-          "rawQueryText": "SELECT symbol, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY symbol ORDER BY realized DESC",
-          "queryType": "table"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "xField": "symbol",
-        "showValue": "auto"
-      }
-    },
-    {
-      "id": 12,
-      "title": "Realized P&L by sleeve",
-      "type": "barchart",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "trader-history"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 44,
-        "w": 6,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "trader-history"
-          },
-          "refId": "A",
-          "queryText": "SELECT sleeve, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY sleeve",
-          "rawQueryText": "SELECT sleeve, ROUND(SUM(realized),2) AS realized FROM trades WHERE side='sell' GROUP BY sleeve",
-          "queryType": "table"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "xField": "sleeve",
-        "showValue": "auto"
-      }
-    },
-    {
-      "id": 13,
-      "title": "Win rate by sleeve",
-      "type": "table",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "trader-history"
-      },
-      "gridPos": {
-        "x": 18,
-        "y": 44,
-        "w": 6,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "trader-history"
-          },
-          "refId": "A",
-          "queryText": "SELECT sleeve, COUNT(*) AS closes, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct FROM trades WHERE side='sell' GROUP BY sleeve",
-          "rawQueryText": "SELECT sleeve, COUNT(*) AS closes, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct FROM trades WHERE side='sell' GROUP BY sleeve",
-          "queryType": "table"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "options": {}
-    },
-    {
-      "id": 17,
-      "title": "Realized P&L by agent",
-      "type": "barchart",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "trader-history"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 52,
-        "w": 8,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "trader-history"
-          },
-          "refId": "A",
-          "queryText": "SELECT agent, ROUND(SUM(realized),2) AS realized FROM trades WHERE realized<>0 OR side='sell' GROUP BY agent",
-          "rawQueryText": "SELECT agent, ROUND(SUM(realized),2) AS realized FROM trades WHERE realized<>0 OR side='sell' GROUP BY agent",
-          "queryType": "table"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "xField": "agent",
-        "showValue": "auto"
-      }
-    },
-    {
-      "id": 18,
-      "title": "Options premium sold by day ($)",
+      "title": "Daily realized P&L by agent ($)",
       "type": "barchart",
       "datasource": {
         "type": "frser-sqlite-datasource",
@@ -1198,8 +954,8 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 52,
-        "w": 8,
+        "y": 36,
+        "w": 16,
         "h": 8
       },
       "targets": [
@@ -1209,50 +965,123 @@
             "uid": "trader-history"
           },
           "refId": "A",
-          "queryText": "SELECT day, ROUND(SUM(value),2) AS premium FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day",
-          "rawQueryText": "SELECT day, ROUND(SUM(value),2) AS premium FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day",
+          "queryText": "SELECT day, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END),2) AS options FROM trades WHERE (side='sell' OR realized<>0) GROUP BY day ORDER BY day",
+          "rawQueryText": "SELECT day, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END),2) AS options FROM trades WHERE (side='sell' OR realized<>0) GROUP BY day ORDER BY day",
           "queryType": "table"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           }
         },
         "overrides": []
       },
       "options": {
         "xField": "day",
-        "showValue": "auto"
+        "showValue": "never",
+        "legend": {
+          "showLegend": true
+        },
+        "stacking": "normal"
       }
     },
     {
-      "id": 19,
-      "title": "Realized P&L by agent and day",
+      "id": 27,
+      "title": "Cumulative realized P&L by agent ($)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "trader-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "trader-history"
+          },
+          "refId": "A",
+          "queryText": "SELECT ts AS time, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS options FROM trades WHERE (side='sell' OR realized<>0) ORDER BY ts",
+          "rawQueryText": "SELECT ts AS time, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS options FROM trades WHERE (side='sell' OR realized<>0) ORDER BY ts",
+          "queryType": "time series",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 28,
+      "title": "Cumulative realized P&L by strategy ($)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "trader-history"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "trader-history"
+          },
+          "refId": "A",
+          "queryText": "SELECT ts AS time, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='yield_puts' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='covered_calls' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='core' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS core, ROUND(SUM(CASE WHEN strat='hedge' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS hedge, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS unassigned FROM trades WHERE (side='sell' OR realized<>0) ORDER BY ts",
+          "rawQueryText": "SELECT ts AS time, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='yield_puts' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='covered_calls' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='core' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS core, ROUND(SUM(CASE WHEN strat='hedge' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS hedge, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS unassigned FROM trades WHERE (side='sell' OR realized<>0) ORDER BY ts",
+          "queryType": "time series",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 12,
+      "title": "Realized P&L by strategy, split by agent ($)",
       "type": "barchart",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "trader-history"
       },
       "gridPos": {
-        "x": 16,
-        "y": 52,
-        "w": 8,
+        "x": 0,
+        "y": 53,
+        "w": 12,
         "h": 8
       },
       "targets": [
@@ -1262,36 +1091,227 @@
             "uid": "trader-history"
           },
           "refId": "A",
-          "queryText": "SELECT day, agent, ROUND(SUM(realized),2) AS realized FROM trades GROUP BY day, agent ORDER BY day",
-          "rawQueryText": "SELECT day, agent, ROUND(SUM(realized),2) AS realized FROM trades GROUP BY day, agent ORDER BY day",
+          "queryText": "SELECT strat, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END),2) AS options FROM trades WHERE (side='sell' OR realized<>0) GROUP BY strat ORDER BY strat",
+          "rawQueryText": "SELECT strat, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END),2) AS options FROM trades WHERE (side='sell' OR realized<>0) GROUP BY strat ORDER BY strat",
           "queryType": "table"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "strat",
+        "showValue": "never",
+        "legend": {
+          "showLegend": true
+        },
+        "stacking": "normal"
+      }
+    },
+    {
+      "id": 11,
+      "title": "Realized P&L by symbol, split by agent ($)",
+      "type": "barchart",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "trader-history"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "trader-history"
+          },
+          "refId": "A",
+          "queryText": "SELECT symbol, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END),2) AS options FROM trades WHERE (side='sell' OR realized<>0) GROUP BY symbol ORDER BY symbol",
+          "rawQueryText": "SELECT symbol, ROUND(SUM(CASE WHEN agent='growth' THEN realized ELSE 0 END),2) AS growth, ROUND(SUM(CASE WHEN agent='day' THEN realized ELSE 0 END),2) AS day_team, ROUND(SUM(CASE WHEN agent='options' THEN realized ELSE 0 END),2) AS options FROM trades WHERE (side='sell' OR realized<>0) GROUP BY symbol ORDER BY symbol",
+          "queryType": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "symbol",
+        "showValue": "never",
+        "legend": {
+          "showLegend": true
+        },
+        "stacking": "normal"
+      }
+    },
+    {
+      "id": 13,
+      "title": "Scorecard by agent",
+      "type": "table",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "trader-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 10,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "trader-history"
+          },
+          "refId": "A",
+          "queryText": "SELECT agent, COUNT(*) AS closes, SUM(realized>0) AS wins, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct, ROUND(SUM(realized),2) AS realized, ROUND(SUM(fee),2) AS fees, ROUND(AVG(CASE WHEN realized>0 THEN realized END),2) AS avg_win, ROUND(AVG(CASE WHEN realized<0 THEN realized END),2) AS avg_loss, ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) AS profit_factor FROM trades WHERE (side='sell' OR realized<>0) GROUP BY agent ORDER BY realized DESC",
+          "rawQueryText": "SELECT agent, COUNT(*) AS closes, SUM(realized>0) AS wins, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct, ROUND(SUM(realized),2) AS realized, ROUND(SUM(fee),2) AS fees, ROUND(AVG(CASE WHEN realized>0 THEN realized END),2) AS avg_win, ROUND(AVG(CASE WHEN realized<0 THEN realized END),2) AS avg_loss, ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) AS profit_factor FROM trades WHERE (side='sell' OR realized<>0) GROUP BY agent ORDER BY realized DESC",
+          "queryType": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 17,
+      "title": "Scorecard by strategy",
+      "type": "table",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "trader-history"
+      },
+      "gridPos": {
+        "x": 10,
+        "y": 61,
+        "w": 14,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "trader-history"
+          },
+          "refId": "A",
+          "queryText": "SELECT agent, strat, COUNT(*) AS closes, SUM(realized>0) AS wins, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct, ROUND(SUM(realized),2) AS realized, ROUND(SUM(fee),2) AS fees, ROUND(AVG(CASE WHEN realized>0 THEN realized END),2) AS avg_win, ROUND(AVG(CASE WHEN realized<0 THEN realized END),2) AS avg_loss, ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) AS profit_factor FROM trades WHERE (side='sell' OR realized<>0) GROUP BY agent, strat ORDER BY realized DESC",
+          "rawQueryText": "SELECT agent, strat, COUNT(*) AS closes, SUM(realized>0) AS wins, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct, ROUND(SUM(realized),2) AS realized, ROUND(SUM(fee),2) AS fees, ROUND(AVG(CASE WHEN realized>0 THEN realized END),2) AS avg_win, ROUND(AVG(CASE WHEN realized<0 THEN realized END),2) AS avg_loss, ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) AS profit_factor FROM trades WHERE (side='sell' OR realized<>0) GROUP BY agent, strat ORDER BY realized DESC",
+          "queryType": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 18,
+      "title": "Options premium sold by day, by strategy ($)",
+      "type": "barchart",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "trader-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "trader-history"
+          },
+          "refId": "A",
+          "queryText": "SELECT day, ROUND(SUM(CASE WHEN strat='yield_puts' THEN price*100*qty ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN price*100*qty ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='covered_calls' THEN price*100*qty ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='unassigned' THEN price*100*qty ELSE 0 END),2) AS unassigned FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day",
+          "rawQueryText": "SELECT day, ROUND(SUM(CASE WHEN strat='yield_puts' THEN price*100*qty ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN price*100*qty ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='covered_calls' THEN price*100*qty ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='unassigned' THEN price*100*qty ELSE 0 END),2) AS unassigned FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day",
+          "queryType": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
           }
         },
         "overrides": []
       },
       "options": {
         "xField": "day",
-        "showValue": "auto"
+        "showValue": "never",
+        "legend": {
+          "showLegend": true
+        },
+        "stacking": "normal"
+      }
+    },
+    {
+      "id": 19,
+      "title": "Daily realized P&L by strategy ($)",
+      "type": "barchart",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "trader-history"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "trader-history"
+          },
+          "refId": "A",
+          "queryText": "SELECT day, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='yield_puts' THEN realized ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN realized ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='covered_calls' THEN realized ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='core' THEN realized ELSE 0 END),2) AS core, ROUND(SUM(CASE WHEN strat='hedge' THEN realized ELSE 0 END),2) AS hedge, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END),2) AS unassigned FROM trades WHERE (side='sell' OR realized<>0) GROUP BY day ORDER BY day",
+          "rawQueryText": "SELECT day, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='yield_puts' THEN realized ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN realized ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='covered_calls' THEN realized ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='core' THEN realized ELSE 0 END),2) AS core, ROUND(SUM(CASE WHEN strat='hedge' THEN realized ELSE 0 END),2) AS hedge, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END),2) AS unassigned FROM trades WHERE (side='sell' OR realized<>0) GROUP BY day ORDER BY day",
+          "queryType": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "day",
+        "showValue": "never",
+        "legend": {
+          "showLegend": true
+        },
+        "stacking": "normal"
       }
     },
     {
@@ -1304,7 +1324,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 77,
         "w": 24,
         "h": 8
       },
@@ -1336,7 +1356,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 68,
+        "y": 85,
         "w": 24,
         "h": 12
       },

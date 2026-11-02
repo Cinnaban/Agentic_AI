@@ -23,7 +23,7 @@ TARGET = STATE_DIR / "trader_history.db"
 SCHEMA = """
 CREATE TABLE equity (ts INTEGER, day TEXT, equity REAL, return_pct REAL);
 CREATE TABLE trades (ts INTEGER, day TEXT, side TEXT, symbol TEXT, sleeve TEXT, qty REAL, price REAL,
-                     value REAL, fee REAL, realized REAL, reason TEXT, agent TEXT);
+                     value REAL, fee REAL, realized REAL, reason TEXT, agent TEXT, strat TEXT);
 CREATE TABLE positions (symbol TEXT, sleeve TEXT, qty REAL, avg REAL, cost REAL);
 CREATE TABLE daily (day TEXT, ts INTEGER, open_equity REAL, close_equity REAL, return_pct REAL,
                     realized REAL, fees REAL, trades INTEGER);
@@ -64,7 +64,7 @@ def export(source=SOURCE, target=TARGET):
         [(_epoch(ts), _day(ts), float(eq), (float(eq) / start - 1) * 100) for ts, eq in equity_log],
     )
     db.executemany(
-        "INSERT INTO trades VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO trades VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [
             (
                 _epoch(t["ts"]), _day(t["ts"]), t.get("side"), t.get("sym"), t.get("sleeve"),
@@ -72,6 +72,7 @@ def export(source=SOURCE, target=TARGET):
                 t.get("value") if t.get("value") is not None else (t.get("px") or 0) * 100 * (t.get("qty") or 0), t.get("fee") or 0,
                 t.get("realized") if t.get("realized") is not None else 0, (f"{t['desc']} [{t.get('reason')}]" if t.get("desc") else t.get("reason")),
                 agent_of(t) or "other",
+                t.get("strat") or (t.get("sleeve") if agent_of(t) == "growth" else "unassigned"),
             )
             for t in trades
         ],

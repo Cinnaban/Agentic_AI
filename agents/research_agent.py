@@ -443,6 +443,14 @@ SOCIAL DISCUSSION RULES:
 - If social discussion conflicts with SEC,
   SEC takes precedence.
 
+- When asked about speculation, opinions, or reactions,
+  give 2-4 concrete examples from the retrieved evidence
+  (a specific rumor or prediction, a recurring complaint,
+  a reaction to a named event), each with its source tag
+  and labeled speculation, opinion, or reaction. If none
+  are present in the evidence, say so instead of
+  inventing typical themes.
+
 - Clearly distinguish discussion signals
   from verified evidence.
   
