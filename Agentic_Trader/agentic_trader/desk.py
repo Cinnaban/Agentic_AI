@@ -176,6 +176,7 @@ class GrowthAgent:
         weights = self.weights()
         bars = tr.data.bars(list(weights), "day", 150, ttl=1800)
         ev = st.evaluate(list(weights), tr.data, quotes, bars=bars)
+        tr.quant.ensure(list(weights), "long")
         cands = []  # (priority, run, label)
         for sym, w in weights.items():
             q, e = quotes.get(sym), ev.get(sym)
@@ -192,12 +193,17 @@ class GrowthAgent:
                     cands.append((0.4, lambda sym=sym, held=held, q=q, cur=cur, target=target, px=px: tr.sell(
                         sym, min(held["qty"], (cur - target) / px),
                         f"rebalance: {cur / equity:.0%} vs {target / equity:.0%} target weight", q, t), f"trim {sym}"))
-            if px > ma50 and mandate.allow_new and e["score"] >= c.growth_min_score and e["coverage"] >= c.single_min_coverage:
+            veto, qscore, _size, qnote = tr.quant.verdict(sym, "long")
+            if veto:
+                tr.s["desk"].setdefault("quant_vetoes", {})[sym] = f"{qscore:+.2f}"
+            if (px > ma50 and mandate.allow_new and e["score"] >= c.growth_min_score
+                    and e["coverage"] >= c.single_min_coverage and not veto):
                 cur = held["qty"] * px if held else 0.0
                 gap = min(target - cur, tr.free_cash())
                 if gap >= max(c.min_trade, 25 if held else 0) and (not held or cur < target * (1 - c.rebalance_band)):
-                    cands.append((e["score"], lambda sym=sym, q=q, gap=gap, e=e: tr.buy(
-                        sym, gap, "core", f"single daily trade: {st.why(e)}, stop -{tr.stop_for('core', e['vol']):.1%}", q, t,
+                    cands.append((e["score"] + 0.3 * qscore, lambda sym=sym, q=q, gap=gap, e=e, qnote=qnote: tr.buy(
+                        sym, gap, "core", f"single daily trade: {st.why(e)}, stop -{tr.stop_for('core', e['vol']):.1%}"
+                        + (f"; {qnote}" if qnote else ""), q, t,
                         vol_ann=e["vol"]), f"buy {sym}"))
         plan = tr.hedge_plan(quotes, equity, reg)
         if plan:

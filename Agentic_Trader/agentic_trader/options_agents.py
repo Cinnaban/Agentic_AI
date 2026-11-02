@@ -101,6 +101,7 @@ class PutAgent(_Agent):
         held = {o["sym"] for o in inc.opts} | set(s["positions"])
         total_puts = sum(1 for o in inc.opts if o["type"] == "put")
         candidates = []
+        tr.quant.ensure([x for x in c.opt_symbols if x not in taken and x not in held], "options")
         for sym in c.opt_symbols:
             q = quotes.get(sym) or {}
             px = q.get("price")
@@ -112,6 +113,8 @@ class PutAgent(_Agent):
                 stats["too large for budget"] += 1
             elif (q.get("change_pct") or 0) < self.MAX_DROP:
                 stats[f"falling >{abs(self.MAX_DROP):.0%}"] += 1
+            elif tr.quant.verdict(sym, "options")[0]:
+                stats["quant veto"] += 1
             else:
                 try:
                     best = self._best(sym, px, t, earn.get(sym), room)
@@ -120,7 +123,7 @@ class PutAgent(_Agent):
                     stats["data error"] += 1
                     continue
                 if best:
-                    candidates.append((best[3], sym, best))
+                    candidates.append((best[3] * (1 + 0.5 * tr.quant.verdict(sym, "options")[1]), sym, best))
                 else:
                     stats["earnings or no liquid strike" if sym in earn else "no liquid strike"] += 1
         opened = 0

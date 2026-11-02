@@ -152,3 +152,15 @@ Trades are tagged with the owning agent (`strat`) and each agent's results appea
 - `agentic_trader/market_apis/alpha_vantage.py`: cached, budget-guarded client (quote, FX, economic series, movers). Free tier is 25 requests/day; premium-only endpoints (OVERVIEW, NEWS_SENTIMENT) are detected and skipped. The root bots add it to replies for economic, forex, stock/ETF and market queries (`data/providers/live/alpha_vantage_backend.py`); the Robinhood real-time quote stays authoritative for price.
 - `agentic_trader/market_apis/kaggle.py`: public dataset search/metadata/download (no credentials needed) into `<shared_storage>/market_datasets/kaggle/`, capped by `KAGGLE_MAX_DOWNLOAD_MB`.
 - `agentic_trader/market_apis/world_bank.py`: World Bank Open Data (no key) for country economic, demographic and governance indicators (GDP, inflation, unemployment, population, debt, trade, political stability, corruption). The root bots add it (`data/providers/live/world_bank_backend.py`) when a country or global scope is paired with an economic, demographic, political or market topic.
+
+## Pre-trade quant suite
+
+Before day, options and long entries, `quant_gate.py` runs `quant_suite.py` on recent bars:
+RSI/MACD, Z-score, RVOL, realized vol, GARCH(1,1), plus purged walk-forward (never random)
+out-of-sample RMSE, hit rate, IC, log loss, AUC, and Sharpe/Sortino/Max DD/Profit Factor.
+The verdict can veto a new entry or scale its size; a weak edge (~53% hit rate) is still sized, not discarded.
+It fails open, never blocks protective sells, and results land in `state/quant_suite.json`.
+
+Compute runs on the Gaming PC if its worker answers (`python -m agentic_trader.quant_worker`, port 8011,
+CuPy used if installed); otherwise it runs locally. Set `PAPER_QUANT_GATE=false` to disable.
+The Grafana dashboard shows current holdings (donut and table), risk stats and the quant table.

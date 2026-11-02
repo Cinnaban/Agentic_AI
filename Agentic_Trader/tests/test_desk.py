@@ -177,3 +177,30 @@ def test_reversion_is_independent_of_trend_strategies():
                 last_close=98.95)
     assert ds.reversion(dip, c)[0][0] == "REVERSION"
     assert ds.orb(dip, c)[0] is None and ds.momentum(dip, c)[0] is None
+
+
+def test_quant_veto_blocks_puts_and_is_reported(tmp_path, monkeypatch):
+    from agentic_trader.options_agents import YieldPuts
+    chains = {"F": {"strikes": [9.0, 9.5], "bid": lambda k: 0.05}}
+    tr = trader(tmp_path, Data(chains=chains), monkeypatch, PAPER_OPTION_SYMBOLS="F")
+    quotes = {"F": _q(10)}
+    tr.quant.ensure(["F"], "options")
+    assert (tmp_path / "quant_suite.json").exists()  # persisted next to the state file, not the real one
+    tr.quant.cache[("options", "F")][1].update(veto=True, score=-0.7)
+    assert "quant veto" in YieldPuts(tr).run(quotes, T, 5000, 2000, 2000)["note"]
+    assert tr.quant.verdict("F", "options")[0] is True
+    assert any("Quant gate" in line for line in tr.quant.lines(tr.s))
+
+
+def test_day_team_skips_quant_vetoed_names_and_logs_quant_note(tmp_path, monkeypatch):
+    tr = trader(tmp_path, Data(), monkeypatch, PAPER_DAY_SYMBOLS="AAA,BBB")
+    snaps = {"SPY": _snap(price=500, vwap=499), "AAA": _snap(), "BBB": _snap()}
+    monkeypatch.setattr(type(tr.desk.day), "_snapshots", lambda self, q, t: snaps)
+    quotes = {s: _q(100) for s in snaps}
+    tr.quant.ensure(["AAA", "BBB"], "day")
+    tr.quant.cache[("day", "AAA")][1].update(veto=True, score=-0.8)
+    equity = tr.equity(quotes)
+    mandate = tr.desk.orchestrator.plan(quotes, T, equity, REG).mandates["day"]
+    tr.desk.day.run(quotes, T, equity, mandate, REG, (11, 0))
+    assert "AAA" not in tr.s["positions"] and "BBB" in tr.s["positions"]
+    assert "quant" in next(x for x in tr.s["trades"] if x["sym"] == "BBB")["reason"]

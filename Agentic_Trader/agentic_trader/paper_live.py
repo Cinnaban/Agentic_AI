@@ -14,6 +14,7 @@ import math
 import os
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -115,6 +116,8 @@ class Cfg:
         self.single_min_score = float(os.getenv("PAPER_SINGLE_MIN_SCORE", "0.15"))
         self.growth_min_score = float(os.getenv("PAPER_GROWTH_MIN_SCORE", "0.0"))
         self.single_min_coverage = float(os.getenv("PAPER_SINGLE_MIN_COVERAGE", "0.5"))
+        # pre-trade quant suite (Gaming PC worker when online, local otherwise); veto = skip, size_mult scales day entries
+        self.quant_gate = os.getenv("PAPER_QUANT_GATE", "1") in ("1", "true", "on")
         self.day_intraday_exits = os.getenv("PAPER_DAY_INTRADAY_EXITS", "0") in ("1", "true", "on")
 
 
@@ -227,6 +230,8 @@ class PaperTrader:
         self.pdt_blocked = 0
         self.s.setdefault("options", [])
         self.income = Income(self)
+        from .quant_gate import QuantGate
+        self.quant = QuantGate(data, enabled=self.cfg.quant_gate, path=Path(store.mirror).with_name("quant_suite.json"))
         self.desk = Desk(self)
         self.plan = None
 
@@ -484,6 +489,7 @@ class PaperTrader:
         equity = self.equity(quotes)
         self.s["equity_log"].append([t.isoformat(), equity])
         self.s["equity_log"] = self.s["equity_log"][-4000:]
+        self.s["marks"] = {sym: (quotes.get(sym) or {}).get("price") or p["avg"] for sym, p in self.s["positions"].items()}
         if phase == "open":
             self.maybe_post_half_hour(t, quotes, equity)
         elif phase == "close" and not day["eod_posted"]:
@@ -569,6 +575,7 @@ class PaperTrader:
             L.append(f"  - {r['label']}: {r['entries']} entries, realized {_money(r['pl'], True)}{held}; {r['note'] or 'scanning'}")
         L.append("- Options sub-manager: no daily limit; reports to the orchestrator")
         L += self.desk.options.report_lines(t)
+        L += self.quant.lines(self.s)
         return L
 
     def summary(self, t, quotes, equity, daily):

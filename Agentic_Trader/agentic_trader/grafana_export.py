@@ -14,8 +14,10 @@ from datetime import datetime
 
 from .config import STATE_DIR
 from .desk import agent_of
+from .quant_suite import account_performance
 
 SOURCE = STATE_DIR / "paper_live.json"
+QUANT = STATE_DIR / "quant_suite.json"
 TARGET = STATE_DIR / "trader_history.db"
 
 SCHEMA = """
@@ -25,6 +27,13 @@ CREATE TABLE trades (ts INTEGER, day TEXT, side TEXT, symbol TEXT, sleeve TEXT, 
 CREATE TABLE positions (symbol TEXT, sleeve TEXT, qty REAL, avg REAL, cost REAL);
 CREATE TABLE daily (day TEXT, ts INTEGER, open_equity REAL, close_equity REAL, return_pct REAL,
                     realized REAL, fees REAL, trades INTEGER);
+CREATE TABLE holdings (symbol TEXT, sleeve TEXT, qty REAL, avg REAL, price REAL, value REAL, cost REAL,
+                       pnl REAL, pnl_pct REAL, weight_pct REAL);
+CREATE TABLE quant (mode TEXT, symbol TEXT, score REAL, edge INTEGER, veto INTEGER, size_mult REAL, rsi REAL,
+                    macd_hist REAL, zscore REAL, rvol REAL, rv_ann REAL, garch_ann REAL, vol_ratio REAL,
+                    rmse_vs_naive REAL, hit_rate REAL, ic REAL, auc REAL, log_loss REAL, sharpe REAL, sortino REAL,
+                    max_dd REAL, profit_factor REAL, compute TEXT, ts INTEGER, reasons TEXT);
+CREATE TABLE quality (metric TEXT, value REAL);
 CREATE TABLE account (ts INTEGER, start_cash REAL, cash REAL, equity REAL, realized_total REAL,
                       fees_total REAL, total_return_pct REAL, regime TEXT);
 """
@@ -75,6 +84,39 @@ def export(source=SOURCE, target=TARGET):
         ],
     )
 
+    marks = state.get("marks") or {}
+    total = float(equity_log[-1][1]) if equity_log else start
+    rows = []
+    for sym, p in (state.get("positions") or {}).items():
+        px = float(marks.get(sym) or p.get("avg") or 0)
+        qty, cost = p.get("qty") or 0, (p.get("qty") or 0) * (p.get("avg") or 0)
+        rows.append((sym, p.get("sleeve"), qty, p.get("avg"), px, qty * px, cost, qty * px - cost,
+                     (px / p["avg"] - 1) * 100 if p.get("avg") else 0.0, qty * px / total * 100 if total else 0.0))
+    cash = float(state.get("cash") or 0)
+    rows.append(("Cash", "cash", cash, 1.0, 1.0, cash, cash, 0.0, 0.0, cash / total * 100 if total else 0.0))
+    db.executemany("INSERT INTO holdings VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
+
+    suite = json.loads(QUANT.read_text()) if QUANT.exists() else {}
+    for key, r in (suite.get("symbols") or {}).items():
+        if "error" in r:
+            continue
+        mode, sym = key.split(":", 1)
+        wf, pf, g = r.get("wf") or {}, (r.get("wf") or {}).get("perf") or {}, r.get("garch") or {}
+        db.execute("INSERT INTO quant VALUES (" + ",".join("?" * 25) + ")", (
+            mode, sym, r.get("score"), int(bool(r.get("edge"))), int(bool(r.get("veto"))), r.get("size_mult"),
+            r.get("rsi"), r.get("macd_hist"), r.get("zscore"), r.get("rvol"), r.get("rv_ann"), g.get("vol_ann"),
+            g.get("vol_ratio"), wf.get("rmse_vs_naive"), wf.get("hit_rate"), wf.get("ic"), wf.get("auc"),
+            wf.get("log_loss"), pf.get("sharpe"), pf.get("sortino"), pf.get("max_dd"), pf.get("profit_factor"),
+            r.get("where"), _epoch(r["ts"]) if r.get("ts") else None, "; ".join(r.get("reasons") or [])))
+
+    quality = account_performance(equity_log, trades)
+    db.executemany("INSERT INTO quality VALUES (?,?)", [
+        (k, v) for k, v in (("Sharpe", quality.get("sharpe")), ("Sortino", quality.get("sortino")),
+                            ("Max drawdown %", None if quality.get("max_dd") is None else quality["max_dd"] * 100),
+                            ("Profit factor", quality.get("trade_profit_factor")),
+                            ("Trade win rate %", None if quality.get("trade_win_rate") is None else quality["trade_win_rate"] * 100))
+        if v is not None])
+
     by_day = {}
     for ts, eq in equity_log:
         by_day.setdefault(_day(ts), []).append((_epoch(ts), float(eq)))
@@ -106,7 +148,8 @@ def export(source=SOURCE, target=TARGET):
     db.commit()
     db.close()
     os.replace(tmp, target)
-    return {"equity": len(equity_log), "trades": len(trades), "days": len(by_day)}
+    return {"equity": len(equity_log), "trades": len(trades), "days": len(by_day), "holdings": len(rows),
+            "quant": len(suite.get("symbols") or {})}
 
 
 def main():

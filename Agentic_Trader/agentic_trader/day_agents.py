@@ -40,6 +40,7 @@ class DayStrategyAgent:
         """Ranked [(score, sym, kind, why, snapshot)] and {sym: reason} for names without a setup."""
         tr, c, quotes, snap, t = ctx["tr"], ctx["cfg"], ctx["quotes"], ctx["snap"], ctx["t"]
         found, skipped = [], {}
+        tr.quant.ensure([s for s in c.day_symbols if snap.get(s)], "day")
         for sym in c.day_symbols:
             m, q = snap.get(sym), quotes.get(sym)
             if not m or not q or sym in tr.s["positions"]:
@@ -51,8 +52,13 @@ class DayStrategyAgent:
             got, why = self.fn(m, c)
             if got:
                 kind, strength = got
+                veto, qscore, size, note = tr.quant.verdict(sym, "day")
+                if veto:
+                    skipped[sym] = f"{kind} setup vetoed by the quant suite ({qscore:+.2f})"
+                    continue
                 quality = (ctx["daily"].get(sym) or {}).get("score", 0.0)
-                found.append((strength + 0.3 * ds.daily_bias(m) + 0.2 * quality, sym, kind, why, m))
+                m = dict(m, quant_size=size, quant_note=note)
+                found.append((strength + 0.3 * ds.daily_bias(m) + 0.2 * quality + 0.3 * qscore, sym, kind, why, m))
             else:
                 skipped[sym] = why
         return sorted(found, key=lambda x: -x[0]), skipped
@@ -80,7 +86,7 @@ class DayStrategyAgent:
             if ctx["team_room"] <= 0 or slice_room <= 0:
                 break
             plan = ds.plan_trade(m, c, ctx["equity"], tr.free_cash(), ctx["scale"])
-            notional = min(plan["notional"], slice_room, ctx["team_room"])
+            notional = min(plan["notional"] * m.get("quant_size", 1.0), slice_room, ctx["team_room"])
             if notional < max(c.min_trade, 25):
                 rep["note"] = f"{sym} {kind} setup but slice room only ${max(notional, 0):.0f}"
                 continue
@@ -93,7 +99,7 @@ class DayStrategyAgent:
                      "opened_hm": ctx["hm"][0] * 60 + ctx["hm"][1], "setup": kind, "strat": self.name,
                      "trend_exit": kind != "REVERSION"}
             if tr.buy(sym, notional, "day", f"{self.label}: {why}; stop {plan['stop']:.2f} (-{plan['stop_pct']:.1%}), "
-                      f"target {target:.2f}", q, t, extra=extra):
+                      f"target {target:.2f}" + (f"; {m['quant_note']}" if m.get("quant_note") else ""), q, t, extra=extra):
                 ctx["team_room"] -= notional
                 rep["entries"] += 1
                 rep["open"].append(sym)
