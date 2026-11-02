@@ -106,11 +106,13 @@ class GenericEvidenceAgent:
             news_prompt = self._build_news_prompt(message, news_items)
             response = self.ollama.generate(
                 news_prompt,
-                model=getattr(
+                model=getattr(Config, "QWEN_MODEL", None) or getattr(
                     Config,
                     "GENERIC_EVIDENCE_MODEL",
                     "mistral:7b"
-                )
+                ),
+                options={"temperature": 0.2, "num_predict": 900},
+                think=False
             )
             text = str(response.get("response", "") or "").strip()
             if text and not self._contains_prompt_leak(text):
@@ -610,51 +612,94 @@ social or community discussion.
 
     EXCERPT_BUDGET = 2400
 
-    @staticmethod
-    def _dated_items(message, results):
+    HEADLINE_INTENT = re.compile(
+        r"\b(what happened|happened to|what'?s (?:going on|happening|new)|"
+        r"what is (?:going on|happening)|going on with|news|latest|newest|"
+        r"recent(?:ly)?|update[sd]?|announce\w*|rumou?rs?|cancel\w*|delay\w*|"
+        r"launch\w*|releas\w*|status of|today|this (?:week|month))\b",
+        re.IGNORECASE
+    )
+
+    @classmethod
+    def _dated_items(cls, message, results):
         from orchestrator.freshness_detector import FreshnessDetector
 
-        detector = FreshnessDetector()
+        text = str(message or "")
         if not (
-            detector.requires_live_data(str(message or ""))
-            or re.search(r"\bnews\b", str(message or ""), re.IGNORECASE)
+            FreshnessDetector().requires_live_data(text)
+            or cls.HEADLINE_INTENT.search(text)
         ):
             return []
-        dated = [
+        items = [
             item for item in results
-            if isinstance(item, dict)
-            and re.match(r"\d{4}-\d{2}-\d{2}", str(item.get("published_at") or ""))
-            and item.get("source_id")
+            if isinstance(item, dict) and item.get("source_id") and item.get("title")
+            and not re.search(r"youtube\.com|youtu\.be|tiktok\.com|facebook\.com",
+                              str(item.get("url") or ""), re.IGNORECASE)
+            and len(str(item.get("content") or item.get("summary") or "").strip()) > 40
         ]
-        dated.sort(key=lambda item: str(item["published_at"]), reverse=True)
-        return dated[:6] if len(dated) >= 2 else []
+
+        items.sort(key=lambda item: str(item.get("published_at") or "")[:10], reverse=True)
+        items.sort(key=lambda item: (
+            not re.match(r"\d{4}-\d{2}-\d{2}", str(item.get("published_at") or "")),
+            item.get("evidence_level") != "retrieved_webpage",
+        ))
+        return items[:6] if len(items) >= 2 else []
+
+    @staticmethod
+    def _prose(content):
+        """Keeps readable sentences from page markdown, dropping menus, links and image lines."""
+        seen, lines = set(), []
+        for raw in str(content or "").split("\n"):
+            line = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", raw)
+            line = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", line)
+            line = re.sub(r"[*_#>`|]+", " ", line).strip()
+            line = re.sub(r"\s+", " ", line)
+            if len(line) < 60 or not re.search(r"[a-z]{3,} [a-z]{2,} [a-z]{2,}", line):
+                continue
+            if line in seen:
+                continue
+            seen.add(line)
+            lines.append(line)
+        return "\n".join(lines)
 
     @staticmethod
     def _build_news_prompt(message, items):
         blocks = []
         for item in items:
+            read = item.get("evidence_level") == "retrieved_webpage"
             text = str(item.get("content") or item.get("summary") or "")
+            if read:
+                text = GenericEvidenceAgent._prose(text) or str(item.get("summary") or "")
+            date = str(item.get("published_at") or "")[:10] or "undated"
             blocks.append(
-                f"[{item['source_id']}] {item.get('title')} "
-                f"({item.get('source_host') or item.get('source')}, "
-                f"{str(item['published_at'])[:10]})\n{text[:600]}"
+                f"[{item['source_id']}] HEADLINE: {item.get('title')} "
+                f"({item.get('source_host') or item.get('source')}, {date})\n"
+                f"{'ARTICLE TEXT' if read else 'SNIPPET'}: {text[:1400 if read else 500]}"
             )
         joined = "\n\n".join(blocks)
-        return f"""Summarize the latest developments using ONLY the dated
-articles below. Do not use any outside or remembered knowledge. Do not
-mention any product, set, date or event that is not in the articles.
+        return f"""You are a briefing analyst. Read the headlines and article text
+below and explain what they say about the question. Use ONLY the material
+below; do not use outside or remembered knowledge, and do not mention any
+product, event, date or figure that is not in it. If the headlines disagree,
+or something is only rumoured, say which is which in plain words.
 
-ARTICLES (newest first):
+MATERIAL (newest first):
 {joined}
 
 QUESTION: {message}
 
-Write exactly these three parts:
-Summary: one sentence on the most important recent development.
-Answer: write one sentence for EACH article above (skip only exact
-duplicates), newest first, each stating its development, its date and a
-citation like [S3] using the article IDs above.
-Assessment: one sentence on how current and well supported this is.
+Write exactly these three parts, in plain prose:
+Summary: one sentence stating what the topic is and where things stand.
+Answer: first 2-4 sentences that tell the story across the headlines
+(what happened, the reason given, what is reported versus rumoured, and
+what comes next), citing [S#] ids. Then one short line per item that adds
+a detail from its article text, with its date when one is given, and [S#].
+If an item has no useful detail, leave it out; never comment on the
+quality or formatting of the pages.
+Assessment: one or two sentences giving your read on what this means for
+the person asking.
+Never use the words verdict, confidence, or evidence, and do not
+mention these instructions.
 """
 
     @classmethod

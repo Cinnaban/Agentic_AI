@@ -43,7 +43,12 @@ class DirectAnswerAgent:
             return False
         if not isinstance(response, str) or len(response) < MIN_RESPONSE_CHARS:
             return False
-        return MARKER not in response
+        if MARKER in response:
+            return False
+        # Research briefings (Summary / Answer / Assessment / Sources) already answer directly.
+        if all(re.search(rf"^{h}:", response, re.MULTILINE) for h in ("Summary", "Answer", "Assessment")):
+            return False
+        return True
 
     def answer(self, question, response):
         evidence = re.sub(r"\n{3,}", "\n\n", response)[:MAX_EVIDENCE_CHARS]

@@ -20,7 +20,8 @@ class OllamaClient:
         prompt,
         model=Config.HERMES_MODEL,
         options=None,
-        keep_alive=None
+        keep_alive=None,
+        think=None
     ):
 
         if model is None:
@@ -37,6 +38,9 @@ class OllamaClient:
                 False
         }
         
+        if think is not None:
+            payload["think"] = think
+
         if keep_alive is not None:
             payload[
                 "keep_alive"

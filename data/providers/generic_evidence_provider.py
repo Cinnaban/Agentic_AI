@@ -715,7 +715,7 @@ class GenericEvidenceProvider:
 
         news_mode = requires_live_data or bool(
             re.search(
-                r"\b(news|newest|new releases?|announce\w*)\b",
+                r"\b(news|newest|new releases?|announce\w*|what happened|happened to|going on|rumou?rs?|cancel\w*)\b",
                 str(query or ""),
                 re.IGNORECASE
             )
