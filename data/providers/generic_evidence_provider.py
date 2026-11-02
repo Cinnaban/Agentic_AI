@@ -23,6 +23,9 @@ from data.providers.live.firecrawl_backend import (
 from data.providers.live.alpha_vantage_backend import (
     AlphaVantageBackend
 )
+from data.providers.live.world_bank_backend import (
+    WorldBankBackend
+)
 
 from data.providers.social.social_evidence_provider import (
     SocialEvidenceProvider
@@ -90,6 +93,7 @@ class GenericEvidenceProvider:
         )
 
         self.alpha_vantage = AlphaVantageBackend()
+        self.world_bank = WorldBankBackend()
 
         self.social = (
             SocialEvidenceProvider()
@@ -1210,16 +1214,17 @@ class GenericEvidenceProvider:
         return selected
 
     def _api_results(self, query, subject):
-        """Alpha Vantage economic/forex/market data when the question is relevant; [] otherwise (and on any failure)."""
-        try:
-            results = self.alpha_vantage.search({}, query)
-        except Exception as exc:
-            print("ALPHA VANTAGE SKIPPED:", repr(exc))
-            return []
+        """Alpha Vantage / World Bank economic, forex, country and market data when the question is relevant; [] otherwise (and on any failure)."""
+        results = []
+        for backend in (self.alpha_vantage, self.world_bank):
+            try:
+                results.extend(backend.search({}, query))
+            except Exception as exc:
+                print("API EVIDENCE SKIPPED:", backend.SOURCE, repr(exc))
         for result in results:
             result.setdefault("content", result.get("summary", ""))
             result.update({"source_role": "api_data", "evidence_level": "api_data", "page_kind": "api",
-                           "source_host": "alphavantage.co"})
+                           "source_host": urlsplit(result.get("url") or "").hostname or ""})
         return results
 
     def _add_official_homepage_candidate(self, results):

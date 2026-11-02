@@ -24,6 +24,9 @@ from data.providers.live.firecrawl_backend import (
 from data.providers.live.alpha_vantage_backend import (
     AlphaVantageBackend
 )
+from data.providers.live.world_bank_backend import (
+    WorldBankBackend
+)
 
 
 class LiveMarketProvider:
@@ -201,7 +204,8 @@ class LiveMarketProvider:
         self.backends = [
             PublicTopicNewsBackend(),
             RobinhoodBackend(),
-            AlphaVantageBackend()
+            AlphaVantageBackend(),
+            WorldBankBackend()
         ]
 
         self.firecrawl = (
@@ -542,7 +546,8 @@ class LiveMarketProvider:
                 "Results are ranked: rank 0 = real-time broker quote "
                 "(authoritative for current price, change and analyst "
                 "consensus); rank 1 = API data (Alpha Vantage economic, forex, "
-                "commodity and market indicators, each with an as-of date); "
+                "commodity and market indicators; World Bank country, "
+                "demographic and governance indicators; each with an as-of date); "
                 "rank 2 = news and scraped pages, which may be hours or days "
                 "stale. If a scraped price conflicts with the rank 0 quote, "
                 "use the rank 0 quote."
