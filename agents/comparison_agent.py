@@ -247,6 +247,12 @@ EVERY ticker, not just one, and draw a summary on which
 shows the stronger and weaker combined signal and why.
 Never base the comparison on a single ticker's filings.
 
+If an ETF Scorecard appears above, use its 0-100 scores (costs,
+execution, risk-adjusted return, structure/liquidity) as supporting
+evidence for the overall call. Name the metrics that drive each
+fund's score, say when funds overlap heavily, and do not let a high
+score override a clearly negative quant signal; weigh the two together.
+
 TABLE RULES:
 - The Financial Comparison Table is
   deterministically produced from supplied

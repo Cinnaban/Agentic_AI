@@ -106,6 +106,7 @@ from orchestrator.financial_table_formatter import (
     FinancialTableFormatter
 )
 from agents.consensus_agent import ConsensusAgent
+from orchestrator.etf_scorecard import ETFScorecard
 from orchestrator.quant_comparison_reviewer import (
     QuantComparisonReviewer
 )
@@ -173,6 +174,7 @@ class Hermes:
         self.quant_comparison_reviewer = (
             QuantComparisonReviewer()
         )
+        self.etf_scorecard = ETFScorecard()
         self.consensus_agent = ConsensusAgent()
         self.quant_evidence_builder = (
             QuantEvidenceBuilder(
@@ -2269,6 +2271,20 @@ class Hermes:
                         repr(exc)
                     )
 
+                try:
+                    etf_scorecard = self.etf_scorecard.build(
+                        list(company_results)
+                    )
+                    if etf_scorecard:
+                        quant_comparison = "\n\n".join(
+                            part for part in (
+                                quant_comparison,
+                                etf_scorecard
+                            ) if part
+                        )
+                except Exception as exc:
+                    print("ETF SCORECARD FAILED:", repr(exc))
+
                 comparison_result = (
                     self.comparison_agent
                     .analyze(
@@ -3275,6 +3291,14 @@ class Hermes:
             print("PORTFOLIO QUANT COMPARISON FAILED:", repr(exc))
         if comparison:
             parts.append(comparison)
+        try:
+            etf_scorecard = self.etf_scorecard.build(list(metrics_by_ticker))
+        except Exception as exc:
+            etf_scorecard = ""
+            print("PORTFOLIO ETF SCORECARD FAILED:", repr(exc))
+        if etf_scorecard:
+            parts.append(etf_scorecard)
+            comparison = "\n\n".join(p for p in (comparison, etf_scorecard) if p)
         return "\n\n".join(parts), {
             "quant_metrics": {
                 t: {k: m.get("value") for k, m in ms.items() if isinstance(m, dict)}

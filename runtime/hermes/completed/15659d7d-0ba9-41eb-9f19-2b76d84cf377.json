@@ -1,0 +1,714 @@
+{
+  "job_id": "15659d7d-0ba9-41eb-9f19-2b76d84cf377",
+  "status": "completed",
+  "created_at": "2026-11-03T12:59:08.995098",
+  "updated_at": "2026-11-03T13:27:40.503309",
+  "data": {
+    "message": "Compare WARP, ORBX and MARS. Which to put $500 now.",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "WARP",
+        "ticker": "WARP",
+        "entity_type": "etf",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-11-03T20:59:08.478511+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Industrials",
+            "family": "VanEck",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "WARP": 0.005,
+              "Category Average": 0.0064428
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "WARP": 0.0,
+              "Category Average": 0.3665
+            },
+            {
+              "key": "Total Net Assets",
+              "WARP": 24876.53,
+              "Category Average": 24876.53
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.028499998,
+            "stockPosition": 0.97150004,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.0
+          },
+          "top_holdings": [
+            {
+              "key": "SPCX",
+              "Name": "Space Exploration Technologies Corp Class A",
+              "Holding Percent": 0.2021162
+            },
+            {
+              "key": "RKLB",
+              "Name": "Rocket Lab Corp",
+              "Holding Percent": 0.1451938
+            },
+            {
+              "key": "ASTS",
+              "Name": "AST SpaceMobile Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.065134004
+            },
+            {
+              "key": "ECHO",
+              "Name": "EchoStar Corp Class A",
+              "Holding Percent": 0.0491747
+            },
+            {
+              "key": "VSAT",
+              "Name": "Viasat Inc",
+              "Holding Percent": 0.047698997
+            },
+            {
+              "key": "MDA.TO",
+              "Name": "MDA Space Ltd",
+              "Holding Percent": 0.046256598
+            },
+            {
+              "key": "IRDM",
+              "Name": "Iridium Communications Inc",
+              "Holding Percent": 0.045802303
+            },
+            {
+              "key": "GSAT",
+              "Name": "Globalstar Inc",
+              "Holding Percent": 0.0454622
+            },
+            {
+              "key": "RDW",
+              "Name": "Redwire Corp",
+              "Holding Percent": 0.0449825
+            },
+            {
+              "key": "FLY",
+              "Name": "Firefly Aerospace Inc",
+              "Holding Percent": 0.0439845
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.0,
+            "basic_materials": 0.0,
+            "consumer_defensive": 0.0,
+            "technology": 0.13949999,
+            "communication_services": 0.19469999,
+            "financial_services": 0.0,
+            "utilities": 0.0,
+            "industrials": 0.66580003,
+            "energy": 0.0,
+            "healthcare": 0.0
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "WARP": 0.0,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "WARP": 0.23764,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "WARP": 0.15287,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "WARP": 0.06862,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "WARP": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "WARP": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "WARP": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "WARP": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "WARP": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      },
+      {
+        "name": "ORBX",
+        "ticker": "ORBX",
+        "entity_type": "etf",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-11-03T20:59:08.725413+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Industrials",
+            "family": "Global X Funds",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "ORBX": 0.005,
+              "Category Average": 0.0064428
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "ORBX": 0.0,
+              "Category Average": 0.3665
+            },
+            {
+              "key": "Total Net Assets",
+              "ORBX": 20227.23,
+              "Category Average": 20227.23
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.0002,
+            "stockPosition": 0.9998,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.0
+          },
+          "top_holdings": [
+            {
+              "key": "SPCX",
+              "Name": "Space Exploration Technologies Corp Class A",
+              "Holding Percent": 0.22726521
+            },
+            {
+              "key": "RKLB",
+              "Name": "Rocket Lab Corp",
+              "Holding Percent": 0.1036916
+            },
+            {
+              "key": "ASTS",
+              "Name": "AST SpaceMobile Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.095921405
+            },
+            {
+              "key": "IRDM",
+              "Name": "Iridium Communications Inc",
+              "Holding Percent": 0.0463751
+            },
+            {
+              "key": "GSAT",
+              "Name": "Globalstar Inc",
+              "Holding Percent": 0.0462302
+            },
+            {
+              "key": "MDA.TO",
+              "Name": "MDA Space Ltd",
+              "Holding Percent": 0.045689903
+            },
+            {
+              "key": "VSAT",
+              "Name": "Viasat Inc",
+              "Holding Percent": 0.044524997
+            },
+            {
+              "key": "FLY",
+              "Name": "Firefly Aerospace Inc",
+              "Holding Percent": 0.0434522
+            },
+            {
+              "key": "RDW",
+              "Name": "Redwire Corp",
+              "Holding Percent": 0.041946903
+            },
+            {
+              "key": "LUNR",
+              "Name": "Intuitive Machines Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.039082002
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.0,
+            "basic_materials": 0.0,
+            "consumer_defensive": 0.0,
+            "technology": 0.18959999,
+            "communication_services": 0.1451,
+            "financial_services": 0.0,
+            "utilities": 0.0,
+            "industrials": 0.6654,
+            "energy": 0.0,
+            "healthcare": 0.0
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "ORBX": 0.0,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "ORBX": 0.28718,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "ORBX": 0.18848,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "ORBX": 0.08042,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "ORBX": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "ORBX": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "ORBX": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "ORBX": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "ORBX": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      },
+      {
+        "name": "MARS",
+        "ticker": "MARS",
+        "entity_type": "etf",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance fund quote type"
+        },
+        "etf_context": {
+          "source": "Yahoo Finance",
+          "retrieved_at": "2026-11-03T20:59:08.985775+00:00",
+          "quote_type": null,
+          "fund_overview": {
+            "categoryName": "Miscellaneous Sector",
+            "family": "Roundhill Investments",
+            "legalType": "Exchange Traded Fund"
+          },
+          "fund_operations": [
+            {
+              "key": "Annual Report Expense Ratio",
+              "MARS": 0.0075,
+              "Category Average": 0.0
+            },
+            {
+              "key": "Annual Holdings Turnover",
+              "MARS": 0.0,
+              "Category Average": null
+            },
+            {
+              "key": "Total Net Assets",
+              "MARS": 23098.15,
+              "Category Average": 23098.15
+            }
+          ],
+          "asset_classes": {
+            "cashPosition": 0.0044,
+            "stockPosition": 0.98230004,
+            "bondPosition": 0.0,
+            "preferredPosition": 0.0,
+            "convertiblePosition": 0.0,
+            "otherPosition": 0.013300001
+          },
+          "top_holdings": [
+            {
+              "key": "SPCX",
+              "Name": "Space Exploration Technologies Corp Class A",
+              "Holding Percent": 0.24400699
+            },
+            {
+              "key": "RKLB",
+              "Name": "Rocket Lab Corp",
+              "Holding Percent": 0.100595996
+            },
+            {
+              "key": "ASTS",
+              "Name": "AST SpaceMobile Inc Ordinary Shares - Class A",
+              "Holding Percent": 0.0702171
+            },
+            {
+              "key": "GSAT",
+              "Name": "Globalstar Inc",
+              "Holding Percent": 0.0507119
+            },
+            {
+              "key": "VSAT",
+              "Name": "Viasat Inc",
+              "Holding Percent": 0.046886303
+            },
+            {
+              "key": "PL",
+              "Name": "Planet Labs PBC Class A",
+              "Holding Percent": 0.0362822
+            },
+            {
+              "key": "IRDM",
+              "Name": "Iridium Communications Inc",
+              "Holding Percent": 0.0345376
+            },
+            {
+              "key": "MDA.TO",
+              "Name": "MDA Space Ltd",
+              "Holding Percent": 0.0326621
+            },
+            {
+              "key": "OHB.DE",
+              "Name": "OHB SE",
+              "Holding Percent": 0.0321336
+            },
+            {
+              "key": "FLY",
+              "Name": "Firefly Aerospace Inc",
+              "Holding Percent": 0.0312623
+            }
+          ],
+          "sector_weightings": {
+            "realestate": 0.0,
+            "consumer_cyclical": 0.0,
+            "basic_materials": 0.0,
+            "consumer_defensive": 0.0,
+            "technology": 0.1672,
+            "communication_services": 0.1587,
+            "financial_services": 0.0,
+            "utilities": 0.0,
+            "industrials": 0.67410004,
+            "energy": 0.0,
+            "healthcare": 0.0
+          },
+          "equity_holdings": [
+            {
+              "key": "Price/Earnings",
+              "MARS": 0.0,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Book",
+              "MARS": 0.27869,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Sales",
+              "MARS": 0.18856,
+              "Category Average": null
+            },
+            {
+              "key": "Price/Cashflow",
+              "MARS": 0.07792,
+              "Category Average": null
+            },
+            {
+              "key": "Median Market Cap",
+              "MARS": null,
+              "Category Average": null
+            },
+            {
+              "key": "3 Year Earnings Growth",
+              "MARS": null,
+              "Category Average": null
+            }
+          ],
+          "bond_holdings": [
+            {
+              "key": "Duration",
+              "MARS": null,
+              "Category Average": null
+            },
+            {
+              "key": "Maturity",
+              "MARS": null,
+              "Category Average": null
+            },
+            {
+              "key": "Credit Quality",
+              "MARS": null,
+              "Category Average": null
+            }
+          ],
+          "bond_ratings": {
+            "us_government": 0.0
+          },
+          "status": "available"
+        }
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "comparison_result": {
+      "status": "completed",
+      "response": "Based on the supplied Custom Analytical Formula and Financial Comparison Table, the three ETFs WARP, ORBX, and MARS appear to have very similar overall scores and rankings. The formula calculates a score for each ETF based on four weighted components: valuation score, growth score, momentum score, and profitability score. All three ETFs receive a normalized score of 0.5 (out of 1) for each component, resulting in an equal overall score of 0.5. \n\nHowever, the Financial Comparison Table shows some differences between the ETFs. WARP is predicted to have a slightly less negative return than MARS and ORBX, which could be a positive sign. But all three ETFs show poor financial strength according to the model, and insufficient history to gauge momentum. The table also notes that this particular model has missing financial data for all three ETFs, reducing confidence in the stability and forecast ratings.\n\nLooking at the Quant Comparison Summary, we see that the cross-referenced evidence combined with the model predictions gives ORBX a weak positive supportive signal (+0), while WARP and MARS show slightly more negative supportive signals (0 and 0 respectively). MARS has the weakest overall supportive signal (-3) according to this combined cross-referenced model evidence.\n\nIn summary, the custom formula gives all three ETFs an identical score, but the cross-referenced quantitative model evidence suggests ORBX has the tiniest edge in combined signal, followed by WARP and MARS. The model has important caveats like missing data across the board. So while the formula ties them, the quant evidence hints ORBX may slightly outperform WARP and MARS, though the differences are small and the model's limitations should be considered.\n\nIn conclusion, based on the Custom Analytical Formula and quantitative cross-referenced model evidence, WARP, ORBX and MARS appear to have very similar overall scores, with ORBX potentially having a slight edge. However, the model has important limitations like missing data for all three ETFs. An investor should carefully consider the model's caveats and weigh the similarities and small differences between the ETFs' predicted performance. The provided evidence suggests that all three could perform similarly, with perhaps a minor advantage for ORBX, but further analysis is warranted given the model's limitations."
+    },
+    "comparison_plan": {
+      "dimensions": [
+        "overview",
+        "business_model",
+        "competitive_position",
+        "growth",
+        "profitability",
+        "financial_strength",
+        "valuation",
+        "risk"
+      ],
+      "needs_quant": true,
+      "needs_research": true,
+      "needs_risk": true,
+      "needs_live": true,
+      "formula_opportunity": "helpful"
+    },
+    "custom_formula": {
+      "opportunity": "helpful",
+      "design": {
+        "name": "WARP vs ORBX vs MARS Comparison Formula",
+        "purpose": "To determine which of the three ETFs, WARP, ORBX, or MARS, is the best investment choice for putting $500 now, based on a custom financial analysis formula using a combination of relevant financial metrics.",
+        "components": [
+          {
+            "metric": "valuation_score",
+            "weight": 0.4,
+            "direction": "lower_is_better",
+            "reason": "A lower valuation score indicates the company is undervalued compared to its peers, making it a more attractive investment opportunity."
+          },
+          {
+            "metric": "growth_score",
+            "weight": 0.3,
+            "direction": "higher_is_better",
+            "reason": "A higher growth score suggests the company is expected to grow at a faster rate than its peers, potentially leading to higher returns."
+          },
+          {
+            "metric": "momentum_score",
+            "weight": 0.2,
+            "direction": "higher_is_better",
+            "reason": "A higher momentum score indicates the company's stock price has been performing well recently, which could continue in the short term."
+          },
+          {
+            "metric": "profitability_score",
+            "weight": 0.1,
+            "direction": "higher_is_better",
+            "reason": "A higher profitability score suggests the company is generating strong profits relative to its peers, which may support long-term growth."
+          }
+        ],
+        "how_created": "The metrics were selected based on their relevance to the user's question of determining the best investment choice between WARP, ORBX, and MARS. The weights were assigned to reflect the relative importance of each metric in making that determination, with valuation, growth, and momentum given higher weights due to their direct impact on potential returns, while profitability was given a lower weight as it is more of a supporting factor for long-term growth.",
+        "why_important": "By combining these metrics, the formula provides a comprehensive evaluation of each ETF's investment potential. A lower valuation score suggests the ETF is undervalued and may offer good value for money. A higher growth score indicates the ETF's underlying companies are expected to grow, potentially leading to higher returns. A higher momentum score suggests the ETF's stock price has been performing well, which could continue short-term. Lastly, a higher profitability score shows the ETF's underlying companies are generating strong profits, supporting long-term growth. Together, these metrics paint a picture of each ETF's investment attractiveness.",
+        "assumptions": [
+          "The financial metrics used are accurate and up-to-date.",
+          "The weights assigned to each metric are appropriate and adequately reflect their importance in the overall evaluation.",
+          "The expected returns and growth rates are consistent with the historical performance of similar ETFs.",
+          "The user's investment goals and risk tolerance are aligned with the potential returns and risks associated with each ETF."
+        ],
+        "limitations": [
+          "The formula only considers the three specific ETFs mentioned by the user and does not evaluate other potential investment options.",
+          "The weights assigned to each metric are subjective assumptions and may not be optimal for all investors.",
+          "The formula does not account for other important factors such as tax implications, transaction costs, or changes in market conditions.",
+          "The formula relies on historical financial data and may not accurately predict future performance or market trends."
+        ]
+      },
+      "evaluation": {
+        "status": "completed",
+        "formula": {
+          "name": "WARP vs ORBX vs MARS Comparison Formula",
+          "purpose": "To determine which of the three ETFs, WARP, ORBX, or MARS, is the best investment choice for putting $500 now, based on a custom financial analysis formula using a combination of relevant financial metrics.",
+          "components": [
+            {
+              "metric": "valuation_score",
+              "weight": 0.4,
+              "direction": "lower_is_better",
+              "reason": "A lower valuation score indicates the company is undervalued compared to its peers, making it a more attractive investment opportunity."
+            },
+            {
+              "metric": "growth_score",
+              "weight": 0.3,
+              "direction": "higher_is_better",
+              "reason": "A higher growth score suggests the company is expected to grow at a faster rate than its peers, potentially leading to higher returns."
+            },
+            {
+              "metric": "momentum_score",
+              "weight": 0.2,
+              "direction": "higher_is_better",
+              "reason": "A higher momentum score indicates the company's stock price has been performing well recently, which could continue in the short term."
+            },
+            {
+              "metric": "profitability_score",
+              "weight": 0.1,
+              "direction": "higher_is_better",
+              "reason": "A higher profitability score suggests the company is generating strong profits relative to its peers, which may support long-term growth."
+            }
+          ],
+          "how_created": "The metrics were selected based on their relevance to the user's question of determining the best investment choice between WARP, ORBX, and MARS. The weights were assigned to reflect the relative importance of each metric in making that determination, with valuation, growth, and momentum given higher weights due to their direct impact on potential returns, while profitability was given a lower weight as it is more of a supporting factor for long-term growth.",
+          "why_important": "By combining these metrics, the formula provides a comprehensive evaluation of each ETF's investment potential. A lower valuation score suggests the ETF is undervalued and may offer good value for money. A higher growth score indicates the ETF's underlying companies are expected to grow, potentially leading to higher returns. A higher momentum score suggests the ETF's stock price has been performing well, which could continue short-term. Lastly, a higher profitability score shows the ETF's underlying companies are generating strong profits, supporting long-term growth. Together, these metrics paint a picture of each ETF's investment attractiveness.",
+          "assumptions": [
+            "The financial metrics used are accurate and up-to-date.",
+            "The weights assigned to each metric are appropriate and adequately reflect their importance in the overall evaluation.",
+            "The expected returns and growth rates are consistent with the historical performance of similar ETFs.",
+            "The user's investment goals and risk tolerance are aligned with the potential returns and risks associated with each ETF."
+          ],
+          "limitations": [
+            "The formula only considers the three specific ETFs mentioned by the user and does not evaluate other potential investment options.",
+            "The weights assigned to each metric are subjective assumptions and may not be optimal for all investors.",
+            "The formula does not account for other important factors such as tax implications, transaction costs, or changes in market conditions.",
+            "The formula relies on historical financial data and may not accurately predict future performance or market trends."
+          ]
+        },
+        "scores": {
+          "WARP": {
+            "score": 0.5,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 0.5,
+                "weight": 0.4,
+                "weighted_value": 0.2
+              },
+              "growth_score": {
+                "normalized_value": 0.5,
+                "weight": 0.3,
+                "weighted_value": 0.15
+              },
+              "momentum_score": {
+                "normalized_value": 0.5,
+                "weight": 0.2,
+                "weighted_value": 0.1
+              },
+              "profitability_score": {
+                "normalized_value": 0.5,
+                "weight": 0.1,
+                "weighted_value": 0.05
+              }
+            }
+          },
+          "ORBX": {
+            "score": 0.5,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 0.5,
+                "weight": 0.4,
+                "weighted_value": 0.2
+              },
+              "growth_score": {
+                "normalized_value": 0.5,
+                "weight": 0.3,
+                "weighted_value": 0.15
+              },
+              "momentum_score": {
+                "normalized_value": 0.5,
+                "weight": 0.2,
+                "weighted_value": 0.1
+              },
+              "profitability_score": {
+                "normalized_value": 0.5,
+                "weight": 0.1,
+                "weighted_value": 0.05
+              }
+            }
+          },
+          "MARS": {
+            "score": 0.5,
+            "components": {
+              "valuation_score": {
+                "normalized_value": 0.5,
+                "weight": 0.4,
+                "weighted_value": 0.2
+              },
+              "growth_score": {
+                "normalized_value": 0.5,
+                "weight": 0.3,
+                "weighted_value": 0.15
+              },
+              "momentum_score": {
+                "normalized_value": 0.5,
+                "weight": 0.2,
+                "weighted_value": 0.1
+              },
+              "profitability_score": {
+                "normalized_value": 0.5,
+                "weight": 0.1,
+                "weighted_value": 0.05
+              }
+            }
+          }
+        },
+        "ranking": [
+          {
+            "ticker": "WARP",
+            "score": 0.5
+          },
+          {
+            "ticker": "ORBX",
+            "score": 0.5
+          },
+          {
+            "ticker": "MARS",
+            "score": 0.5
+          }
+        ]
+      }
+    },
+    "final_status": "completed"
+  }
+}
