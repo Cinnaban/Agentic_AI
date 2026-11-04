@@ -588,7 +588,9 @@ class PaperTrader:
                  f"{desk.get('day_note', 'scanning')}")
         for r in (desk.get("day_agents") or {}).values():
             held = f", holding {', '.join(r['open'])}" if r["open"] else ""
-            L.append(f"  - {r['label']}: {r['entries']} entries, realized {_money(r['pl'], True)}{held}; {r['note'] or 'scanning'}")
+            note = "" if r["note"] and r["note"] == desk.get("day_note") else f"; {r['note'] or 'scanning'}"
+            L.append(f"  - {r['label']}: {r['entries']} {'entry' if r['entries'] == 1 else 'entries'}, "
+                     f"realized {_money(r['pl'], True)}{held}{note}")
         L.append("- Options sub-manager: no daily limit; reports to the orchestrator")
         L += self.desk.options.report_lines(t)
         L += self.quant.lines(self.s)

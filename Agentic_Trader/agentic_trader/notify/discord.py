@@ -8,6 +8,7 @@ from pathlib import Path
 import requests
 
 from ..config import STATE_DIR, Settings
+from ..tables import split_message
 
 API = "https://discord.com/api/v10/channels/{cid}/messages"
 
@@ -29,7 +30,7 @@ class DiscordNotifier:
         if not (self.token and cid):
             self._outbox(channel, text)
             return False
-        for chunk in (text[i:i + 1900] for i in range(0, len(text), 1900)):
+        for chunk in split_message(text, 1900):
             for attempt in range(3):
                 r = requests.post(API.format(cid=cid), timeout=15, json={"content": chunk},
                                   headers={"Authorization": f"Bot {self.token}"})

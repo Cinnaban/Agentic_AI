@@ -52,9 +52,18 @@ def split_message(text, max_length):
             lines, chunk = b.strip().split("\n"), ""
             head = lines[0] if fenced else ""
             for ln in lines[1:] if fenced else lines:
-                if len(chunk) + len(ln) + 12 > max_length and chunk:
+                # cut early at a top-level line so an indented sub-bullet never opens a message (it would lose its indent)
+                soft = not fenced and len(chunk) > max_length * 0.7 and ln and not ln[0].isspace()
+                if (len(chunk) + len(ln) + 12 > max_length or soft) and chunk:
+                    carry = ""
+                    if not fenced and ln[:1].isspace():
+                        # keep the sub-list with its parent bullet: move it to the next message
+                        done = chunk.rstrip("\n").split("\n")
+                        top = max((i for i, x in enumerate(done) if x and not x[0].isspace()), default=0)
+                        if top > 0:
+                            chunk, carry = "\n".join(done[:top]) + "\n", "\n".join(done[top:]) + "\n"
                     parts.append((chunk + (FENCE if fenced else "")).strip())
-                    chunk = (head + "\n") if fenced else ""
+                    chunk = (head + "\n") if fenced else carry
                 chunk += ln[:max_length - 12] + "\n"
             if chunk.strip():
                 parts.append(chunk.strip())

@@ -219,7 +219,8 @@ class GrowthAgent:
         tr.s["desk"]["growth_candidates"] = [(lab, round(p, 3)) for p, _, lab in sorted(cands, key=lambda x: -x[0])[:6]]
         for _, fn, label in sorted(cands, key=lambda x: -x[0]):
             if fn():
-                one["growth"] = {"sym": label.split()[-1], "note": label}
+                last = tr.s["trades"][-1] if tr.s["trades"] else {}
+                one["growth"] = {"sym": label.split()[-1], "note": f"{label} ({last.get('reason')})" if last.get("reason") else label}
                 return
 
 

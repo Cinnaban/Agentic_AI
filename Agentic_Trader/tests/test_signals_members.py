@@ -98,3 +98,24 @@ def test_daily_summary_has_day_team_performance(tmp_path, monkeypatch):
     text = "\n".join(tr.day_perf_lines(T))
     assert "TEAM: 3 closed" in text and "ORB: 2 closed" in text and "REVERSION: 1 closed" in text
     assert "Top gains (today): AAA +$5.00" in text and "Top losses (today): BBB -$2.00" in text
+
+
+def test_split_message_never_cuts_a_line_or_opens_on_a_sub_bullet():
+    from agentic_trader.tables import split_message
+    lines = ["- team line " + "x" * 60] + [f"  - agent {i} " + "y" * 60 for i in range(6)]
+    block = "\n".join(lines * 6)
+    parts = split_message(block, 600)
+    assert len(parts) > 1 and all(len(p) <= 600 for p in parts)
+    assert all(not p.splitlines()[0].startswith(" ") and p.startswith("- team") for p in parts)
+    assert "\n".join(parts).count("- team line") == 6
+
+
+def test_desk_lines_pluralise_and_drop_repeated_notes(tmp_path, monkeypatch):
+    tr = trader(tmp_path, Data(), monkeypatch)
+    tr.desk.options.run({}, T, 5000, tr.desk.orchestrator.plan({}, T, 5000, REG).mandates["options"])
+    tr.s["desk"].update({"day_note": "outside the day-entry window", "stance": "normal", "day_ret": 0.0, "week_ret": 0.0,
+                         "day_agents": {"a": {"label": "Alpha", "entries": 1, "pl": 0.5, "open": [], "note": "outside the day-entry window"},
+                                        "b": {"label": "Beta", "entries": 0, "pl": 0.0, "open": [], "note": "own reason"}}})
+    text = "\n".join(tr.desk_lines({}, 5000, T))
+    assert "Alpha: 1 entry, realized +$0.50" in text and "Alpha: 1 entry, realized +$0.50;" not in text
+    assert "Beta: 0 entries, realized +$0.00; own reason" in text
