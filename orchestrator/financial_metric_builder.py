@@ -1,5 +1,9 @@
 class FinancialMetricBuilder:
 
+    def __init__(self, gap_filler=None):
+        from orchestrator.quant_data_filler import QuantDataFiller
+        self.gap_filler = gap_filler or QuantDataFiller()
+
     def build_comparison(
         self,
         company_results
@@ -534,6 +538,24 @@ class FinancialMetricBuilder:
             "text",
             "quantitative_models"
         )
+
+        try:
+            for key, (rating, source) in self.gap_filler.fill(
+                quant_analysis
+            ).items():
+                existing = metrics.get(key, {})
+                self._add_metric(
+                    metrics,
+                    key,
+                    existing.get("label", key.replace("_", " ").title()),
+                    rating,
+                    "quant",
+                    "text",
+                    "quantitative_models",
+                    {"filled_from": source}
+                )
+        except Exception as exc:
+            print("QUANT GAP FILL FAILED:", repr(exc))
 
         if isinstance(risk, dict):
             self._add_metric(
