@@ -191,7 +191,8 @@ class RobinhoodData:
                 if q.get("instrument_id"):
                     out[q["instrument_id"]] = {"bid": _f(q.get("bid_price")), "ask": _f(q.get("ask_price")),
                                                "mark": _f(q.get("adjusted_mark_price")) or _f(q.get("mark_price")),
-                                               "oi": q.get("open_interest") or 0, "delta": _f(q.get("delta"))}
+                                               "oi": q.get("open_interest") or 0, "delta": _f(q.get("delta")),
+                                               "iv": _f(q.get("implied_volatility"))}
         return out
 
     def vix(self):

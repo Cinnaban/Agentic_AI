@@ -136,7 +136,7 @@ def test_options_manager_splits_agents_by_delta_and_tags_trades(tmp_path, monkey
     # fake delta is 0.2: only the yield agent's 0.15-0.35 band accepts it; the defensive agent (<=0.15) does not
     assert {o["strat"] for o in tr.s["options"]} == {"yield_puts"}
     rep = tr.s["desk"]["options_agents"]
-    assert set(rep) == {"yield_puts", "defensive_puts", "covered_calls"} and rep["yield_puts"]["open"] == len(tr.s["options"])
+    assert set(rep) == {"yield_puts", "defensive_puts", "vrp_puts", "covered_calls"} and rep["yield_puts"]["open"] == len(tr.s["options"])
     assert all(x.get("strat") == "yield_puts" for x in tr.s["trades"] if x["side"] == "option")
     assert not tr.income.naked_violations()
 

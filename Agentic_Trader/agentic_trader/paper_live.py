@@ -72,6 +72,8 @@ class Cfg:
         self.trail_start_r = float(os.getenv("PAPER_DAY_TRAIL_START_R", "1.5"))
         self.trail_r = float(os.getenv("PAPER_DAY_TRAIL_R", "1.0"))
         self.entry_buffer = float(os.getenv("PAPER_GROWTH_ENTRY_BUFFER", "0.005"))  # buy only this far above MA50
+        self.news_signal = os.getenv("PAPER_NEWS_SIGNAL", "1") not in ("0", "false", "off")
+        self.skip_earnings_day = os.getenv("PAPER_DAY_SKIP_EARNINGS", "1") not in ("0", "false", "off")
         self.stall_min = int(os.getenv("PAPER_DAY_STALL_MIN", "90"))
         # mean-reversion trades target a return to VWAP and need longer to play out
         self.reversion_stall_min = int(os.getenv("PAPER_DAY_REVERSION_STALL_MIN", "180"))
@@ -239,6 +241,8 @@ class PaperTrader:
         self.s.setdefault("options", [])
         self.income = Income(self)
         from .quant_gate import QuantGate
+        from .market_signals import MarketSignals
+        self.signals = MarketSignals(enabled=self.cfg.news_signal)
         self.quant = QuantGate(data, enabled=self.cfg.quant_gate, path=Path(store.mirror).with_name("quant_suite.json"))
         self.desk = Desk(self)
         self.plan = None
@@ -575,6 +579,10 @@ class PaperTrader:
         r = one.get("growth")
         L.append("- Growth agent daily trade (1 per day, early open): "
                  + (f"{r['note']}" if r else "not yet taken (waiting for the entry window to qualify)"))
+        gm = desk.get("growth_members") or {}
+        if gm:
+            L.append("  - Growth members (dual momentum + 200-day trend): " + ", ".join(
+                f"{k} {v['score']:+.2f}{' bearish' if v['bearish'] else ''}" for k, v in sorted(gm.items())))
         L.append(f"- Day team: {self.day_entries_today(t)}/{cfg.day_max_trades} entries today, realized "
                  f"{_money(self.day_agent_pl_today(t), True)} (loss limit -{cfg.day_loss_limit:.1%}); "
                  f"{desk.get('day_note', 'scanning')}")

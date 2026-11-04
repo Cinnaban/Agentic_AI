@@ -164,7 +164,7 @@ class GrowthAgent:
     def run(self, quotes, t, equity, mandate, reg, hm=(9, 35)):
         """One trade per day, early in the open: the highest-priority of (protective sell, hedge change,
         best-ranked ETF buy, over-weight rebalance). Protective actions outrank buys."""
-        from . import single_trade as st
+        from . import growth_members, single_trade as st
         tr, c = self.tr, self.tr.cfg
         one = tr.single_state()
         if "growth" in one:
@@ -174,8 +174,12 @@ class GrowthAgent:
             return
         etf_budget = equity * max(0.0, mandate.budget_pct - (reg.get("hedge_target") or 0.0)) * mandate.scale
         weights = self.weights()
-        bars = tr.data.bars(list(weights), "day", 150, ttl=1800)
-        ev = st.evaluate(list(weights), tr.data, quotes, bars=bars)
+        bars = tr.data.bars(list(weights), "day", 380, ttl=1800)
+        ev = st.evaluate(list(weights), tr.data, quotes, bars={k: v[-150:] for k, v in bars.items()})
+        tr.signals.refresh(list(weights))
+        gm = growth_members.members({k: [b["close"] for b in v if b.get("close")] for k, v in bars.items()},
+                                    {k: (quotes.get(k) or {}).get("price") for k in weights}, tr.signals.cash_rate())
+        tr.s["desk"]["growth_members"] = {k: {"score": round(v["score"], 3), "bearish": v["bearish"]} for k, v in gm.items()}
         tr.quant.ensure(list(weights), "long")
         cands = []  # (priority, run, label)
         for sym, w in weights.items():
@@ -184,7 +188,9 @@ class GrowthAgent:
                 continue
             px, held, ma50 = q["price"], tr.s["positions"].get(sym), e["ma50"]
             target = etf_budget * w
-            if held and px < ma50 * 0.985:
+            member = gm.get(sym) or {}
+            # a MA50 break alone whipsaws; it needs the slower members to agree unless the break is deep
+            if held and px < ma50 * 0.985 and (member.get("bearish") or px < ma50 * 0.97 or not member):
                 cands.append((3.0, lambda sym=sym, held=held, q=q, ma50=ma50: tr.sell(
                     sym, held["qty"], f"ETF trend break (below MA50 {ma50:.2f})", q, t), f"sell {sym}"))
             elif held:
@@ -197,11 +203,12 @@ class GrowthAgent:
             if veto:
                 tr.s["desk"].setdefault("quant_vetoes", {})[sym] = f"{qscore:+.2f}"
             if (px > ma50 * (1 + c.entry_buffer) and mandate.allow_new and e["score"] >= c.growth_min_score
-                    and e["coverage"] >= c.single_min_coverage and not veto):
+                    and e["coverage"] >= c.single_min_coverage and not veto and not member.get("bearish")
+                    and not tr.signals.bearish(sym)):
                 cur = held["qty"] * px if held else 0.0
                 gap = min(target - cur, tr.free_cash())
                 if gap >= max(c.min_trade, 25 if held else 0) and (not held or cur < target * (1 - c.rebalance_band)):
-                    cands.append((e["score"] + 0.3 * qscore, lambda sym=sym, q=q, gap=gap, e=e, qnote=qnote: tr.buy(
+                    cands.append((e["score"] + 0.3 * qscore + 0.3 * member.get("score", 0.0), lambda sym=sym, q=q, gap=gap, e=e, qnote=qnote: tr.buy(
                         sym, gap, "core", f"single daily trade: {st.why(e)}, stop -{tr.stop_for('core', e['vol']):.1%}"
                         + (f"; {qnote}" if qnote else ""), q, t,
                         vol_ann=e["vol"]), f"buy {sym}"))

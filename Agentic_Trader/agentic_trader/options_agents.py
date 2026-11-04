@@ -60,6 +60,15 @@ class PutAgent(_Agent):
     DELTA_RANGE = (0.04, 0.35)
     OTM_FLOOR = MIN_OTM
     MAX_DROP = -0.03
+    MIN_VRP = 0.0  # required implied/realized vol ratio; 0 means the ratio only tilts the ranking
+
+    def _vrp(self, sym, iv):
+        """Implied vol over a blend of 20-day and 1-year realized vol: above 1 the market pays for the risk it sells."""
+        r = self.tr.quant.get(sym, "options")
+        if not iv or not r or "error" in r:
+            return None
+        rv = [x for x in (r.get("rv_recent_ann"), r.get("rv_ann")) if x]
+        return iv / (sum(rv) / len(rv)) if rv else None
 
     def _best(self, sym, px, t, earn_date, room):
         d, c = self.tr.data, self.tr.cfg
@@ -86,7 +95,7 @@ class PutAgent(_Agent):
                     continue
                 score = oq["bid"] / x["strike"] / dte * 365 * (1 - delta)
                 if best is None or score > best[3]:
-                    best = (x, oq, dte, score)
+                    best = (x, oq, dte, score, oq.get("iv"))
         return best
 
     def run(self, quotes, t, equity, budget, room_total):
@@ -102,7 +111,9 @@ class PutAgent(_Agent):
         total_puts = sum(1 for o in inc.opts if o["type"] == "put")
         candidates = []
         stopouts = s.get("opt_stopouts", {})
-        tr.quant.ensure([x for x in c.opt_symbols if x not in taken and x not in held], "options")
+        scan = [x for x in c.opt_symbols if x not in taken and x not in held]
+        tr.quant.ensure(scan, "options")
+        tr.signals.refresh(scan)
         for sym in c.opt_symbols:
             q = quotes.get(sym) or {}
             px = q.get("price")
@@ -118,6 +129,8 @@ class PutAgent(_Agent):
                 stats[f"falling >{abs(self.MAX_DROP):.0%}"] += 1
             elif tr.quant.verdict(sym, "options")[0]:
                 stats["quant veto"] += 1
+            elif tr.signals.bearish(sym):
+                stats["bearish news"] += 1
             else:
                 try:
                     best = self._best(sym, px, t, earn.get(sym), room)
@@ -125,12 +138,16 @@ class PutAgent(_Agent):
                     print(f"[paper] {self.name} scan {sym} failed:", repr(exc))
                     stats["data error"] += 1
                     continue
-                if best:
-                    candidates.append((best[3] * (1 + 0.5 * tr.quant.verdict(sym, "options")[1]), sym, best))
+                vrp = self._vrp(sym, best[4]) if best else None
+                if best and self.MIN_VRP and (vrp is None or vrp < self.MIN_VRP):
+                    stats["no vol premium"] += 1
+                elif best:
+                    tilt = min(1.5, max(0.7, vrp)) if vrp else 1.0
+                    candidates.append((best[3] * (1 + 0.5 * tr.quant.verdict(sym, "options")[1]) * tilt, sym, best))
                 else:
                     stats["earnings or no liquid strike" if sym in earn else "no liquid strike"] += 1
         opened = 0
-        for _, sym, (contract, oq, dte, _s) in sorted(candidates, key=lambda x: -x[0]):
+        for _, sym, (contract, oq, dte, _s, _iv) in sorted(candidates, key=lambda x: -x[0]):
             if total_puts + opened >= c.opt_max_positions or contract["strike"] * MULT > room:
                 continue
             if inc.sell_to_open("put", sym, contract, oq, 1, t, strat=self.name):
@@ -151,6 +168,15 @@ class DefensivePuts(PutAgent):
     DELTA_RANGE = (0.04, 0.15)
     OTM_FLOOR = 0.06
     MAX_DROP = -0.02
+
+
+class VRPPuts(PutAgent):
+    """Sinclair-style volatility risk premium: only sell puts where implied vol is at least 15% above realized,
+    at 10-25 delta (roughly one standard deviation out), so the premium compensates for the tail."""
+    name, label, share = "vrp_puts", "Vol-premium puts", 0.5
+    DELTA_RANGE = (0.10, 0.25)
+    OTM_FLOOR = 0.04
+    MIN_VRP = 1.15
 
 
 class CoveredCalls(_Agent):
@@ -183,7 +209,7 @@ class OptionsManager:
 
     def __init__(self, trader):
         self.tr = trader
-        self.agents = [YieldPuts(trader), DefensivePuts(trader), CoveredCalls(trader)]
+        self.agents = [VRPPuts(trader), YieldPuts(trader), DefensivePuts(trader), CoveredCalls(trader)]  # selective agent first
 
     def report_lines(self, t):
         rep = self.tr.s.get("desk", {}).get("options_agents") or {}
