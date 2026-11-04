@@ -8,7 +8,7 @@ only its entry decision, its entry count, its own loss limit and its slice of th
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from . import day_strategy as ds
 from .single_trade import evaluate as daily_eval
@@ -69,10 +69,23 @@ class DayStrategyAgent:
                     continue
                 quality = (ctx["daily"].get(sym) or {}).get("score", 0.0)
                 m = dict(m, quant_size=size, quant_note=note)
-                found.append((strength + 0.3 * ds.daily_bias(m) + 0.2 * quality + 0.3 * qscore + c.day_tilt_weight * ft.get("tilt", 0.0), sym, kind, why, m))
+                found.append((strength + 0.3 * ds.daily_bias(m) + 0.2 * quality + 0.3 * qscore + c.day_tilt_weight * ft.get("tilt", 0.0) + c.rank_weight * ctx.get("rank", {}).get(sym, 0.0), sym, kind, why, m))
             else:
                 skipped[sym] = why
         return sorted(found, key=lambda x: -x[0]), skipped
+
+    def probation(self, tr, c, t):
+        """Reason to stand down: enough recent closed trades and a profit factor below the floor, else None."""
+        if not c.autopause:
+            return None
+        since = (t - timedelta(days=10)).isoformat()
+        rows = [x["realized"] for x in tr.s["trades"] if x.get("strat") == self.name and x["side"] == "sell"
+                and "realized" in x and x["ts"] >= since]
+        if len(rows) < c.autopause_min:
+            return None
+        gain, loss = sum(r for r in rows if r > 0), -sum(r for r in rows if r < 0)
+        pf = gain / loss if loss else float("inf")
+        return f"on probation: profit factor {pf:.2f} over {len(rows)} trades in 10 days" if pf < c.autopause_pf else None
 
     def run(self, ctx):
         tr, c, t, quotes = ctx["tr"], ctx["cfg"], ctx["t"], ctx["quotes"]
@@ -84,6 +97,10 @@ class DayStrategyAgent:
             return
         if rep["pl"] <= -c.day_agent_loss_limit * ctx["equity"]:
             rep["note"] = f"loss limit hit ({rep['pl']:+.2f}); standing down"
+            return
+        pause = self.probation(tr, c, t)
+        if pause:
+            rep["note"] = pause
             return
         if len(rep["open"]) >= c.day_agent_max_open:
             rep["note"] = f"holding {', '.join(rep['open'])}"
@@ -108,7 +125,7 @@ class DayStrategyAgent:
             extra = {"stop_px": round(plan["stop"], 4), "stop_pct": round(plan["stop_pct"], 4),
                      "target_px": round(target, 4), "r_per_share": plan["risk_per_share"], "high": q["price"],
                      "opened_hm": ctx["hm"][0] * 60 + ctx["hm"][1], "setup": kind, "strat": self.name,
-                     "trend_exit": kind != "REVERSION"}
+                     "trend_exit": kind not in ("REVERSION", "SWEEP")}
             if tr.buy(sym, notional, "day", f"{self.label}: {why}; stop {plan['stop']:.2f} (-{plan['stop_pct']:.1%}), "
                       f"target {target:.2f}" + (f"; {m['quant_note']}" if m.get("quant_note") else ""), q, t, extra=extra):
                 ctx["team_room"] -= notional
@@ -208,10 +225,10 @@ class DayDesk:
         budget = equity * (mandate.budget_pct if mandate else c.day_pct) * scale
         deployed = sum(a.deployed(tr, quotes) for a in self.agents)
         ctx = {"tr": tr, "cfg": c, "quotes": quotes, "snap": snap, "t": t, "hm": hm, "equity": equity, "scale": scale,
-               "slice": budget / n, "team_room": budget - deployed, "report": report,
-               "agent_max_entries": max(1, math.ceil(c.day_max_trades / n)),
+               "slice": budget / min(n, 4), "team_room": budget - deployed, "report": report,
+               "agent_max_entries": max(2, math.ceil(c.day_max_trades / n)),
                "daily": self._daily_scores(quotes, t), "tilt": getattr(self, "tilt", {}),
-               "earnings": self._earnings_today(t)}
+               "earnings": self._earnings_today(t), "rank": self._rank_scores(snap)}
         tr.signals.refresh(c.day_symbols, "day")
         # agents with the better day so far get first call on shared cash and team budget
         for agent in sorted(self.agents, key=lambda a: -a.pl_today(tr, t)):
@@ -223,7 +240,15 @@ class DayDesk:
             if tr.day_entries_today(t) >= c.day_max_trades:
                 break
         desk["day_note"] = f"{sum(r['entries'] for r in report.values())}/{c.day_max_trades} entries; " \
-                           f"budget ${budget:,.0f}, slice ${budget / n:,.0f} per agent"
+                           f"budget ${budget:,.0f}, slice ${budget / min(n, 4):,.0f} per agent"
+
+    def _rank_scores(self, snap):
+        """Priority from the historical indicator ranking; computed from the daily bars the snapshots already used."""
+        tr = self.tr
+        if not tr.rank.w:
+            return {}
+        daily = tr.data.bars(list(tr.cfg.day_symbols), "day", 400, ttl=3600)
+        return {s: tr.rank.score(daily.get(s, []))[0] for s in tr.cfg.day_symbols}
 
     def _earnings_today(self, t):
         """Symbols reporting today (any timing: the gap risk is on the open or the close); cached for an hour."""

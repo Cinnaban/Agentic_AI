@@ -1,9 +1,11 @@
-"""Paper-only options income sleeve: cash-secured puts and covered calls (a "wheel"). Never naked.
+"""Paper-only options income sleeve: cash-secured puts, covered calls (a "wheel") and put credit spreads. Never naked.
 
 Safety invariants (enforced in code and tested):
 - a put is only sold when free cash covers strike x 100 x contracts (cash-secured; the paper account never shorts stock);
 - a call is only sold against income-sleeve shares that are not already covering another call;
-- calls are sold at or above the share cost basis.
+- calls are sold at or above the share cost basis;
+- a put credit spread always pairs the short put with a bought put at a lower strike, is secured by the full
+  spread width, and settles in cash, so its loss is capped at (width - credit) x 100 x contracts.
 Real option quotes come from Robinhood's read-only market-data tools; nothing is ever ordered.
 """
 from __future__ import annotations
@@ -13,6 +15,7 @@ from datetime import date, datetime
 MULT = 100
 # Only strategies with a finite, known worst case may ever be opened. Anything else is refused.
 ALLOWED_KINDS = {"put": "cash_secured_put", "call": "covered_call"}
+SPREAD = "put_credit_spread"
 
 
 class UnlimitedRiskRefused(RuntimeError):
@@ -21,6 +24,11 @@ class UnlimitedRiskRefused(RuntimeError):
 
 def max_loss(o):
     """Worst-case loss in dollars for a short option position, or None if it is not provably finite."""
+    if o.get("kind") == SPREAD:  # long put below the short put caps the loss at the width less the credit
+        width = o["strike"] - (o.get("long_strike") or o["strike"])
+        if width <= 0 or not o.get("long_id") or not 0 < o["credit"] < width:
+            return None
+        return (width - o["credit"]) * MULT * o["qty"]
     if o["type"] == "put":  # stock to zero, collateral held in cash
         return max(0.0, (o["strike"] - o["credit"]) * MULT * o["qty"])
     if o["type"] == "call":  # shares already owned: loss is the shares falling to zero (finite)
@@ -28,7 +36,21 @@ def max_loss(o):
     return None
 
 
+def _coll(o):
+    """Cash held against a short put: the full strike for a cash-secured put, the spread width for a spread."""
+    if o["type"] != "put":
+        return 0.0
+    width = o["strike"] - o["long_strike"] if o.get("kind") == SPREAD else o["strike"]
+    return width * MULT * o["qty"]
+
+
+def _legs(o):
+    return 2 if o.get("kind") == SPREAD else 1
+
+
 def _label(o):
+    if o.get("kind") == SPREAD:
+        return f"{o['sym']} {o['exp']} {o['strike']:g}/{o['long_strike']:g}P spread"
     return f"{o['sym']} {o['exp']} {o['strike']:g}{'C' if o['type'] == 'call' else 'P'}"
 
 
@@ -42,7 +64,7 @@ class Income:
         return self.tr.s.setdefault("options", [])
 
     def collateral(self):
-        return sum(o["strike"] * MULT * o["qty"] for o in self.opts if o["type"] == "put")
+        return sum(_coll(o) for o in self.opts)
 
     def liability(self):
         return sum((o.get("mark") or o["credit"]) * MULT * o["qty"] for o in self.opts)
@@ -96,6 +118,40 @@ class Income:
                   f"{'cash-secured' if kind == 'put' else 'covered'})", o, fee, reason=f"premium {credit / contract['strike']:.1%} of strike")
         return True
 
+    def sell_credit_spread(self, sym, short, short_q, long, long_q, qty, t, strat=None):
+        """Sell the higher-strike put and buy the lower-strike put on the same expiry. Both legs or neither."""
+        s, c = self.tr.s, self.tr.cfg
+        if not isinstance(qty, int) or qty < 1 or long["strike"] >= short["strike"] or long["exp"] != short["exp"]:
+            raise UnlimitedRiskRefused("a credit spread needs a lower-strike long put on the same expiry")
+        if not short_q.get("bid") or not long_q.get("ask"):
+            return False
+        credit = round(short_q["bid"] - long_q["ask"], 2)
+        width = short["strike"] - long["strike"]
+        fee = c.opt_fee * qty * 2
+        if credit < 0.05 or credit >= width or self.tr.free_cash() < width * MULT * qty:
+            return False
+        o = {"id": short["id"], "sym": sym, "type": "put", "strike": short["strike"], "exp": short["exp"], "qty": qty,
+             "credit": credit, "mark": credit, "opened": t.isoformat(), "fee_open": fee, "kind": SPREAD,
+             "long_id": long["id"], "long_strike": long["strike"], **({"strat": strat} if strat else {})}
+        if max_loss(o) is None:
+            raise UnlimitedRiskRefused("worst case is not provably finite")
+        s["cash"] += credit * MULT * qty - fee
+        s["fees_total"] += fee
+        self.opts.append(o)
+        self._log(t, f"SELL TO OPEN {_label(o)} x{qty} @ ${credit:.2f} net (+${credit * MULT * qty:,.2f}, max loss "
+                  f"${max_loss(o):,.0f}, secured by ${width * MULT * qty:,.0f} width)", o, fee,
+                  reason=f"credit {credit / width:.0%} of ${width:g} width")
+        return True
+
+    def _close_debit(self, o, qs):
+        """Per-share cost to close at the market: the ask for a single leg, short ask less long bid for a spread."""
+        q = qs.get(o["id"]) or {}
+        ask = q.get("ask") or q.get("mark") or o.get("mark") or o["credit"]
+        if o.get("kind") != SPREAD:
+            return ask
+        lq = qs.get(o["long_id"]) or {}
+        return max(0.0, min(ask - (lq.get("bid") or 0.0), o["strike"] - o["long_strike"]))
+
     def _finish(self, o, debit_per_share, fee, t, desc, reason):
         s = self.tr.s
         realized = (o["credit"] - debit_per_share) * MULT * o["qty"] - o["fee_open"] - fee
@@ -107,7 +163,7 @@ class Income:
         return realized
 
     def buy_to_close(self, o, ask, reason, t):
-        fee = self.tr.cfg.opt_fee * o["qty"]
+        fee = self.tr.cfg.opt_fee * o["qty"] * _legs(o)
         r = self._finish(o, ask, fee, t, f"BUY TO CLOSE {_label(o)} x{o['qty']} @ ${ask:.2f}", reason)
         return r
 
@@ -115,6 +171,11 @@ class Income:
         s = self.tr.s
         itm = under_px > o["strike"] + 0.005 if o["type"] == "call" else under_px < o["strike"] - 0.005
         shares = MULT * o["qty"]
+        if o.get("kind") == SPREAD and itm:  # cash-settled at the intrinsic value of the spread, no shares change hands
+            debit = min(o["strike"] - under_px, o["strike"] - o["long_strike"])
+            self._finish(o, debit, 0.0, t, f"SETTLED {_label(o)} x{o['qty']}: closed at intrinsic ${debit:.2f}",
+                         "spread in the money at expiry")
+            return
         if not itm:
             self._finish(o, 0.0, 0.0, t, f"EXPIRED WORTHLESS {_label(o)} x{o['qty']} (kept ${o['credit'] * shares:,.2f})",
                          "out of the money at expiry")
@@ -156,21 +217,25 @@ class Income:
             return
         d, c = self.tr.data, self.tr.cfg
         try:
-            qs = d.option_quotes([o["id"] for o in self.opts])
+            qs = d.option_quotes(self._ids())
         except Exception as exc:
             print("[paper] option quotes failed:", repr(exc))
             return
         for o in list(self.opts):
             q = qs.get(o["id"])
-            if not q or not q.get("mark"):
+            lq = qs.get(o.get("long_id")) if o.get("kind") == SPREAD else None
+            if not q or not q.get("mark") or (o.get("kind") == SPREAD and not (lq and lq.get("mark"))):
                 continue
-            o["mark"] = q["mark"]
-            ask = q.get("ask") or q["mark"]
+            o["mark"] = q["mark"] - (lq["mark"] if lq else 0.0)
+            ask = self._close_debit(o, qs)
             if ask and ask <= o["credit"] * (1 - c.opt_take_profit):
                 self.buy_to_close(o, ask, f"took {c.opt_take_profit:.0%} of max profit", t)
             elif o["type"] == "put" and ask >= o["credit"] * c.opt_stop_mult:
                 self.buy_to_close(o, ask, f"stop: option worth {c.opt_stop_mult:g}x credit", t)
                 self.tr.s.setdefault("opt_stopouts", {})[o["sym"]] = t.date().isoformat()
+
+    def _ids(self):
+        return [i for o in self.opts for i in (o["id"], o.get("long_id")) if i]
 
     def _liquid(self, q, c):
         if not q or not q.get("bid") or not q.get("ask") or q["bid"] < 0.05:
@@ -247,19 +312,19 @@ class Income:
         print("[paper] RISK GUARD: uncovered option detected, closing:", self.naked_violations())
         qs = {}
         try:
-            qs = self.tr.data.option_quotes([o["id"] for o in self.opts])
+            qs = self.tr.data.option_quotes(self._ids())
         except Exception:
             pass
         for o in list(self.opts):
             if o["type"] == "call" and self.covered_shares(o["sym"]) > ((self.tr.s["positions"].get(o["sym"]) or {}).get("qty", 0)) + 1e-6 \
                     or max_loss(o) is None or (o["type"] == "put" and self.tr.s["cash"] + 1e-6 < self.collateral()):
-                q = qs.get(o["id"]) or {}
-                self.buy_to_close(o, q.get("ask") or q.get("mark") or o.get("mark") or o["credit"], "risk guard: not fully covered", t)
+                self.buy_to_close(o, self._close_debit(o, qs), "risk guard: not fully covered", t)
 
     def lines(self, quotes):
         out = []
         for o in sorted(self.opts, key=lambda o: (o["exp"], o["sym"])):
-            kind = "covered call" if o["type"] == "call" else "cash-secured put"
+            kind = ("covered call" if o["type"] == "call" else "put credit spread" if o.get("kind") == SPREAD
+                    else "cash-secured put")
             under = (quotes.get(o["sym"]) or {}).get("price")
             out.append(f"- {_label(o)} x{o['qty']} ({kind}, max loss ${max_loss(o):,.0f}): credit ${o['credit']:.2f}, mark ${(o.get('mark') or o['credit']):.2f}"
                        + (f", stock ${under:,.2f}" if under else ""))

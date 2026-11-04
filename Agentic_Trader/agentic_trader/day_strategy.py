@@ -81,17 +81,47 @@ def analyze(bars5, daily, price, day):
     d_atr = atr(dh, dl, dc, 14)
     n_or = min(OR_BARS, len(today))
     prior_v = tv[:-1][-20:]
-    return {
+    extra = _structure(tc, th, tl, tv, typical, a5, n_or, float(dh[-1]), float(dl[-1]))
+    return {**extra,
         "price": price, "vwap": vwap, "ema9": float(e9[-1]), "ema21": float(e21[-1]), "ema9_prev": float(e9[-2]),
         "rsi": rsi(close), "rsi_prev": rsi(close[:-1]), "atr5": a5, "atr5_pct": (a5 / price) if a5 else None,
         "daily_atr_pct": (d_atr / dc[-1]) if d_atr else None,
         "or_high": float(th[:n_or].max()), "or_low": float(tl[:n_or].min()), "or_done": len(today) >= OR_BARS,
         "last_close": float(tc[-1]), "last_low": float(tl[-3:].min()),
         "rvol": float(tv[-1] / prior_v.mean()) if len(prior_v) and prior_v.mean() else None,
-        "day_open": float(today[0]["open"] or tc[0]), "day_high": float(th.max()), "day_low": float(tl.min()),
+        "day_open": float(today[0]["open"] or tc[0]), "gap_pct": float((today[0]["open"] or tc[0]) / dc[-1] - 1), "day_high": float(th.max()), "day_low": float(tl.min()),
         "daily_ma20": float(dc[-20:].mean()), "daily_ma50": float(dc[-50:].mean()), "prev_close": float(dc[-1]),
         "above_vwap_share": float((tc > ((th + tl + tc) / 3)).mean()),
     }
+
+
+def _structure(tc, th, tl, tv, typical, a5, n_or, pdh, pdl):
+    """Price-structure reads on today's 5-minute bars: unfilled bullish fair value gap, liquidity sweep of a
+    swing low, break-and-retest of a key level, VWAP reclaim, plus the open gap and prior-day high."""
+    n, a = len(tc), a5 or 0.0
+    cum_v = np.cumsum(tv)
+    vw = np.where(cum_v > 0, np.cumsum(typical * tv) / np.where(cum_v > 0, cum_v, 1), tc)
+    fvg = None
+    for i in range(n - 1, max(1, n - 25), -1):  # three-candle imbalance: bar i's low is above bar i-2's high
+        bottom, top = float(th[i - 2]), float(tl[i])
+        if top - bottom >= 0.5 * a and (i + 1 >= n or tl[i + 1:].min() > bottom):
+            fvg = (bottom, top)
+            break
+    sweep = None
+    if n >= 8:
+        for lvl in (float(tl[:-3].min()), pdl):  # stops resting under the day's low or yesterday's low
+            if tl[-3:].min() < lvl - 0.05 * a and tc[-1] > lvl and tc[-1] > tc[-2]:
+                sweep = lvl
+                break
+    retest = None
+    for lvl in (float(th[:n_or].max()), pdh):
+        broke = [k for k in range(n_or, n - 3) if tc[k] > lvl + 0.2 * a]
+        if broke and tl[-1] <= lvl + 0.35 * a and tc[-1] > lvl and tc[broke[0]:].min() > lvl - 0.4 * a:
+            retest = lvl
+            break
+    below = tc < vw
+    reclaim = bool(n >= 10 and below[-8:-2].sum() >= 3 and not below[-2:].any() and tl[-2:].min() > vw[-1] - 0.3 * a)
+    return {"fvg": fvg, "sweep": sweep, "retest": retest, "vwap_reclaim": reclaim, "pdh": pdh}
 
 
 def daily_bias(m):
@@ -150,6 +180,8 @@ def pullback(m, cfg):
     if dipped and turning:
         return ("PULLBACK", float(min(1.0, 0.45 + 0.3 * max(0.0, daily_bias(m))))), \
             f"pullback to VWAP/EMA21 holding, RSI {m['rsi']:.0f} turning up"
+    if m.get("vwap_reclaim") and (m["rsi"] or 50) < 68:  # VWAP break-and-hold: back above and holding for two bars
+        return ("PULLBACK", float(min(1.0, 0.4 + 0.3 * max(0.0, daily_bias(m))))), "reclaimed VWAP and held two bars"
     return None, "no pullback trigger"
 
 
@@ -163,6 +195,55 @@ def momentum(m, cfg):
         strength = min(1.0, 0.4 + 0.3 * min(2.0, (m["rvol"] or 1) - 1) + 0.3 * max(0.0, daily_bias(m)))
         return ("MOMENTUM", float(max(0.1, strength))), f"pressing day high {m['day_high']:.2f}, rvol {(m['rvol'] or 0):.1f}, RSI {m['rsi']:.0f}"
     return None, "no momentum breakout"
+
+
+def retest(m, cfg):
+    """Break-and-retest: a level (opening-range high or yesterday's high) broke on a close, price came back to it, held."""
+    why = _trend_gate(m, cfg, allow_extension=True)
+    if why:
+        return None, why
+    if m.get("retest") and m["last_close"] > m["ema9"] and (m["rsi"] or 50) < cfg.max_rsi:
+        return ("RETEST", float(min(1.0, 0.5 + 0.3 * max(0.0, daily_bias(m))))), \
+            f"retest of broken level {m['retest']:.2f} held"
+    return None, "no break-and-retest"
+
+
+def sweep(m, cfg):
+    """Liquidity sweep: price wicks under a swing low or yesterday's low (stops), closes back above and turns up."""
+    why = _vol_gate(m, cfg)
+    if why:
+        return None, why
+    if daily_bias(m) < cfg.min_bias or m["price"] < m["daily_ma50"]:
+        return None, "daily trend not intact for a sweep reversal"
+    if m.get("sweep") and m["price"] >= m["vwap"] - 1.5 * m["atr5"] and (m["rsi"] or 50) > (m["rsi_prev"] or 50):
+        return ("SWEEP", float(min(1.0, 0.45 + 0.3 * max(0.0, daily_bias(m))))), \
+            f"swept stops under {m['sweep']:.2f} and reclaimed it"
+    return None, "no liquidity sweep"
+
+
+def fvg(m, cfg):
+    """Fair value gap: enter the pullback into an unfilled bullish three-candle imbalance while the trend is up."""
+    why = _trend_gate(m, cfg, allow_extension=True)
+    if why:
+        return None, why
+    z = m.get("fvg")
+    if z and m["last_low"] <= z[1] + 0.1 * m["atr5"] and m["last_close"] > z[0] and m["last_close"] > m["ema9"]:
+        return ("FVG", float(min(1.0, 0.45 + 0.3 * max(0.0, daily_bias(m))))), \
+            f"pullback into bullish fair value gap {z[0]:.2f}-{z[1]:.2f}"
+    return None, "no fair value gap pullback"
+
+
+def gapgo(m, cfg):
+    """Gap-and-go: a gapper on heavy relative volume that holds above its open and VWAP and presses the opening range."""
+    why = _trend_gate(m, cfg, allow_extension=True)
+    if why:
+        return None, why
+    if m.get("gap_pct", 0) < cfg.gap_min:
+        return None, f"no gap (open {m.get('gap_pct', 0):+.1%})"
+    if m["or_done"] and m["last_close"] > m["or_high"] and m["price"] > m["day_open"] and (m["rvol"] or 0) >= cfg.min_rvol * 1.3:
+        return ("GAPGO", float(min(1.0, 0.45 + 0.3 * min(2.0, (m["rvol"] or 1) - 1) + 0.2 * min(1.0, m["gap_pct"] / 0.05)))), \
+            f"gap {m['gap_pct']:+.1%} holding above the open, rvol {(m['rvol'] or 0):.1f}"
+    return None, "gap not holding"
 
 
 def reversion(m, cfg):
@@ -187,6 +268,10 @@ STRATEGIES = {
     "PULLBACK": ("VWAP pullback", pullback),
     "MOMENTUM": ("Day-high momentum", momentum),
     "REVERSION": ("Oversold bounce", reversion),
+    "RETEST": ("Break and retest", retest),
+    "SWEEP": ("Liquidity sweep", sweep),
+    "FVG": ("Fair value gap", fvg),
+    "GAPGO": ("Gap and go", gapgo),
 }
 
 

@@ -77,6 +77,12 @@ class Cfg:
         self.stall_min = int(os.getenv("PAPER_DAY_STALL_MIN", "90"))
         # mean-reversion trades target a return to VWAP and need longer to play out
         self.reversion_stall_min = int(os.getenv("PAPER_DAY_REVERSION_STALL_MIN", "180"))
+        self.autopause = os.getenv("PAPER_DAY_AUTOPAUSE", "1") not in ("0", "false", "off")  # pause a losing strategy agent
+        self.autopause_min = int(os.getenv("PAPER_DAY_AUTOPAUSE_MIN_TRADES", "8"))
+        self.autopause_pf = float(os.getenv("PAPER_DAY_AUTOPAUSE_PF", "0.6"))
+        self.rank_enabled = os.getenv("PAPER_SIGNAL_RANK", "1") not in ("0", "false", "off")
+        self.rank_weight = float(os.getenv("PAPER_SIGNAL_RANK_WEIGHT", "0.5"))
+        self.gap_min = float(os.getenv("PAPER_DAY_GAP_MIN", "0.015"))  # open gap for the gap-and-go agent
         self.min_rvol = float(os.getenv("PAPER_DAY_MIN_RVOL", "1.1"))
         self.min_bias = float(os.getenv("PAPER_DAY_MIN_BIAS", "0.0"))
         self.max_rsi = float(os.getenv("PAPER_DAY_MAX_RSI", "72"))
@@ -242,7 +248,9 @@ class PaperTrader:
         self.income = Income(self)
         from .quant_gate import QuantGate
         from .market_signals import MarketSignals
+        from .signal_research import SignalRank
         self.signals = MarketSignals(enabled=self.cfg.news_signal)
+        self.rank = SignalRank(path=Path(store.mirror).with_name("signal_ranking.json"), enabled=self.cfg.rank_enabled)
         self.quant = QuantGate(data, enabled=self.cfg.quant_gate, path=Path(store.mirror).with_name("quant_suite.json"))
         self.desk = Desk(self)
         self.plan = None
@@ -486,6 +494,10 @@ class PaperTrader:
         if phase == "open" and hm >= (9, 35):
             equity = self.equity(quotes)
             reg = self.volatility()
+            try:
+                self.rank.refresh(self.data, set(self.cfg.etfs) | set(self.cfg.day_symbols) | set(self.cfg.opt_symbols), t)
+            except Exception as exc:
+                print("[paper] signal ranking refresh failed:", repr(exc))
             self.plan = self.desk.orchestrator.plan(quotes, t, equity, reg)
             m = self.plan.mandates
             steps = []
@@ -501,6 +513,7 @@ class PaperTrader:
         equity = self.equity(quotes)
         self.s["equity_log"].append([t.isoformat(), equity])
         self.s["equity_log"] = self.s["equity_log"][-4000:]
+        self.record_benchmark(t, quotes)
         self.s["marks"] = {sym: (quotes.get(sym) or {}).get("price") or p["avg"] for sym, p in self.s["positions"].items()}
         if phase == "open":
             self.maybe_post_half_hour(t, quotes, equity)
@@ -522,6 +535,23 @@ class PaperTrader:
         except Exception as exc:
             print("[paper] session chart failed:", repr(exc))
             return {}
+
+    def record_benchmark(self, t, quotes):
+        """Daily SPY closes since the account started, so Grafana can chart the account against the S&P 500."""
+        bench = self.s.setdefault("bench_daily", {})
+        start = self.s["created"][:10]
+        if not bench or self.s.get("bench_day") != t.date().isoformat():
+            try:
+                for b in self.data.bars(["SPY"], "day", 400, ttl=3600).get("SPY", []):
+                    d = b["ts"].date().isoformat() if b.get("ts") else None
+                    if d and d >= start and b.get("close"):
+                        bench[d] = float(b["close"])
+                self.s["bench_day"] = t.date().isoformat()
+            except Exception as exc:
+                print("[paper] benchmark history failed:", repr(exc))
+        px = (quotes.get("SPY") or {}).get("price")
+        if px:
+            bench[t.date().isoformat()] = float(px)
 
     def maybe_post_half_hour(self, t, quotes, equity):
         slot = t.replace(minute=0 if t.minute < 30 else 30, second=0, microsecond=0)
@@ -732,7 +762,7 @@ def status_text(t=None):
          "Realized P/L (after fees):", _money(st["realized_total"], True), "", "Holdings:"]
     L += [f"- {s} ({p['sleeve']}): {p['qty']:g} sh @ {_money(p['avg'])}" for s, p in sorted(st["positions"].items())] or ["- none"]
     for o in st.get("options", []):
-        L += [f"- option: {o['sym']} {o['exp']} {o['strike']:g}{'C' if o['type'] == 'call' else 'P'} x{o['qty']} "
+        L += [f"- option: {o['sym']} {o['exp']} {o['strike']:g}{'C' if o['type'] == 'call' else 'P'}{'/' + format(o['long_strike'], 'g') + 'P spread' if o.get('long_strike') else ''} x{o['qty']} "
               f"({'covered call' if o['type'] == 'call' else 'cash-secured put'}), credit ${o['credit']:.2f}"]
     desk = st.get("desk") or {}
     if desk.get("stance"):

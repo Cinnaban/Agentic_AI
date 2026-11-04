@@ -10,7 +10,7 @@ Goals are measured, never chased: falling short of a goal never raises a cap abo
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 
 from .day_agents import DayDesk
@@ -60,18 +60,66 @@ class Orchestrator:
     DRAWDOWN_DAY = -0.02
     DRAWDOWN_WEEK = -0.04
 
+    # weekly capital review: each team's budget moves within [FLOOR, CEIL] x its configured base, and never past
+    # a hard ceiling, so a hot week can enlarge a team but not remove the account's overall limits
+    FLOOR, CEIL, STEP, MIN_SPREAD = 0.5, 1.3, 0.10, 0.001
+    HARD_CAP = {"growth": 0.70, "options": 0.40, "day": 0.40}
+
     def __init__(self, trader):
         self.tr = trader
+        c = trader.cfg
+        self.base = {"growth": min(c.growth_pct, 1 - self.RESERVE - c.opt_pct), "options": c.opt_pct, "day": c.day_pct}
+
+    def weekly_review(self, quotes, t, equity):
+        """Once every 7 days, nudge the best team up and the weakest down by STEP, ranked by trailing-week P&L as a
+        share of the account (realized plus open). Teams with no activity are left alone. Returns a note or None."""
+        s = self.tr.s
+        al = s.setdefault("alloc", {"mult": {a: 1.0 for a in AGENTS}, "ts": None, "history": []})
+        last = al.get("ts")
+        if last and (t - datetime.fromisoformat(last)).total_seconds() < 7 * 86400:
+            return None
+        since = (t - timedelta(days=7)).isoformat()
+        pnl = {a: 0.0 for a in AGENTS}
+        active = {a: 0 for a in AGENTS}
+        for x in s["trades"]:
+            a = agent_of(x)
+            if a in pnl and "realized" in x and x["ts"] >= since:
+                pnl[a] += x["realized"]
+                active[a] += 1
+        for a, v in self.attribution(quotes, t).items():
+            pnl[a] += v["open"]
+        score = {a: pnl[a] / equity for a in AGENTS}
+        ranked = sorted((a for a in AGENTS if active[a] >= 2 or pnl[a]), key=lambda a: -score[a])
+        mult = dict(al["mult"])
+        note = "weekly review: no team had a clear lead; allocations unchanged"
+        if len(ranked) >= 2 and score[ranked[0]] - score[ranked[-1]] >= self.MIN_SPREAD:
+            best, worst = ranked[0], ranked[-1]
+            mult[best] = min(self.CEIL, mult[best] + self.STEP)
+            mult[worst] = max(self.FLOOR, mult[worst] - self.STEP)
+            note = (f"weekly review: {LABELS[best]} led ({score[best]:+.2%} of account), {LABELS[worst]} trailed "
+                    f"({score[worst]:+.2%}); budget {mult[best]:.0%} / {mult[worst]:.0%} of base")
+        al.update(mult=mult, base=dict(self.base), ts=t.isoformat(), score={a: round(score[a], 5) for a in AGENTS}, note=note)
+        al["history"] = (al["history"] + [{"ts": t.isoformat(), "mult": dict(mult), "score": al["score"]}])[-26:]
+        return note
+
+    def budgets(self):
+        mult = (self.tr.s.get("alloc") or {}).get("mult") or {}
+        out = {a: min(self.HARD_CAP[a], self.base[a] * mult.get(a, 1.0)) for a in AGENTS}
+        out["growth"] = min(out["growth"], 1 - self.RESERVE - out["options"])
+        return out
 
     def plan(self, quotes, t, equity, reg):
         tr, c, s = self.tr, self.tr.cfg, self.tr.s
+        review = self.weekly_review(quotes, t, equity)
+        bud = self.budgets()
+        c.opt_pct = bud["options"]  # the options sub-manager reads its collateral cap from the config
         day_ret = equity / s["day"]["open_equity"] - 1
         week_ret = equity / s["week"]["open_equity"] - 1
         # growth + options hold capital overnight, so together they leave the cash reserve untouched
-        growth_cap = min(c.growth_pct, 1 - self.RESERVE - c.opt_pct)
-        growth = Mandate("growth", growth_cap)
-        options = Mandate("options", c.opt_pct)
-        day = Mandate("day", c.day_pct, scale=reg.get("day_scale", 1.0))
+        growth = Mandate("growth", bud["growth"])
+        options = Mandate("options", bud["options"])
+        day = Mandate("day", bud["day"], scale=reg.get("day_scale", 1.0))
+        head = [n for n in [review or (s.get("alloc") or {}).get("note")] if n]
         notes = []
 
         if reg.get("name") not in (None, "normal"):
@@ -113,6 +161,7 @@ class Orchestrator:
 
         stance = ("risk-off" if not (day.allow_new or options.allow_new)
                   else "reduced" if min(day.scale, options.scale) < 1 else "normal")
+        notes = head + notes
         plan = Plan({"growth": growth, "options": options, "day": day}, day_ret, week_ret, stance, notes)
         s["desk"] = {**s.get("desk", {}), **plan.as_state(t.isoformat())}
         return plan

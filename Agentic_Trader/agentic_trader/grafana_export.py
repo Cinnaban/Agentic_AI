@@ -13,11 +13,13 @@ import time
 from datetime import datetime
 
 from .config import STATE_DIR
-from .desk import agent_of
+from .desk import AGENTS, Orchestrator, agent_of
+from .paper_options import MULT, _coll, max_loss
 from .quant_suite import account_performance
 
 SOURCE = STATE_DIR / "paper_live.json"
 QUANT = STATE_DIR / "quant_suite.json"
+RANKING = STATE_DIR / "signal_ranking.json"
 TARGET = STATE_DIR / "trader_history.db"
 
 SCHEMA = """
@@ -34,6 +36,13 @@ CREATE TABLE quant (mode TEXT, symbol TEXT, score REAL, edge INTEGER, veto INTEG
                     rmse_vs_naive REAL, hit_rate REAL, ic REAL, auc REAL, log_loss REAL, sharpe REAL, sortino REAL,
                     max_dd REAL, profit_factor REAL, compute TEXT, ts INTEGER, reasons TEXT);
 CREATE TABLE quality (metric TEXT, value REAL);
+CREATE TABLE options (symbol TEXT, strat TEXT, kind TEXT, short_strike REAL, long_strike REAL, expiry TEXT, qty INTEGER,
+                      credit REAL, mark REAL, open_pnl REAL, max_loss REAL, collateral REAL);
+CREATE TABLE allocation (ts INTEGER, agent TEXT, mult REAL, budget_pct REAL, score_pct REAL, current INTEGER);
+CREATE TABLE ranking (rank INTEGER, name TEXT, parts INTEGER, tier TEXT, train_n INTEGER, train_excess_bp REAL,
+                      train_t REAL, hold_n INTEGER, hold_excess_bp REAL, hold_t REAL, hold_hit REAL, hold_pf REAL,
+                      weight REAL);
+CREATE TABLE benchmark (day TEXT, account_pct REAL, spy_pct REAL, excess_pct REAL);
 CREATE TABLE account (ts INTEGER, start_cash REAL, cash REAL, equity REAL, realized_total REAL,
                       fees_total REAL, total_return_pct REAL, regime TEXT);
 """
@@ -110,6 +119,50 @@ def export(source=SOURCE, target=TARGET):
             wf.get("log_loss"), pf.get("sharpe"), pf.get("sortino"), pf.get("max_dd"), pf.get("profit_factor"),
             r.get("where"), _epoch(r["ts"]) if r.get("ts") else None, "; ".join(r.get("reasons") or [])))
 
+    for o in state.get("options") or []:
+        short_mark = o.get("mark") if o.get("mark") is not None else o["credit"]
+        db.execute("INSERT INTO options VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (
+            o["sym"], o.get("strat") or "unassigned", o.get("kind"), o["strike"], o.get("long_strike"), o["exp"],
+            o["qty"], o["credit"], short_mark, (o["credit"] - short_mark) * MULT * o["qty"], max_loss(o), _coll(o)))
+
+    alloc = state.get("alloc") or {}
+    cur = alloc.get("mult") or {}
+    bases = alloc.get("base") or {"growth": 0.6, "options": 0.35, "day": 0.3}  # the orchestrator saves its bases
+    for row in (alloc.get("history") or []):
+        for a in AGENTS:
+            db.execute("INSERT INTO allocation VALUES (?,?,?,?,?,0)", (
+                _epoch(row["ts"]), a, row["mult"].get(a, 1.0),
+                min(Orchestrator.HARD_CAP[a], bases[a] * row["mult"].get(a, 1.0)) * 100,
+                (row.get("score") or {}).get(a, 0.0) * 100))
+    if cur:
+        now_ts = _epoch(alloc["ts"]) if alloc.get("ts") else int(time.time())
+        for a in AGENTS:
+            db.execute("INSERT INTO allocation VALUES (?,?,?,?,?,1)", (
+                now_ts, a, cur.get(a, 1.0), min(Orchestrator.HARD_CAP[a], bases[a] * cur.get(a, 1.0)) * 100,
+                (alloc.get("score") or {}).get(a, 0.0) * 100))
+
+    if RANKING.exists():
+        rk = json.loads(RANKING.read_text())
+        for r in (rk.get("singles") or []) + (rk.get("ranking") or []):
+            a, b = r["train"], r["holdout"]
+            db.execute("INSERT INTO ranking VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+                r["rank"], r["name"], r["parts"], r.get("tier", "none"), a["n"], a["excess_bp"], a["t"], b["n"],
+                b["excess_bp"], b["t"], b["hit"], b["pf"], r.get("weight", 0.0)))
+
+    bench = state.get("bench_daily") or {}
+    if bench:
+        days = sorted(bench)
+        last_eq = {}
+        for ts, eq in equity_log:
+            last_eq[_day(ts)] = float(eq)
+        first = next((d for d in days if d in last_eq), None)
+        if first:
+            b0, e0 = bench[first], last_eq[first]
+            for d in days:
+                if d in last_eq and d >= first:
+                    acc, spy = (last_eq[d] / e0 - 1) * 100, (bench[d] / b0 - 1) * 100
+                    db.execute("INSERT INTO benchmark VALUES (?,?,?,?)", (d, acc, spy, acc - spy))
+
     quality = account_performance(equity_log, trades)
     db.executemany("INSERT INTO quality VALUES (?,?)", [
         (k, v) for k, v in (("Sharpe", quality.get("sharpe")), ("Sortino", quality.get("sortino")),
@@ -149,7 +202,7 @@ def export(source=SOURCE, target=TARGET):
     db.commit()
     db.close()
     os.replace(tmp, target)
-    return {"equity": len(equity_log), "trades": len(trades), "days": len(by_day), "holdings": len(rows),
+    return {"options": len(state.get("options") or []), "equity": len(equity_log), "trades": len(trades), "days": len(by_day), "holdings": len(rows),
             "quant": len(suite.get("symbols") or {})}
 
 

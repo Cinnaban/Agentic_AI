@@ -1,11 +1,12 @@
 """Options team (paper only): a sub-manager that reports to the orchestrator and runs one agent per options strategy.
 
-Only cash-secured puts and covered calls exist here, so no agent can ever open an unlimited-loss position; every
+Only cash-secured puts, covered calls and put credit spreads exist here, so no agent can ever open an unlimited-loss position; every
 open goes through `Income.sell_to_open`, which refuses anything else. The `OptionsManager` owns what must be common
 (the risk guard, marks and exits, the capital split, the report). Each agent owns one strategy:
 
 - yield puts      higher-delta cash-secured puts ranked by delta-adjusted annualised yield
 - defensive puts  low-delta, further-out-of-the-money cash-secured puts on the same universe
+- put spreads     put credit spreads: a short put paired with a bought lower-strike put, so loss is capped
 - covered calls   calls against shares assigned from puts, never below cost basis
 """
 from __future__ import annotations
@@ -13,7 +14,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date, datetime
 
-from .paper_options import MULT
+from .paper_options import MULT, _coll
 
 MIN_OTM = 0.02
 
@@ -43,7 +44,7 @@ class _Agent:
         return [o for o in self.tr.income.opts if o["type"] == "put" and o.get("strat") == self.name]
 
     def collateral(self):
-        return sum(o["strike"] * MULT * o["qty"] for o in self.open_puts())
+        return sum(_coll(o) for o in self.open_puts())
 
     def throttled(self, t):
         key = f"opt_scan_{self.name}"
@@ -61,6 +62,25 @@ class PutAgent(_Agent):
     OTM_FLOOR = MIN_OTM
     MAX_DROP = -0.03
     MIN_VRP = 0.0  # required implied/realized vol ratio; 0 means the ratio only tilts the ranking
+
+    def _min_cost(self, px):
+        """Smallest cash a position in this symbol could need, used to skip names the budget cannot fund."""
+        return px * MULT * (1 - max(self.tr.cfg.opt_otm, self.OTM_FLOOR))
+
+    def _cost(self, best):
+        return best[0]["strike"] * MULT
+
+    def _open(self, sym, best, t):
+        return self.tr.income.sell_to_open("put", sym, best[0], best[1], 1, t, strat=self.name)
+
+    def _rank(self, sym):
+        tr = self.tr
+        if not tr.rank.w:
+            return 0.0
+        try:
+            return tr.rank.score(tr.data.bars([sym], "day", 400, ttl=3600).get(sym, []))[0]
+        except Exception:
+            return 0.0
 
     def _vrp(self, sym, iv):
         """Implied vol over a blend of 20-day and 1-year realized vol: above 1 the market pays for the risk it sells."""
@@ -123,7 +143,7 @@ class PutAgent(_Agent):
                 stats["cooling down after stop-out"] += 1
             elif not px:
                 stats["no quote"] += 1
-            elif px * MULT * (1 - max(c.opt_otm, self.OTM_FLOOR)) > room:
+            elif self._min_cost(px) > room:
                 stats["too large for budget"] += 1
             elif (q.get("change_pct") or 0) < self.MAX_DROP:
                 stats[f"falling >{abs(self.MAX_DROP):.0%}"] += 1
@@ -143,16 +163,17 @@ class PutAgent(_Agent):
                     stats["no vol premium"] += 1
                 elif best:
                     tilt = min(1.5, max(0.7, vrp)) if vrp else 1.0
-                    candidates.append((best[3] * (1 + 0.5 * tr.quant.verdict(sym, "options")[1]) * tilt, sym, best))
+                    candidates.append((best[3] * (1 + 0.5 * tr.quant.verdict(sym, "options")[1]) * tilt
+                                       * (1 + c.rank_weight * self._rank(sym)), sym, best))
                 else:
                     stats["earnings or no liquid strike" if sym in earn else "no liquid strike"] += 1
         opened = 0
-        for _, sym, (contract, oq, dte, _s, _iv) in sorted(candidates, key=lambda x: -x[0]):
-            if total_puts + opened >= c.opt_max_positions or contract["strike"] * MULT > room:
+        for _, sym, best in sorted(candidates, key=lambda x: -x[0]):
+            if total_puts + opened >= c.opt_max_positions or self._cost(best) > room:
                 continue
-            if inc.sell_to_open("put", sym, contract, oq, 1, t, strat=self.name):
+            if self._open(sym, best, t):
                 opened += 1
-                room -= contract["strike"] * MULT
+                room -= self._cost(best)
         parts = [f"{n} {why}" for why, n in stats.most_common()]
         return {"opened": opened, "note": f"scanned {len(c.opt_symbols)} names: opened {opened} put(s)"
                 + (f"; skipped {', '.join(parts[:4])}" if parts else "")}
@@ -177,6 +198,64 @@ class VRPPuts(PutAgent):
     DELTA_RANGE = (0.10, 0.25)
     OTM_FLOOR = 0.04
     MIN_VRP = 1.15
+
+
+class PutSpreads(PutAgent):
+    """Put credit spreads: sell a put 4-10% below the price and buy one a few strikes lower. The bought put caps the
+    loss, so the position needs far less cash than a cash-secured put and can never become a naked short."""
+    name, label, share = "put_spreads", "Put credit spreads", 0.5
+    DELTA_RANGE = (0.10, 0.30)
+    OTM_FLOOR = 0.03
+    MAX_DROP = -0.02
+    MIN_CREDIT_RATIO = 0.25  # net credit as a share of the spread width: caps risk at 3x the reward
+
+    def _min_cost(self, px):
+        return MULT
+
+    def _cost(self, best):
+        return (best[0]["strike"] - best[5]["strike"]) * MULT
+
+    def _open(self, sym, best, t):
+        return self.tr.income.sell_credit_spread(sym, best[0], best[1], best[5], best[6], 1, t, strat=self.name)
+
+    def _best(self, sym, px, t, earn_date, room):
+        d, c = self.tr.data, self.tr.cfg
+        best = None
+        otm = max(c.opt_otm, self.OTM_FLOOR)
+        exps = [e for e in d.option_expirations(sym)
+                if c.opt_min_dte <= (date.fromisoformat(e) - t.date()).days <= c.opt_max_dte][:2]
+        want = max(1.0, round(px * 0.05))  # target width: about 5% of the price, at least $1
+        for exp in exps:
+            if earn_date and earn_date <= exp:
+                continue
+            dte = (date.fromisoformat(exp) - t.date()).days
+            puts = sorted((x for x in d.option_contracts(sym, exp, "put") if x["strike"] <= px * (1 - otm)),
+                          key=lambda x: -x["strike"])
+            shorts = puts[:6]
+            if not shorts:
+                continue
+            pairs = []
+            for sh in shorts:
+                lows = [x for x in puts if x["strike"] <= sh["strike"] - want + 1e-9 and sh["strike"] - x["strike"] <= want * 2]
+                if lows and (sh["strike"] - lows[0]["strike"]) * MULT <= room:
+                    pairs.append((sh, lows[0]))
+            if not pairs:
+                continue
+            quotes = d.option_quotes(list({x["id"] for p in pairs for x in p}))
+            for sh, lo in pairs:
+                sq, lq = quotes.get(sh["id"]), quotes.get(lo["id"])
+                if not self.tr.income._liquid(sq, c) or not lq or not lq.get("ask"):
+                    continue
+                delta = abs(sq.get("delta") or 0)
+                if delta and not self.DELTA_RANGE[0] <= delta <= self.DELTA_RANGE[1]:
+                    continue
+                width, credit = sh["strike"] - lo["strike"], sq["bid"] - lq["ask"]
+                if credit < max(c.opt_min_credit, self.MIN_CREDIT_RATIO * width):
+                    continue
+                score = credit / width / dte * 365 * (1 - delta)
+                if best is None or score > best[3]:
+                    best = (sh, sq, dte, score, sq.get("iv"), lo, lq)
+        return best
 
 
 class CoveredCalls(_Agent):
@@ -209,7 +288,7 @@ class OptionsManager:
 
     def __init__(self, trader):
         self.tr = trader
-        self.agents = [VRPPuts(trader), YieldPuts(trader), DefensivePuts(trader), CoveredCalls(trader)]  # selective agent first
+        self.agents = [VRPPuts(trader), PutSpreads(trader), YieldPuts(trader), DefensivePuts(trader), CoveredCalls(trader)]  # selective agent first
 
     def report_lines(self, t):
         rep = self.tr.s.get("desk", {}).get("options_agents") or {}
