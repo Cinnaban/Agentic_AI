@@ -167,6 +167,7 @@ The Grafana dashboard shows current holdings (donut and table), risk stats and t
 KPI cards, a table of the team against each strategy (closes, win rate, net, average win/loss, best, worst, profit factor),
 cumulative P&L for the team and each strategy, daily P&L stacked by strategy, and the top 10 gains and losses.
 Trades before the strategy team existed show as `LEGACY (pre-team)`.
+The Discord daily summary carries the same view: a "Day team performance" block with the team and each strategy (closed trades, win rate, net, average win/loss, profit factor) for today and the strategy-team era, plus the top gains and losses.
 
 ## News, earnings and growth members
 

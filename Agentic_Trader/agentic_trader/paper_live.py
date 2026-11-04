@@ -594,6 +594,35 @@ class PaperTrader:
         L += self.quant.lines(self.s)
         return L
 
+    @staticmethod
+    def _perf(rows):
+        wins = [x["realized"] for x in rows if x["realized"] > 0]
+        loss = [x["realized"] for x in rows if x["realized"] < 0]
+        pf = f"{sum(wins) / -sum(loss):.2f}" if loss else ("n/a" if not wins else "inf")
+        return (f"{len(rows)} closed, win rate {len(wins) / len(rows):.0%}, net {_money(sum(x['realized'] for x in rows), True)}, "
+                f"avg win {_money(sum(wins) / len(wins)) if wins else '-'} / avg loss {_money(sum(loss) / len(loss), True) if loss else '-'}, "
+                f"profit factor {pf}")
+
+    def day_perf_lines(self, t):
+        """Day team vs each strategy for today and for the strategy-team era, with the biggest winners and losers."""
+        today = t.date().isoformat()
+        closes = [x for x in self.s["trades"] if x.get("sleeve") == "day" and x["side"] == "sell" and "realized" in x]
+        team = [x for x in closes if x.get("strat")]
+        L = ["", "Day team performance:"]
+        if not closes:
+            return L + ["- no closed day trades yet"]
+        for label, rows in (("Today", [x for x in closes if x["ts"][:10] == today]), ("Strategy-team era", team)):
+            L.append(f"{label} - TEAM: " + (self._perf(rows) if rows else "no closed trades"))
+            for name in sorted({x.get("strat") or "legacy" for x in rows}):
+                L.append(f"  - {name}: " + self._perf([x for x in rows if (x.get("strat") or "legacy") == name]))
+        pool = [x for x in closes if x["ts"][:10] == today] or closes
+        scope = "today" if pool is not closes else "all time"
+        fmt = lambda x: f"{x['sym']} {_money(x['realized'], True)} ({x.get('strat') or 'legacy'}, {x['reason']})"
+        ranked = sorted(pool, key=lambda x: x["realized"])
+        L.append(f"Top gains ({scope}): " + "; ".join(fmt(x) for x in reversed(ranked[-3:]) if x["realized"] > 0) or "none")
+        L.append(f"Top losses ({scope}): " + "; ".join(fmt(x) for x in ranked[:3] if x["realized"] < 0) or "none")
+        return L
+
     def summary(self, t, quotes, equity, daily):
         s, cfg = self.s, self.cfg
         since = datetime.fromisoformat(s["last_summary"]["ts"])
@@ -652,6 +681,8 @@ class PaperTrader:
                   else "No closed trades today",
                   f"Daily goal +10%: {'met' if day_pl / s['day']['open_equity'] >= 0.10 else 'not met'} "
                   f"(today {day_pl / s['day']['open_equity']:+.2%})"]
+        if daily:
+            L += self.day_perf_lines(t)
         L += ["", "Options income (covered calls / cash-secured puts only, never naked):",
               f"Premium sold {'today' if daily else 'this period'}: {_money(premium)} | "
               f"Collateral reserved: {_money(self.income.collateral())}"]

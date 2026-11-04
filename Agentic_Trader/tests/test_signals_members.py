@@ -87,3 +87,14 @@ def test_vrp_agent_needs_a_vol_premium_and_news_veto(tmp_path, monkeypatch):
     tr.signals.news["AAA"] = {"score": -0.6, "n": 5}
     tr.desk.options.run(quotes, T, tr.equity(quotes), tr.desk.orchestrator.plan(quotes, T, 5000, REG).mandates["options"])
     assert not tr.s["options"]
+
+
+def test_daily_summary_has_day_team_performance(tmp_path, monkeypatch):
+    tr = trader(tmp_path, Data(), monkeypatch)
+    assert "no closed day trades yet" in "\n".join(tr.day_perf_lines(T))
+    base = {"side": "sell", "sleeve": "day", "ts": T.isoformat(), "reason": "target"}
+    tr.s["trades"] += [dict(base, sym="AAA", realized=5.0, strat="ORB"), dict(base, sym="BBB", realized=-2.0, strat="ORB"),
+                       dict(base, sym="CCC", realized=1.0, strat="REVERSION")]
+    text = "\n".join(tr.day_perf_lines(T))
+    assert "TEAM: 3 closed" in text and "ORB: 2 closed" in text and "REVERSION: 1 closed" in text
+    assert "Top gains (today): AAA +$5.00" in text and "Top losses (today): BBB -$2.00" in text
