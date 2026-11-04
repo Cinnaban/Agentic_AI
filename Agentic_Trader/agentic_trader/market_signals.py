@@ -32,14 +32,14 @@ def score_feed(feed, symbols):
                 acc[sym][0] += rel * val
                 acc[sym][1] += rel
                 acc[sym][2] += 1
-    return {s: {"score": a / w, "n": n} for s, (a, w, n) in acc.items() if w > 0 for n in [acc[s][2]]}
+    return {s: {"score": a / w, "n": n} for s, (a, w, n) in acc.items() if w > 0}
 
 
 class MarketSignals:
     def __init__(self, av=None, enabled=True, ttl=7200, max_calls_per_day=6, reserve=10):
         self.enabled = enabled and os.getenv("PAPER_NEWS_SIGNAL", "1") not in ("0", "false", "off")
         self.av, self.ttl, self.max_calls, self.reserve = av, ttl, max_calls_per_day, reserve
-        self.news, self._at, self._calls, self._day = {}, 0.0, 0, None
+        self.news, self._at, self._calls, self._day = {}, {}, 0, None
         self._rate = None
 
     def _client(self):
@@ -54,9 +54,9 @@ class MarketSignals:
             self._day, self._calls = today, 0
         return self._calls < self.max_calls and av.used_today() < av.daily_limit - self.reserve
 
-    def refresh(self, symbols):
-        """Update sentiment for symbols; at most one batched request per ttl. Never raises."""
-        if not self.enabled or not symbols or time.time() - self._at < self.ttl:
+    def refresh(self, symbols, group="default"):
+        """Update sentiment for one group's symbols; at most one batched request per group per ttl. Never raises."""
+        if not self.enabled or not symbols or time.time() - self._at.get(group, 0.0) < self.ttl:
             return
         try:
             av = self._client()
@@ -65,9 +65,9 @@ class MarketSignals:
             syms = sorted(set(symbols))[:12]
             self._calls += 1
             body = av.call("NEWS_SENTIMENT", ttl=self.ttl, tickers=",".join(syms), sort="LATEST", limit=50)
-            self._at = time.time()
+            self._at[group] = time.time()
             if body and body.get("feed"):
-                self.news = score_feed(body["feed"], syms)
+                self.news.update(score_feed(body["feed"], syms))
         except Exception as exc:
             print("[news] unavailable:", repr(exc), flush=True)
 

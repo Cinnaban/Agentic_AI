@@ -113,7 +113,7 @@ class PutAgent(_Agent):
         stopouts = s.get("opt_stopouts", {})
         scan = [x for x in c.opt_symbols if x not in taken and x not in held]
         tr.quant.ensure(scan, "options")
-        tr.signals.refresh(scan)
+        tr.signals.refresh(scan, "options")
         for sym in c.opt_symbols:
             q = quotes.get(sym) or {}
             px = q.get("price")
@@ -183,7 +183,7 @@ class CoveredCalls(_Agent):
     name, label, share = "covered_calls", "Covered calls", 0.0
 
     def run(self, quotes, t, equity, budget, room_total):
-        tr, s, inc = self.tr, self.tr.s, self.tr.income
+        s, inc = self.tr.s, self.tr.income
         if self.throttled(t):
             return {"note": "waiting for next scan window", "opened": 0}
         opened = 0
@@ -223,7 +223,7 @@ class OptionsManager:
         return prem, pl
 
     def run(self, quotes, t, equity, mandate):
-        tr, c, s, inc = self.tr, self.tr.cfg, self.tr.s, self.tr.income
+        tr, s, inc = self.tr, self.tr.s, self.tr.income
         inc.enforce(quotes, t)  # the risk guard belongs to the manager, not to any one strategy
         inc.manage(t)
         desk = s.setdefault("desk", {})

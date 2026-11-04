@@ -8,7 +8,7 @@ This stays disabled until paper trading is proven. To wire it up later:
 """
 from __future__ import annotations
 
-from .paper import Fill, PaperBroker
+from .paper import PaperBroker
 
 
 class RobinhoodMCPBroker(PaperBroker):

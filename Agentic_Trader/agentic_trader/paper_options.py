@@ -8,7 +8,6 @@ Real option quotes come from Robinhood's read-only market-data tools; nothing is
 """
 from __future__ import annotations
 
-import math
 from datetime import date, datetime
 
 MULT = 100

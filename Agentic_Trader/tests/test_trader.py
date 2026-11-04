@@ -212,7 +212,6 @@ def test_review_math():
 
 # ---- internal live paper trading -------------------------------------------------
 def _pt(tmp_path, quotes_fn, analyze_fn, clock):
-    from datetime import datetime
     from agentic_trader import paper_live as pl
 
     class Data:
@@ -245,7 +244,6 @@ def _q(price, as_of):
 def test_paper_live_cycle_fees_and_summaries(tmp_path):
     from datetime import datetime
     from zoneinfo import ZoneInfo
-    from agentic_trader import paper_live as pl
     ET = ZoneInfo("America/New_York")
     clk = {"t": datetime(2026, 10, 14, 9, 40, tzinfo=ET)}  # Wednesday
     px = {"NVDA": 200.0}
@@ -336,7 +334,7 @@ def test_pdt_rule_2026(tmp_path):
 
 
 def test_session_chart_half_hour_series_and_png(tmp_path):
-    from datetime import date, datetime
+    from datetime import date
     from agentic_trader import session_chart as sc
     day = date(2026, 10, 16)
     slots = sc.session_slots(day)

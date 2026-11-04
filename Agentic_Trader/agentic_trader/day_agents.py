@@ -46,6 +46,9 @@ class DayStrategyAgent:
             m, q = snap.get(sym), quotes.get(sym)
             if not m or not q or sym in tr.s["positions"]:
                 continue
+            if sym in ctx.get("earnings", ()):
+                skipped[sym] = "reports earnings today"
+                continue
             cd = tr.s["cooldown"].get(sym)
             if cd and (t - datetime.fromisoformat(cd)).total_seconds() < c.reentry_min * 60:
                 skipped[sym] = "cooling down after last exit"
@@ -56,6 +59,9 @@ class DayStrategyAgent:
                 veto, qscore, size, note = tr.quant.verdict(sym, "day")
                 if veto:
                     skipped[sym] = f"{kind} setup vetoed by the quant suite ({qscore:+.2f})"
+                    continue
+                if tr.signals.bearish(sym):
+                    skipped[sym] = f"{kind} setup skipped: bearish news"
                     continue
                 ft = ctx.get("tilt", {}).get(sym) or {}
                 if ft and not ft["liquid"]:
@@ -204,7 +210,9 @@ class DayDesk:
         ctx = {"tr": tr, "cfg": c, "quotes": quotes, "snap": snap, "t": t, "hm": hm, "equity": equity, "scale": scale,
                "slice": budget / n, "team_room": budget - deployed, "report": report,
                "agent_max_entries": max(1, math.ceil(c.day_max_trades / n)),
-               "daily": self._daily_scores(quotes, t), "tilt": getattr(self, "tilt", {})}
+               "daily": self._daily_scores(quotes, t), "tilt": getattr(self, "tilt", {}),
+               "earnings": self._earnings_today(t)}
+        tr.signals.refresh(c.day_symbols, "day")
         # agents with the better day so far get first call on shared cash and team budget
         for agent in sorted(self.agents, key=lambda a: -a.pl_today(tr, t)):
             try:
@@ -216,6 +224,22 @@ class DayDesk:
                 break
         desk["day_note"] = f"{sum(r['entries'] for r in report.values())}/{c.day_max_trades} entries; " \
                            f"budget ${budget:,.0f}, slice ${budget / n:,.0f} per agent"
+
+    def _earnings_today(self, t):
+        """Symbols reporting today (any timing: the gap risk is on the open or the close); cached for an hour."""
+        if not self.tr.cfg.skip_earnings_day:
+            return set()
+        cached = getattr(self, "_earn", None)
+        if cached and (t - cached[0]).total_seconds() < 3600 and cached[1] == t.date():
+            return cached[2]
+        try:
+            rows = self.tr.data.earnings(2)
+        except Exception:
+            return cached[2] if cached else set()
+        today = t.date().isoformat()
+        out = {e.get("symbol") for e in rows if (e.get("report") or {}).get("date") == today}
+        self._earn = (t, t.date(), out)
+        return out
 
     def _daily_scores(self, quotes, t):
         """Four-pillar daily score per day symbol, refreshed every 15 minutes."""

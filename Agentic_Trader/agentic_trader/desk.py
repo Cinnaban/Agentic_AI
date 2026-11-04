@@ -9,11 +9,9 @@ Goals are measured, never chased: falling short of a goal never raises a cap abo
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from datetime import timedelta
 
-import numpy as np
 
 from .day_agents import DayDesk
 from .options_agents import OptionsManager
@@ -176,7 +174,7 @@ class GrowthAgent:
         weights = self.weights()
         bars = tr.data.bars(list(weights), "day", 380, ttl=1800)
         ev = st.evaluate(list(weights), tr.data, quotes, bars={k: v[-150:] for k, v in bars.items()})
-        tr.signals.refresh(list(weights))
+        tr.signals.refresh(list(weights), "growth")
         gm = growth_members.members({k: [b["close"] for b in v if b.get("close")] for k, v in bars.items()},
                                     {k: (quotes.get(k) or {}).get("price") for k in weights}, tr.signals.cash_rate())
         tr.s["desk"]["growth_members"] = {k: {"score": round(v["score"], 3), "bearish": v["bearish"]} for k, v in gm.items()}

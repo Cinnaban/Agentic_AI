@@ -4,7 +4,7 @@ Deliberately contains no account, position or portfolio information.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import timezone
 
 from .data import RobinhoodData, shared
 

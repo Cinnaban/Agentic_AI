@@ -234,7 +234,7 @@ def walk_forward(c, v, h=1, folds=5, alpha=10.0):
     n = len(y)
     if n < MIN_BARS:
         return {"error": f"need >= {MIN_BARS} usable bars", "n": n}
-    P, A, PU, UP, POS = [], [], [], [], []
+    P, A, PU = [], [], []
     for tr, te in purged_walk_forward(n, folds, horizon=h):
         Xtr, Xte = _standardise(X[tr], X[te])
         w = ridge_fit(Xtr, y[tr], alpha)

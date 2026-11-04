@@ -270,6 +270,12 @@ class TelegramBot:
             self.handle_message
         )
 
+        async def on_error(update, context):
+            # Network blips (Bad Gateway, timeouts) are retried by polling; log one line instead of a traceback dump
+            print("TELEGRAM ERROR:", repr(context.error), flush=True)
+
+        application.add_error_handler(on_error)
+
         application.run_polling()
 
 

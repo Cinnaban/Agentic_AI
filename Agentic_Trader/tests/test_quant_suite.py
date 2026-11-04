@@ -1,4 +1,3 @@
-import json
 import threading
 import unittest
 from http.server import ThreadingHTTPServer

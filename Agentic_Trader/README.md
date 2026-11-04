@@ -145,7 +145,7 @@ Uses 5-minute bars: VWAP, EMA9/21, RSI, ATR, opening range and relative volume. 
 ## Agent teams
 The orchestrator sets goals, budgets and risk dials; it never trades. Two teams report to it:
 - **Day team** (`day_agents.py`): one independent agent per strategy — ORB (opening-range breakout), PULLBACK (VWAP/EMA pullback), MOMENTUM (day-high breakout), REVERSION (oversold bounce, VWAP target). Same day budget (split into equal slices), same rules (ATR stop on every entry, risk-based size, break-even/trail, flat at 15:50). Each agent has its own entry cap, loss limit and one open position; the desk adds team caps, the SPY filter and shared exits. Choose agents with `PAPER_DAY_STRATEGIES`.
-- **Options sub-manager** (`options_agents.py`): owns the risk guard, marks/exits and the capital split, and runs yield puts, defensive puts and covered calls. Cash-secured puts and covered calls only; nothing else can be opened.
+- **Options sub-manager** (`options_agents.py`): owns the risk guard, marks/exits and the capital split, and runs yield puts, defensive puts, vol-premium puts (VRP: only when implied vol is at least 1.15x realized, 10-25 delta) and covered calls. Cash-secured puts and covered calls only; nothing else can be opened.
 Trades are tagged with the owning agent (`strat`) and each agent's results appear in the summaries.
 
 ## Market data APIs (Alpha Vantage, Kaggle)
@@ -163,7 +163,22 @@ It fails open, never blocks protective sells, and results land in `state/quant_s
 
 Compute runs on the Gaming PC if its worker answers (`python -m agentic_trader.quant_worker`, port 8011,
 CuPy used if installed); otherwise it runs locally. Set `PAPER_QUANT_GATE=false` to disable.
-The Grafana dashboard shows current holdings (donut and table), risk stats and the quant table.
+The Grafana dashboard shows current holdings (donut and table), risk stats and the quant table, plus a Day trading section:
+KPI cards, a table of the team against each strategy (closes, win rate, net, average win/loss, best, worst, profit factor),
+cumulative P&L for the team and each strategy, daily P&L stacked by strategy, and the top 10 gains and losses.
+Trades before the strategy team existed show as `LEGACY (pre-team)`.
+
+## News, earnings and growth members
+
+- `market_signals.py`: Alpha Vantage `NEWS_SENTIMENT` (one batched call per group per 2h; growth, day and options each
+  refresh their own symbols) and the fed funds rate. A name with at least 3 relevant articles averaging <= -0.25 is
+  "bearish": no new day entry, put sale or ETF buy. It stays under the shared daily quota (a reserve of 10 calls is left
+  for the chat bots) and fails open. `PAPER_NEWS_SIGNAL=0` turns it off (the test suite does).
+- Day team skips symbols that report earnings today (`PAPER_DAY_SKIP_EARNINGS`).
+- `growth_members.py`: Antonacci dual momentum (12-month rank plus absolute momentum against the fed funds rate) and
+  Faber's 200-day trend. A MA50 break only sells when it is confirmed (member bearish or price 3% below the MA50).
+- Backtests on ~5 years of daily bars found no classic day-trading rule (Williams breakout, gaps, NR7, inside day, IBS, RSI2)
+  that beat the baseline, so none were added to the day team.
 
 ## Day team factor tilt
 

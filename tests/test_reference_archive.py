@@ -151,7 +151,9 @@ class PublicReferenceArchiveTests(unittest.TestCase):
             provider.freshness_detector = FreshnessDetector()
             provider.max_pages = 15
             provider.max_search_queries = 5
-            provider.web = SimpleNamespace(search=lambda company, query: [])
+            provider.web = SimpleNamespace(search=lambda company, query, **kw: [])
+            provider.alpha_vantage = SimpleNamespace(SOURCE="alpha_vantage", search=lambda company, query: [])
+            provider.world_bank = SimpleNamespace(SOURCE="world_bank", search=lambda company, query: [])
             provider.firecrawl = SimpleNamespace(
                 health_check=lambda: False
             )
@@ -198,7 +200,9 @@ class PublicReferenceArchiveTests(unittest.TestCase):
             provider.freshness_detector = FreshnessDetector()
             provider.max_pages = 15
             provider.max_search_queries = 5
-            provider.web = SimpleNamespace(search=lambda company, query: [])
+            provider.web = SimpleNamespace(search=lambda company, query, **kw: [])
+            provider.alpha_vantage = SimpleNamespace(SOURCE="alpha_vantage", search=lambda company, query: [])
+            provider.world_bank = SimpleNamespace(SOURCE="world_bank", search=lambda company, query: [])
             provider.firecrawl = SimpleNamespace(
                 health_check=lambda: False
             )
