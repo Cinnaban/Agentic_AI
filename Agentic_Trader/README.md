@@ -164,3 +164,10 @@ It fails open, never blocks protective sells, and results land in `state/quant_s
 Compute runs on the Gaming PC if its worker answers (`python -m agentic_trader.quant_worker`, port 8011,
 CuPy used if installed); otherwise it runs locally. Set `PAPER_QUANT_GATE=false` to disable.
 The Grafana dashboard shows current holdings (donut and table), risk stats and the quant table.
+
+## Day team factor tilt
+
+`factor_tilt.py` ranks the day symbols against each other on equal-weighted price/liquidity predictors
+(6-1 momentum, 52-week-high proximity, 1-month reversal, max-return "lottery" penalty, volatility, illiquidity),
+adapted from the S43 kit. It adds `PAPER_DAY_TILT_WEIGHT` x tilt to a setup's rank and skips names under
+`PAPER_DAY_MIN_DOLLAR_VOLUME`. It never creates or vetoes an entry by itself.

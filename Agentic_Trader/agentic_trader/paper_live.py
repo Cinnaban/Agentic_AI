@@ -56,6 +56,8 @@ class Cfg:
         # intraday day-trader (multiple trades per day, volatility-sized, hard stops)
         self.day_max_trades = int(os.getenv("PAPER_DAY_MAX_TRADES", "8"))
         self.day_strategies = _csv("PAPER_DAY_STRATEGIES", "ORB,PULLBACK,MOMENTUM,REVERSION")
+        self.day_min_dollar_volume = float(os.getenv("PAPER_DAY_MIN_DOLLAR_VOLUME", "50000000"))
+        self.day_tilt_weight = float(os.getenv("PAPER_DAY_TILT_WEIGHT", "0.15"))
         self.day_max_open = int(os.getenv("PAPER_DAY_MAX_OPEN", "4"))
         self.day_agent_max_open = int(os.getenv("PAPER_DAY_AGENT_MAX_OPEN", "1"))
         self.day_agent_loss_limit = float(os.getenv("PAPER_DAY_AGENT_LOSS_LIMIT", "0.007"))

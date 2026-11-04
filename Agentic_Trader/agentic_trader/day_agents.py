@@ -12,6 +12,7 @@ from datetime import datetime
 
 from . import day_strategy as ds
 from .single_trade import evaluate as daily_eval
+from .factor_tilt import tilt as factor_tilt
 
 
 def _strat_trades(s, name, today, side=None):
@@ -56,9 +57,13 @@ class DayStrategyAgent:
                 if veto:
                     skipped[sym] = f"{kind} setup vetoed by the quant suite ({qscore:+.2f})"
                     continue
+                ft = ctx.get("tilt", {}).get(sym) or {}
+                if ft and not ft["liquid"]:
+                    skipped[sym] = f"{kind} setup skipped: below the dollar-volume floor"
+                    continue
                 quality = (ctx["daily"].get(sym) or {}).get("score", 0.0)
                 m = dict(m, quant_size=size, quant_note=note)
-                found.append((strength + 0.3 * ds.daily_bias(m) + 0.2 * quality + 0.3 * qscore, sym, kind, why, m))
+                found.append((strength + 0.3 * ds.daily_bias(m) + 0.2 * quality + 0.3 * qscore + c.day_tilt_weight * ft.get("tilt", 0.0), sym, kind, why, m))
             else:
                 skipped[sym] = why
         return sorted(found, key=lambda x: -x[0]), skipped
@@ -123,6 +128,11 @@ class DayDesk:
         watch = sorted(set(c.day_symbols) | set(held) | {"SPY"})
         daily = tr.data.bars(watch, "day", 120, ttl=1800)
         bars5 = tr.data.bars(watch, "5minute", 6, ttl=60)
+        try:
+            self.tilt = factor_tilt({s: daily.get(s, []) for s in c.day_symbols}, c.day_min_dollar_volume)
+        except Exception as exc:
+            print("[paper] factor tilt failed:", repr(exc))
+            self.tilt = {}
         snap = {}
         for sym in watch:
             try:
@@ -194,7 +204,7 @@ class DayDesk:
         ctx = {"tr": tr, "cfg": c, "quotes": quotes, "snap": snap, "t": t, "hm": hm, "equity": equity, "scale": scale,
                "slice": budget / n, "team_room": budget - deployed, "report": report,
                "agent_max_entries": max(1, math.ceil(c.day_max_trades / n)),
-               "daily": self._daily_scores(quotes, t)}
+               "daily": self._daily_scores(quotes, t), "tilt": getattr(self, "tilt", {})}
         # agents with the better day so far get first call on shared cash and team budget
         for agent in sorted(self.agents, key=lambda a: -a.pl_today(tr, t)):
             try:
