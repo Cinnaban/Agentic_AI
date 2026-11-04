@@ -79,7 +79,7 @@ class PutAgent(_Agent):
             quotes = d.option_quotes([x["id"] for x in strikes])
             for x in strikes:
                 oq = quotes.get(x["id"])
-                if not self.tr.income._liquid(oq, c):
+                if not self.tr.income._liquid(oq, c) or oq["bid"] < c.opt_min_credit:
                     continue
                 delta = abs(oq.get("delta") or 0)
                 if delta and not self.DELTA_RANGE[0] <= delta <= self.DELTA_RANGE[1]:
@@ -101,12 +101,15 @@ class PutAgent(_Agent):
         held = {o["sym"] for o in inc.opts} | set(s["positions"])
         total_puts = sum(1 for o in inc.opts if o["type"] == "put")
         candidates = []
+        stopouts = s.get("opt_stopouts", {})
         tr.quant.ensure([x for x in c.opt_symbols if x not in taken and x not in held], "options")
         for sym in c.opt_symbols:
             q = quotes.get(sym) or {}
             px = q.get("price")
             if sym in taken or sym in held:
                 stats["already held"] += 1
+            elif sym in stopouts and (t.date() - date.fromisoformat(stopouts[sym])).days < c.opt_stop_cooldown_days:
+                stats["cooling down after stop-out"] += 1
             elif not px:
                 stats["no quote"] += 1
             elif px * MULT * (1 - max(c.opt_otm, self.OTM_FLOOR)) > room:

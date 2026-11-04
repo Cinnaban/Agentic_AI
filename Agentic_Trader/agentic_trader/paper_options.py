@@ -171,6 +171,7 @@ class Income:
                 self.buy_to_close(o, ask, f"took {c.opt_take_profit:.0%} of max profit", t)
             elif o["type"] == "put" and ask >= o["credit"] * c.opt_stop_mult:
                 self.buy_to_close(o, ask, f"stop: option worth {c.opt_stop_mult:g}x credit", t)
+                self.tr.s.setdefault("opt_stopouts", {})[o["sym"]] = t.date().isoformat()
 
     def _liquid(self, q, c):
         if not q or not q.get("bid") or not q.get("ask") or q["bid"] < 0.05:

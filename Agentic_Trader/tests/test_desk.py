@@ -204,3 +204,20 @@ def test_day_team_skips_quant_vetoed_names_and_logs_quant_note(tmp_path, monkeyp
     tr.desk.day.run(quotes, T, equity, mandate, REG, (11, 0))
     assert "AAA" not in tr.s["positions"] and "BBB" in tr.s["positions"]
     assert "quant" in next(x for x in tr.s["trades"] if x["sym"] == "BBB")["reason"]
+
+
+def test_puts_skip_tiny_credits_and_recent_stopouts(tmp_path, monkeypatch):
+    from agentic_trader.options_agents import YieldPuts
+    tr = trader(tmp_path, Data(chains={"F": {"strikes": [9.0, 9.5], "bid": lambda k: 0.06}}), monkeypatch,
+                PAPER_OPTION_SYMBOLS="F", PAPER_QUANT_GATE="0")
+    quotes = {"F": _q(10)}
+    assert YieldPuts(tr).run(quotes, T, 5000, 2000, 2000)["opened"] == 0  # $0.06 is under the $0.10 credit floor
+
+    tr = trader(tmp_path, Data(chains={"F": {"strikes": [9.0, 9.5], "bid": lambda k: 0.30}}), monkeypatch,
+                PAPER_OPTION_SYMBOLS="F", PAPER_QUANT_GATE="0")
+    tr.s["opt_stopouts"] = {"F": "2026-10-21"}
+    note = YieldPuts(tr).run(quotes, T, 5000, 2000, 2000)
+    assert note["opened"] == 0 and "cooling down" in note["note"]
+    tr.s["opt_stopouts"] = {"F": "2026-10-15"}
+    tr.s.pop("opt_scan_yield_puts", None)
+    assert YieldPuts(tr).run(quotes, T, 5000, 2000, 2000)["opened"] == 1

@@ -71,7 +71,10 @@ class Cfg:
         self.breakeven_r = float(os.getenv("PAPER_DAY_BREAKEVEN_R", "1.0"))
         self.trail_start_r = float(os.getenv("PAPER_DAY_TRAIL_START_R", "1.5"))
         self.trail_r = float(os.getenv("PAPER_DAY_TRAIL_R", "1.0"))
+        self.entry_buffer = float(os.getenv("PAPER_GROWTH_ENTRY_BUFFER", "0.005"))  # buy only this far above MA50
         self.stall_min = int(os.getenv("PAPER_DAY_STALL_MIN", "90"))
+        # mean-reversion trades target a return to VWAP and need longer to play out
+        self.reversion_stall_min = int(os.getenv("PAPER_DAY_REVERSION_STALL_MIN", "180"))
         self.min_rvol = float(os.getenv("PAPER_DAY_MIN_RVOL", "1.1"))
         self.min_bias = float(os.getenv("PAPER_DAY_MIN_BIAS", "0.0"))
         self.max_rsi = float(os.getenv("PAPER_DAY_MAX_RSI", "72"))
@@ -96,7 +99,7 @@ class Cfg:
         self.week_max = float(os.getenv("PAPER_WEEKLY_TARGET_MAX", "0.12"))
         # options income sleeve: cash-secured puts + covered calls only, never naked
         self.opt_enabled = os.getenv("PAPER_OPTIONS", "1") not in ("0", "false", "off")
-        self.opt_symbols = _csv("PAPER_OPTION_SYMBOLS", "F,SOFI,RIVN,SNAP,NIO,AAL,HBAN,NU,VALE,BB,RIG,LCID,T,KVUE,CMCSA,PFE")
+        self.opt_symbols = _csv("PAPER_OPTION_SYMBOLS", "F,SOFI,RIVN,SNAP,NIO,AAL,HBAN,NU,VALE,BB,RIG,LCID,T,CMCSA,PFE")
         self.opt_pct = float(os.getenv("PAPER_OPTION_PCT", "0.35"))
         self.opt_min_dte = int(os.getenv("PAPER_OPTION_MIN_DTE", "5"))
         self.opt_max_dte = int(os.getenv("PAPER_OPTION_MAX_DTE", "14"))
@@ -104,6 +107,9 @@ class Cfg:
         self.opt_min_oi = int(os.getenv("PAPER_OPTION_MIN_OI", "25"))
         self.opt_take_profit = float(os.getenv("PAPER_OPTION_TAKE_PROFIT", "0.75"))
         self.opt_stop_mult = float(os.getenv("PAPER_OPTION_STOP_MULT", "3"))
+        # a $0.05 credit stopped at 3x is one tick of noise, and re-selling a name that just stopped out repeats the loss
+        self.opt_min_credit = float(os.getenv("PAPER_OPTION_MIN_CREDIT", "0.10"))
+        self.opt_stop_cooldown_days = int(os.getenv("PAPER_OPTION_STOP_COOLDOWN_DAYS", "3"))
         self.opt_fee = float(os.getenv("PAPER_OPTION_FEE_PER_CONTRACT", "0.04"))
         self.opt_scan_min = int(os.getenv("PAPER_OPTION_SCAN_MIN", "30"))
         self.cooldown_min = int(os.getenv("PAPER_COOLDOWN_MIN", "30"))

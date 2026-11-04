@@ -139,10 +139,29 @@ class RobinhoodData:
         """interval per Robinhood: minute, 5minute, 10minute, 30minute, hour, day, ..."""
         start = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%dT%H:%M:%SZ")
         out: dict[str, list[dict]] = {}
-        syms = [s.upper() for s in symbols]
+        dead = self.__dict__.setdefault("_inactive", set())
+        syms = [s.upper() for s in symbols if s.upper() not in dead]
         for i in range(0, len(syms), 10):
-            data = self._call("get_equity_historicals", {"symbols": syms[i:i + 10], "start_time": start,
-                                                         "interval": interval, "bounds": bounds}, ttl)
+            chunk = syms[i:i + 10]
+            data = None
+            for _ in range(3):
+                try:
+                    data = self._call("get_equity_historicals", {"symbols": chunk, "start_time": start,
+                                                                 "interval": interval, "bounds": bounds}, ttl)
+                    break
+                except RuntimeError as exc:
+                    # one delisted/inactive symbol fails the whole batch; drop it and retry the rest
+                    bad = set(re.findall(r'"inactive_instruments":\[([^\]]*)\]', str(exc)))
+                    names = {x.strip('" ') for b in bad for x in b.split(",") if x.strip('" ')}
+                    if not names:
+                        raise
+                    print(f"[data] dropping inactive instruments: {sorted(names)}")
+                    dead |= names
+                    chunk = [x for x in chunk if x not in names]
+                    if not chunk:
+                        break
+            if data is None:
+                continue
             for r in data.get("results", []):
                 out[r["symbol"]] = [{"ts": _ts(b["begins_at"]), "open": _f(b["open_price"]), "high": _f(b["high_price"]),
                                      "low": _f(b["low_price"]), "close": _f(b["close_price"]), "volume": b.get("volume") or 0}

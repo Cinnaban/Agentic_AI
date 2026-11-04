@@ -196,7 +196,7 @@ class GrowthAgent:
             veto, qscore, _size, qnote = tr.quant.verdict(sym, "long")
             if veto:
                 tr.s["desk"].setdefault("quant_vetoes", {})[sym] = f"{qscore:+.2f}"
-            if (px > ma50 and mandate.allow_new and e["score"] >= c.growth_min_score
+            if (px > ma50 * (1 + c.entry_buffer) and mandate.allow_new and e["score"] >= c.growth_min_score
                     and e["coverage"] >= c.single_min_coverage and not veto):
                 cur = held["qty"] * px if held else 0.0
                 gap = min(target - cur, tr.free_cash())

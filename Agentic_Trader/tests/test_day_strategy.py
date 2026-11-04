@@ -31,3 +31,13 @@ def test_manage_stop_moves_up_only_and_exits_on_target():
     assert reason is None and stop and stop >= 100.0
     reason, _ = ds.manage(pos, _m(price=102.1), 102.1, (10, 30), c)
     assert reason
+
+
+def test_reversion_gets_a_longer_stall_timeout():
+    c = Cfg()
+    base = {"avg": 100.0, "stop_px": 99.0, "target_px": 103.0, "r_per_share": 1.0, "high": 100.0, "opened_hm": 600, "trend_exit": False}
+    m = _m(price=100.0)
+    now = (11, 40)  # 100 minutes held
+    assert "stalled" in (ds.manage(dict(base), m, 100.0, now, c)[0] or "")
+    assert ds.manage(dict(base, setup="REVERSION"), m, 100.0, now, c)[0] is None
+    assert "stalled" in (ds.manage(dict(base, setup="REVERSION"), m, 100.0, (13, 5), c)[0] or "")

@@ -237,6 +237,7 @@ def manage(pos, m, price, hm, cfg):
         return f"trend failed (EMA9<EMA21, below VWAP) {r_now:+.1f}R", new_stop
     if pos.get("opened_hm") is not None and hm is not None:
         held = (hm[0] * 60 + hm[1]) - pos["opened_hm"]
-        if held >= cfg.stall_min and r_now < 0.3:
+        limit = cfg.reversion_stall_min if pos.get("setup") == "REVERSION" else cfg.stall_min
+        if held >= limit and r_now < 0.3:
             return f"stalled {held} min without progress ({r_now:+.1f}R)", new_stop
     return None, new_stop
