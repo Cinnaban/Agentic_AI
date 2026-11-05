@@ -33,5 +33,23 @@ class WatchdogClassTests(unittest.TestCase):
             self.assertTrue(bridge._is_company_question(q), q)
 
 
+class ArchiveStallTests(unittest.TestCase):
+    def test_stalled_share_disables_archive_instead_of_hanging(self):
+        import tempfile
+        import threading
+        import time
+        from shared_storage.reference_archive import PublicReferenceArchive
+
+        archive = PublicReferenceArchive(tempfile.mkdtemp())
+        archive.IO_TIMEOUT_SECONDS = 0.2
+        release = threading.Event()
+        archive._get_page = lambda url: release.wait(5)
+        started = time.time()
+        self.assertIsNone(archive.get_page("https://example.com"))
+        release.set()
+        self.assertLess(time.time() - started, 2)
+        self.assertFalse(archive._available)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -137,6 +137,56 @@ class PublicReferenceArchive:
             )
             return False
 
+    IO_TIMEOUT_SECONDS = 5
+
+    def _guarded(self, function, *args):
+        """Network shares can stall inside open(); abandon the call and disable the archive for this run."""
+        outcome = {}
+
+        def run():
+            try:
+                outcome["value"] = function(*args)
+            except Exception as error:
+                outcome["error"] = error
+
+        worker = threading.Thread(target=run, daemon=True)
+        worker.start()
+        worker.join(self.IO_TIMEOUT_SECONDS)
+        if worker.is_alive():
+            self._available = False
+            logging.warning(
+                "Public reference archive stalled for %ss; disabled for this run",
+                self.IO_TIMEOUT_SECONDS
+            )
+            return None
+        if "error" in outcome:
+            raise outcome["error"]
+        return outcome.get("value")
+
+    def store_page(self, page):
+        if not self._available:
+            return None
+        return self._guarded(self._store_page, page)
+
+    def get_page(self, url):
+        if not self._available:
+            return None
+        return self._guarded(self._get_page, url)
+
+    def store_query(self, query, subject, evidence_depth, results):
+        if not self._available:
+            return None
+        return self._guarded(
+            self._store_query, query, subject, evidence_depth, results
+        )
+
+    def get_query(self, query, subject, evidence_depth):
+        if not self._available:
+            return None
+        return self._guarded(
+            self._get_query, query, subject, evidence_depth
+        )
+
     @staticmethod
     def _read_record(path):
         if not path.is_file():
@@ -152,7 +202,7 @@ class PublicReferenceArchive:
             )
             return None
 
-    def store_page(self, page):
+    def _store_page(self, page):
         if not self._available or not isinstance(page, dict):
             return False
 
@@ -208,7 +258,7 @@ class PublicReferenceArchive:
         }
         return self._atomic_write(self._page_path(url), record)
 
-    def get_page(self, url):
+    def _get_page(self, url):
         if not self._available:
             return None
         path = self._page_path(url)
@@ -226,7 +276,7 @@ class PublicReferenceArchive:
         page["content_retrieved_at"] = record.get("retrieved_at")
         return page
 
-    def store_query(self, query, subject, evidence_depth, results):
+    def _store_query(self, query, subject, evidence_depth, results):
         if not self._available or not isinstance(results, list):
             return False
         source_urls = []
@@ -259,7 +309,7 @@ class PublicReferenceArchive:
             record
         )
 
-    def get_query(self, query, subject, evidence_depth):
+    def _get_query(self, query, subject, evidence_depth):
         if not self._available:
             return None
         query_digest = self._digest(
@@ -273,7 +323,7 @@ class PublicReferenceArchive:
 
         results = []
         for url in record.get("source_urls", []):
-            page = self.get_page(url)
+            page = self._get_page(url)
             if page is None:
                 return None
             results.append(page)
