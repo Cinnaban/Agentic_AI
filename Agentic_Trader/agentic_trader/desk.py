@@ -69,6 +69,14 @@ class Orchestrator:
         self.tr = trader
         c = trader.cfg
         self.base = {"growth": min(c.growth_pct, 1 - self.RESERVE - c.opt_pct), "options": c.opt_pct, "day": c.day_pct}
+        trader.s.setdefault("alloc", {
+            "mult": {a: 1.0 for a in AGENTS},
+            "base": dict(self.base),
+            "ts": None,
+            "history": [],
+            "score": {a: 0.0 for a in AGENTS},
+            "note": "default allocations; weekly review begins after the first market session",
+        })
 
     def weekly_review(self, quotes, t, equity):
         """Once every 7 days, nudge the best team up and the weakest down by STEP, ranked by trailing-week P&L as a

@@ -6,7 +6,7 @@
  ],
  "timezone": "browser",
  "schemaVersion": 39,
- "version": 6,
+ "version": 7,
  "refresh": "1m",
  "time": {
   "from": "now-30d",
@@ -1054,7 +1054,8 @@
      "queryType": "time series",
      "timeColumns": [
       "time"
-     ]
+     ],
+     "rawQueryText": "SELECT ts AS time, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='RETEST' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS RETEST, ROUND(SUM(CASE WHEN strat='SWEEP' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS SWEEP, ROUND(SUM(CASE WHEN strat='FVG' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS FVG, ROUND(SUM(CASE WHEN strat='GAPGO' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS GAPGO, ROUND(SUM(CASE WHEN strat='yield_puts' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='vrp_puts' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS vrp_puts, ROUND(SUM(CASE WHEN strat='put_spreads' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS put_spreads, ROUND(SUM(CASE WHEN strat='covered_calls' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='core' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS core, ROUND(SUM(CASE WHEN strat='hedge' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS hedge, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS unassigned FROM trades WHERE (side='sell' OR realized<>0) ORDER BY ts"
     }
    ],
    "fieldConfig": {
@@ -1247,7 +1248,8 @@
      },
      "refId": "A",
      "queryText": "SELECT day, ROUND(SUM(CASE WHEN strat='yield_puts' THEN price*100*qty ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN price*100*qty ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='vrp_puts' THEN price*100*qty ELSE 0 END),2) AS vrp_puts, ROUND(SUM(CASE WHEN strat='put_spreads' THEN price*100*qty ELSE 0 END),2) AS put_spreads, ROUND(SUM(CASE WHEN strat='covered_calls' THEN price*100*qty ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='unassigned' THEN price*100*qty ELSE 0 END),2) AS unassigned FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT day, ROUND(SUM(CASE WHEN strat='yield_puts' THEN price*100*qty ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN price*100*qty ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='vrp_puts' THEN price*100*qty ELSE 0 END),2) AS vrp_puts, ROUND(SUM(CASE WHEN strat='put_spreads' THEN price*100*qty ELSE 0 END),2) AS put_spreads, ROUND(SUM(CASE WHEN strat='covered_calls' THEN price*100*qty ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='unassigned' THEN price*100*qty ELSE 0 END),2) AS unassigned FROM trades WHERE agent='options' AND reason LIKE 'SELL TO OPEN%' GROUP BY day ORDER BY day"
     }
    ],
    "fieldConfig": {
@@ -1266,7 +1268,8 @@
      "showLegend": true
     },
     "stacking": "normal"
-   }
+   },
+   "description": "Empty until an option sell-to-open trade is recorded."
   },
   {
    "id": 19,
@@ -1290,7 +1293,8 @@
      },
      "refId": "A",
      "queryText": "SELECT day, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='RETEST' THEN realized ELSE 0 END),2) AS RETEST, ROUND(SUM(CASE WHEN strat='SWEEP' THEN realized ELSE 0 END),2) AS SWEEP, ROUND(SUM(CASE WHEN strat='FVG' THEN realized ELSE 0 END),2) AS FVG, ROUND(SUM(CASE WHEN strat='GAPGO' THEN realized ELSE 0 END),2) AS GAPGO, ROUND(SUM(CASE WHEN strat='yield_puts' THEN realized ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN realized ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='vrp_puts' THEN realized ELSE 0 END),2) AS vrp_puts, ROUND(SUM(CASE WHEN strat='put_spreads' THEN realized ELSE 0 END),2) AS put_spreads, ROUND(SUM(CASE WHEN strat='covered_calls' THEN realized ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='core' THEN realized ELSE 0 END),2) AS core, ROUND(SUM(CASE WHEN strat='hedge' THEN realized ELSE 0 END),2) AS hedge, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END),2) AS unassigned FROM trades WHERE (side='sell' OR realized<>0) GROUP BY day ORDER BY day",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT day, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='RETEST' THEN realized ELSE 0 END),2) AS RETEST, ROUND(SUM(CASE WHEN strat='SWEEP' THEN realized ELSE 0 END),2) AS SWEEP, ROUND(SUM(CASE WHEN strat='FVG' THEN realized ELSE 0 END),2) AS FVG, ROUND(SUM(CASE WHEN strat='GAPGO' THEN realized ELSE 0 END),2) AS GAPGO, ROUND(SUM(CASE WHEN strat='yield_puts' THEN realized ELSE 0 END),2) AS yield_puts, ROUND(SUM(CASE WHEN strat='defensive_puts' THEN realized ELSE 0 END),2) AS defensive_puts, ROUND(SUM(CASE WHEN strat='vrp_puts' THEN realized ELSE 0 END),2) AS vrp_puts, ROUND(SUM(CASE WHEN strat='put_spreads' THEN realized ELSE 0 END),2) AS put_spreads, ROUND(SUM(CASE WHEN strat='covered_calls' THEN realized ELSE 0 END),2) AS covered_calls, ROUND(SUM(CASE WHEN strat='core' THEN realized ELSE 0 END),2) AS core, ROUND(SUM(CASE WHEN strat='hedge' THEN realized ELSE 0 END),2) AS hedge, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END),2) AS unassigned FROM trades WHERE (side='sell' OR realized<>0) GROUP BY day ORDER BY day"
     }
    ],
    "fieldConfig": {
@@ -1400,7 +1404,8 @@
      },
      "refId": "A",
      "queryText": "SELECT ROUND(COALESCE(SUM(realized),0),2) AS value FROM trades WHERE agent='day' AND side='sell'",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT ROUND(COALESCE(SUM(realized),0),2) AS value FROM trades WHERE agent='day' AND side='sell'"
     }
    ],
    "fieldConfig": {
@@ -1458,7 +1463,8 @@
      },
      "refId": "A",
      "queryText": "SELECT ROUND(COALESCE(100.0*SUM(realized>0)/NULLIF(COUNT(*),0),0),1) AS value FROM trades WHERE agent='day' AND side='sell'",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT ROUND(COALESCE(100.0*SUM(realized>0)/NULLIF(COUNT(*),0),0),1) AS value FROM trades WHERE agent='day' AND side='sell'"
     }
    ],
    "fieldConfig": {
@@ -1521,7 +1527,8 @@
      },
      "refId": "A",
      "queryText": "SELECT ROUND(COALESCE(SUM(CASE WHEN realized>0 THEN realized END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized END),0),0),2) AS value FROM trades WHERE agent='day' AND side='sell'",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT ROUND(COALESCE(SUM(CASE WHEN realized>0 THEN realized END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized END),0),0),2) AS value FROM trades WHERE agent='day' AND side='sell'"
     }
    ],
    "fieldConfig": {
@@ -1584,7 +1591,8 @@
      },
      "refId": "A",
      "queryText": "SELECT COUNT(*) AS value FROM trades WHERE agent='day' AND side='sell'",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT COUNT(*) AS value FROM trades WHERE agent='day' AND side='sell'"
     }
    ],
    "fieldConfig": {
@@ -1639,7 +1647,8 @@
      },
      "refId": "A",
      "queryText": "SELECT 'TEAM (all day agents)' AS grp, COUNT(*) AS closes, SUM(realized>0) AS wins, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct, ROUND(SUM(realized),2) AS net, ROUND(AVG(realized),2) AS avg_trade, ROUND(AVG(CASE WHEN realized>0 THEN realized END),2) AS avg_win, ROUND(AVG(CASE WHEN realized<0 THEN realized END),2) AS avg_loss, ROUND(MAX(realized),2) AS best, ROUND(MIN(realized),2) AS worst, ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) AS profit_factor FROM trades WHERE agent='day' AND side='sell' HAVING COUNT(*)>0\nUNION ALL\nSELECT CASE WHEN strat='unassigned' THEN 'LEGACY (pre-team)' ELSE strat END, COUNT(*), SUM(realized>0), ROUND(100.0*SUM(realized>0)/COUNT(*),1), ROUND(SUM(realized),2), ROUND(AVG(realized),2), ROUND(AVG(CASE WHEN realized>0 THEN realized END),2), ROUND(AVG(CASE WHEN realized<0 THEN realized END),2), ROUND(MAX(realized),2), ROUND(MIN(realized),2), ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) FROM trades WHERE agent='day' AND side='sell' GROUP BY 1",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT 'TEAM (all day agents)' AS grp, COUNT(*) AS closes, SUM(realized>0) AS wins, ROUND(100.0*SUM(realized>0)/COUNT(*),1) AS win_pct, ROUND(SUM(realized),2) AS net, ROUND(AVG(realized),2) AS avg_trade, ROUND(AVG(CASE WHEN realized>0 THEN realized END),2) AS avg_win, ROUND(AVG(CASE WHEN realized<0 THEN realized END),2) AS avg_loss, ROUND(MAX(realized),2) AS best, ROUND(MIN(realized),2) AS worst, ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) AS profit_factor FROM trades WHERE agent='day' AND side='sell' HAVING COUNT(*)>0\nUNION ALL\nSELECT CASE WHEN strat='unassigned' THEN 'LEGACY (pre-team)' ELSE strat END, COUNT(*), SUM(realized>0), ROUND(100.0*SUM(realized>0)/COUNT(*),1), ROUND(SUM(realized),2), ROUND(AVG(realized),2), ROUND(AVG(CASE WHEN realized>0 THEN realized END),2), ROUND(AVG(CASE WHEN realized<0 THEN realized END),2), ROUND(MAX(realized),2), ROUND(MIN(realized),2), ROUND(SUM(CASE WHEN realized>0 THEN realized ELSE 0 END)/NULLIF(-SUM(CASE WHEN realized<0 THEN realized ELSE 0 END),0),2) FROM trades WHERE agent='day' AND side='sell' GROUP BY 1"
     }
    ],
    "fieldConfig": {
@@ -1673,7 +1682,8 @@
      "queryType": "time series",
      "timeColumns": [
       "time"
-     ]
+     ],
+     "rawQueryText": "SELECT ts AS time, ROUND(SUM(CASE WHEN 1=1 THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS TEAM, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='RETEST' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS RETEST, ROUND(SUM(CASE WHEN strat='SWEEP' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS SWEEP, ROUND(SUM(CASE WHEN strat='FVG' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS FVG, ROUND(SUM(CASE WHEN strat='GAPGO' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS GAPGO, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END) OVER (ORDER BY ts ROWS UNBOUNDED PRECEDING),2) AS LEGACY FROM trades WHERE agent='day' AND side='sell' ORDER BY ts"
     }
    ],
    "fieldConfig": {
@@ -1730,7 +1740,8 @@
      },
      "refId": "A",
      "queryText": "SELECT day, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='RETEST' THEN realized ELSE 0 END),2) AS RETEST, ROUND(SUM(CASE WHEN strat='SWEEP' THEN realized ELSE 0 END),2) AS SWEEP, ROUND(SUM(CASE WHEN strat='FVG' THEN realized ELSE 0 END),2) AS FVG, ROUND(SUM(CASE WHEN strat='GAPGO' THEN realized ELSE 0 END),2) AS GAPGO, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END),2) AS LEGACY FROM trades WHERE agent='day' AND side='sell' GROUP BY day ORDER BY day",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT day, ROUND(SUM(CASE WHEN strat='ORB' THEN realized ELSE 0 END),2) AS ORB, ROUND(SUM(CASE WHEN strat='PULLBACK' THEN realized ELSE 0 END),2) AS PULLBACK, ROUND(SUM(CASE WHEN strat='MOMENTUM' THEN realized ELSE 0 END),2) AS MOMENTUM, ROUND(SUM(CASE WHEN strat='REVERSION' THEN realized ELSE 0 END),2) AS REVERSION, ROUND(SUM(CASE WHEN strat='RETEST' THEN realized ELSE 0 END),2) AS RETEST, ROUND(SUM(CASE WHEN strat='SWEEP' THEN realized ELSE 0 END),2) AS SWEEP, ROUND(SUM(CASE WHEN strat='FVG' THEN realized ELSE 0 END),2) AS FVG, ROUND(SUM(CASE WHEN strat='GAPGO' THEN realized ELSE 0 END),2) AS GAPGO, ROUND(SUM(CASE WHEN strat='unassigned' THEN realized ELSE 0 END),2) AS LEGACY FROM trades WHERE agent='day' AND side='sell' GROUP BY day ORDER BY day"
     }
    ],
    "fieldConfig": {
@@ -1776,7 +1787,8 @@
      "queryType": "table",
      "timeColumns": [
       "time"
-     ]
+     ],
+     "rawQueryText": "SELECT ts AS time, symbol, CASE WHEN strat='unassigned' THEN 'LEGACY (pre-team)' ELSE strat END AS strategy, ROUND(qty,4) AS qty, ROUND(realized,2) AS pnl, ROUND(100.0*realized/NULLIF(value-realized,0),2) AS return_pct, reason FROM trades WHERE agent='day' AND side='sell' AND realized>0 ORDER BY realized DESC LIMIT 10"
     }
    ],
    "fieldConfig": {
@@ -1841,7 +1853,8 @@
      "queryType": "table",
      "timeColumns": [
       "time"
-     ]
+     ],
+     "rawQueryText": "SELECT ts AS time, symbol, CASE WHEN strat='unassigned' THEN 'LEGACY (pre-team)' ELSE strat END AS strategy, ROUND(qty,4) AS qty, ROUND(realized,2) AS pnl, ROUND(100.0*realized/NULLIF(value-realized,0),2) AS return_pct, reason FROM trades WHERE agent='day' AND side='sell' AND realized<0 ORDER BY realized ASC LIMIT 10"
     }
    ],
    "fieldConfig": {
@@ -1944,14 +1957,16 @@
      },
      "refId": "A",
      "queryText": "SELECT symbol, strat, COALESCE(kind,'cash_secured_put/covered_call') AS kind, short_strike, long_strike, expiry, qty, ROUND(credit,2) AS credit, ROUND(mark,2) AS mark, ROUND(open_pnl,2) AS open_pnl, ROUND(max_loss,2) AS max_loss, ROUND(collateral,2) AS collateral FROM options ORDER BY expiry, symbol",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT symbol, strat, COALESCE(kind,'cash_secured_put/covered_call') AS kind, short_strike, long_strike, expiry, qty, ROUND(credit,2) AS credit, ROUND(mark,2) AS mark, ROUND(open_pnl,2) AS open_pnl, ROUND(max_loss,2) AS max_loss, ROUND(collateral,2) AS collateral FROM options ORDER BY expiry, symbol"
     }
    ],
    "fieldConfig": {
     "defaults": {},
     "overrides": []
    },
-   "options": {}
+   "options": {},
+   "description": "An empty table is expected when there are no open options positions. This sleeve only opens cash-secured puts, covered calls, or fully hedged put credit spreads; naked options are not allowed."
   },
   {
    "id": 43,
@@ -2018,7 +2033,8 @@
      },
      "refId": "A",
      "queryText": "SELECT agent, ROUND(budget_pct,1) AS budget_pct_of_account, ROUND(mult,2) AS multiplier_vs_base, ROUND(score_pct,3) AS last_week_pnl_pct_of_account, datetime(ts,'unixepoch','localtime') AS reviewed FROM allocation WHERE current=1 ORDER BY agent",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT agent, ROUND(budget_pct,1) AS budget_pct_of_account, ROUND(mult,2) AS multiplier_vs_base, ROUND(score_pct,3) AS last_week_pnl_pct_of_account, datetime(ts,'unixepoch','localtime') AS reviewed FROM allocation WHERE current=1 ORDER BY agent"
     }
    ],
    "fieldConfig": {
@@ -2049,7 +2065,8 @@
      },
      "refId": "A",
      "queryText": "SELECT rank, name, tier, parts, train_n, train_excess_bp, train_t, hold_n, hold_excess_bp, hold_t, ROUND(hold_hit*100,1) AS hold_hit_pct, hold_pf, weight FROM ranking WHERE parts=2 AND rank<=25 OR parts=1 ORDER BY CASE WHEN parts=1 THEN 1 ELSE 0 END, rank",
-     "queryType": "table"
+     "queryType": "table",
+     "rawQueryText": "SELECT rank, name, tier, parts, train_n, train_excess_bp, train_t, hold_n, hold_excess_bp, hold_t, ROUND(hold_hit*100,1) AS hold_hit_pct, hold_pf, weight FROM ranking WHERE parts=2 AND rank<=25 OR parts=1 ORDER BY CASE WHEN parts=1 THEN 1 ELSE 0 END, rank"
     }
    ],
    "fieldConfig": {
