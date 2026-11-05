@@ -25,5 +25,13 @@ class CommandBridgeTests(unittest.TestCase):
         self.assertEqual(names, {"research_question", "paper_trader_status"})
 
 
+class WatchdogClassTests(unittest.TestCase):
+    def test_general_vs_company(self):
+        for q in ("What's the latest on Pokemon?", "Explain the roll mass plays in physics", "FPS vs RTS gaming"):
+            self.assertFalse(bridge._is_company_question(q), q)
+        for q in ("Analyze AAPL", "Compare NVDA and AAPL", "Mutual Funds vs ETFs", "Evaluate SCHD"):
+            self.assertTrue(bridge._is_company_question(q), q)
+
+
 if __name__ == "__main__":
     unittest.main()

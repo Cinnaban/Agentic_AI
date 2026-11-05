@@ -148,7 +148,52 @@ def run_command(text, identity):
     raise ValueError("unsupported command")
 
 
+WATCHDOG_SECONDS = 1200
+GENERAL_WATCHDOG_SECONDS = 420
+
+
+COMPANY_WORDS = re.compile(
+    r"\b(analy[sz]e|analysis|evaluate|portfolio|stocks?|etfs?|tickers?|shares?|valuation|earnings|"
+    r"mutual funds?|invest\w*)\b",
+    re.IGNORECASE,
+)
+TICKER = re.compile(r"\$[A-Za-z]{1,5}\b|\b[A-Z]{3,5}\b")
+CAPS_WORDS = {"FPS", "RTS", "MOBA", "RPG", "MMO", "NFL", "NBA", "MLB", "NHL", "USA", "THE", "AND"}
+
+
+def _is_company_question(question):
+    """Company, ETF and portfolio analyses are slow by design; everything else gets the shorter cap."""
+    if COMPANY_WORDS.search(question):
+        return True
+    return any(t not in CAPS_WORDS for t in TICKER.findall(question))
+
+
+def _arm_watchdog(question=""):
+    """A hung pipeline must answer instead of leaving 'Processing...' forever; the stack goes to a log."""
+    import faulthandler
+    import threading
+
+    log_path = os.path.expanduser("~/.hermes/logs/front-door-hangs.log")
+    log_file = open(log_path, "a")
+    limit = WATCHDOG_SECONDS if _is_company_question(question) else GENERAL_WATCHDOG_SECONDS
+    faulthandler.dump_traceback_later(limit - 5, file=log_file)
+
+    def expire():
+        PROTO_OUT.write(json.dumps({
+            "text": "That analysis took too long and was stopped. Try a narrower question.",
+            "media": [],
+        }) + "\n")
+        PROTO_OUT.flush()
+        os._exit(0)
+
+    timer = threading.Timer(limit, expire)
+    timer.daemon = True
+    timer.start()
+
+
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--ask":
+        _arm_watchdog(sys.argv[2])
     if len(sys.argv) > 3 and sys.argv[1] == "--cmd":
         try:
             PROTO_OUT.write(json.dumps({"text": run_command(sys.argv[2], sys.argv[3]), "media": []}) + "\n")
