@@ -648,6 +648,17 @@ ps aux \
 | grep -v grep
 ```
 
+## Hermes Front Door
+
+The Hermes Agent gateway (`ai.hermes.gateway`, installed under `~/.hermes`) is the single process that owns the Telegram and Discord tokens. The old `com.bunnyhouse.stockagent.discord` and `.telegram` agents are stopped, so Telegram never has two polling instances.
+
+- A gateway plugin (`~/.hermes/plugins/agentic-front-door`) sends Discord questions-channel messages (and threads under it) and authorized Telegram messages straight to the pipeline through `integrations/hermes_mcp_server.py --ask`, with no LLM relay, so tables and numbers stay exact. At most two questions run at once, and a timed-out run is killed.
+- Telegram `/portfolio`, `/positions`, `/review`, `/paper`, `/buy`, `/sell`, `/confirm`, `/myid` and `/help_rh` run deterministically through `--cmd` using the same authorization as before (`TELEGRAM_ROBINHOOD_USER_IDS`, `TELEGRAM_ROBINHOOD_CHAT_IDS`). They never reach the model, and the trader stays paper-only.
+- Other chats fall through to the Hermes agent (local Ollama `qwen3-8b-64k`), which also exposes the `research_question` and `paper_trader_status` MCP tools.
+- Rollback: restore `~/.hermes/config.yaml.bak-pre-project` and `.env.bak-pre-project`, run `hermes gateway stop`, then `launchctl bootstrap gui/$(id -u)` the two old plists.
+
+Paper desk settings: `PAPER_GROWTH_PCT`, `PAPER_GROWTH_WEIGHTS`, `PAPER_REBALANCE_BAND`, `PAPER_OPTION_MAX_POSITIONS`, `PAPER_OPTION_WEEKLY_PREMIUM_GOAL`, `PAPER_OPTION_SYMBOLS`.
+
 ## Runtime Storage
 
 Hermes job runtime state should use locally writable project storage rather than depending on an external `/Volumes/...` path for live requests.

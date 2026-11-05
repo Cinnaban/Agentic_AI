@@ -3,6 +3,7 @@
 Read-only: no order placement is exposed. Run with the project venv (Python 3.9).
 """
 import json
+import re
 import os
 import sys
 from pathlib import Path
@@ -123,7 +124,38 @@ def handle(message):
         _reply(msg_id, error={"code": -32601, "message": "method not found"})
 
 
+ORDER_COMMANDS = ("buy", "sell")
+
+
+def run_command(text, identity):
+    """Deterministic Robinhood/paper commands (same functions as the old Telegram bot). Never reaches an LLM."""
+    from integrations.messaging import telegram_robinhood as rh
+
+    parts = re.sub(r"^(/\w+)@\w+", r"\1", text.strip()).split()
+    name, args = parts[0].lstrip("/").lower(), parts[1:]
+    if name in ("rh", "robinhood", "help_rh"):
+        return rh.HELP
+    if name in ("portfolio", "positions"):
+        return rh._portfolio()
+    if name == "paper":
+        return rh._paper()
+    if name == "review":
+        return rh._review([a.strip(",").upper() for a in args if re.fullmatch(r"[A-Za-z.\-,]{1,12}", a)])
+    if name in ORDER_COMMANDS:
+        return rh._order(text, identity)
+    if name == "confirm":
+        return rh._confirm(args[0] if args else "", identity)
+    raise ValueError("unsupported command")
+
+
 def main():
+    if len(sys.argv) > 3 and sys.argv[1] == "--cmd":
+        try:
+            PROTO_OUT.write(json.dumps({"text": run_command(sys.argv[2], sys.argv[3]), "media": []}) + "\n")
+        except Exception as exc:
+            PROTO_OUT.write(json.dumps({"text": "Request failed: " + str(exc)[:200], "media": []}) + "\n")
+        PROTO_OUT.flush()
+        return
     if len(sys.argv) > 2 and sys.argv[1] == "--ask":
         # One-shot mode for the Hermes gateway plugin: prints one JSON line to the real stdout
         source = sys.argv[3] if len(sys.argv) > 3 else "hermes-agent"

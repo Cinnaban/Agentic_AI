@@ -52,6 +52,19 @@ class CompanyDetectionAgent:
                 break
         return queries
 
+    GENERIC_CATEGORY_TERMS = {
+        "mutual", "fund", "funds", "etf", "etfs", "stock", "stocks",
+        "share", "shares", "bond", "bonds", "index", "indexes", "indices",
+        "equity", "equities", "crypto", "option", "options", "reit",
+        "reits", "commodity", "commodities", "security", "securities",
+        "exchange", "traded", "the", "a", "an"
+    }
+
+    @classmethod
+    def _is_generic_category(cls, query):
+        terms = set(re.findall(r"[a-z0-9]+", str(query or "").casefold()))
+        return bool(terms) and terms.issubset(cls.GENERIC_CATEGORY_TERMS)
+
     @staticmethod
     def _normalized_name_terms(value):
         ignored = {
@@ -216,6 +229,8 @@ class CompanyDetectionAgent:
 
         for query in lookup_queries:
             if query.upper() in explicit_tickers:
+                continue
+            if cls._is_generic_category(query):
                 continue
             if any(
                 cls._company_is_mentioned(item["name"], query)
