@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import yfinance as yf
 
+from data.providers.chart_theme import BG, DARK_RC, GRID
+
 
 # Matplotlib pyplot shares process-global state across concurrent bot requests.
 _PLOT_LOCK = threading.Lock()
@@ -217,7 +219,7 @@ class PerformanceChartProvider:
         file_path = None
         figure = None
         try:
-            with _PLOT_LOCK:
+            with _PLOT_LOCK, plt.rc_context(DARK_RC):
                 file = tempfile.NamedTemporaryFile(
                     prefix="performance_",
                     suffix=".png",
@@ -239,7 +241,7 @@ class PerformanceChartProvider:
                     )
                 axis.axhline(
                     0,
-                    color="#64748b",
+                    color=GRID,
                     linewidth=0.8,
                     alpha=0.7
                 )
@@ -251,7 +253,7 @@ class PerformanceChartProvider:
                 )
                 axis.set_ylabel("Total return (%)")
                 axis.set_xlabel("Date")
-                axis.grid(True, color="#cbd5e1", alpha=0.45)
+                axis.grid(True, color=GRID, alpha=0.8)
                 axis.legend(loc="best", frameon=False)
                 axis.xaxis.set_major_locator(
                     mdates.MonthLocator(interval=2)
@@ -263,7 +265,7 @@ class PerformanceChartProvider:
                     file_path,
                     format="png",
                     dpi=150,
-                    facecolor="white"
+                    facecolor=BG
                 )
         except Exception as exc:
             if file_path and os.path.exists(file_path):

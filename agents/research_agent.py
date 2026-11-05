@@ -558,35 +558,46 @@ GROUNDING RULES:
   presented as the overall analysis date.
 """
         
-        response = self.ollama.generate(
-            prompt,
+        model_response = ""
+        last_error = ""
+        for attempt in range(2):
+            response = self.ollama.generate(
+                prompt,
 
-            model=Config.RESEARCH_MODEL,
+                model=Config.RESEARCH_MODEL,
 
-            options={
-                "num_predict":
-                    Config.RESEARCH_NUM_PREDICT,
+                options={
+                    "num_predict":
+                        Config.RESEARCH_NUM_PREDICT,
 
-                "num_ctx":
-                    Config.RESEARCH_NUM_CTX
-            },
+                    "num_ctx":
+                        Config.RESEARCH_NUM_CTX
+                },
 
-            keep_alive=(
-                Config.OLLAMA_KEEP_ALIVE_REASONING
+                keep_alive=(
+                    Config.OLLAMA_KEEP_ALIVE_REASONING
+                )
             )
-        )
-
-        model_response = response.get(
-        "response",
-            ""
-        )
+            model_response = str(
+                (response or {}).get("response", "") or ""
+            )
+            if model_response.strip():
+                break
+            last_error = str(
+                (response or {}).get("error", "") or "empty response"
+            )
+            print(
+                "RESEARCH AGENT RETRY:",
+                attempt + 1,
+                last_error
+            )
 
         if not model_response.strip():
 
             return (
                 "Research analysis unavailable: "
                 "the research model returned "
-                "an empty response."
+                f"no usable output ({last_error})."
             )
 
         return model_response

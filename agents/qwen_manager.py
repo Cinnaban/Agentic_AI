@@ -18,6 +18,58 @@ class QwenManager:
 
         self.ollama = OllamaClient()
 
+    @staticmethod
+    def _parse_json(text):
+        """Tolerates markdown fences and text around the JSON object."""
+        text = str(text or "").strip()
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            start, end = text.find("{"), text.rfind("}")
+            if start < 0 or end <= start:
+                return None
+            try:
+                data = json.loads(text[start:end + 1])
+            except json.JSONDecodeError:
+                return None
+        return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def completeness_cap(results):
+        """Deterministic ceiling on confidence plus issues, independent of the reviewer model."""
+        if not isinstance(results, dict):
+            return 0, ["Invalid quality context"]
+        cap, issues = 100, []
+
+        research = results.get("research")
+        if isinstance(research, dict):
+            research = research.get("response") or research.get("analysis") or research.get("text")
+        research_text = str(research or "").strip()
+        if not research_text or research_text.startswith("Research analysis unavailable"):
+            cap = min(cap, 65)
+            issues.append("Research agent returned no usable output")
+
+        risk = results.get("risk")
+        if not isinstance(risk, dict) or not any(
+            k in risk for k in ("overall_risk", "risk_score", "signal_uncertainty")
+        ):
+            cap = min(cap, 65)
+            issues.append("Risk agent output unavailable")
+
+        quant = results.get("quant_summary") or results.get("quant")
+        if not quant:
+            cap = min(cap, 70)
+            issues.append("Quantitative analysis unavailable")
+
+        failed = results.get("failed_agents") or []
+        if failed:
+            cap = min(cap, 80 - 5 * len(failed))
+            issues.append("Failed agents: " + ", ".join(str(f) for f in failed))
+
+        if not results.get("social_available"):
+            cap = min(cap, 90)
+        return max(cap, 0), issues
+
     def _validate_reconciliation(
         self,
         results
@@ -702,25 +754,31 @@ class QwenManager:
                 results
             )
 
-        try:
-
-            result = json.loads(
-                model_response
-            )
-
-        except json.JSONDecodeError:
-
-            return self._build_fallback_review(
-                results
-            )
-        if not isinstance(
-            result,
-            dict
-        ):
+        result = self._parse_json(
+            model_response
+        )
+        if result is None:
+            print("QUALITY REVIEW INVALID JSON:", model_response[:200])
             return self._build_fallback_review(
                 results
             )
             
+        issues = result.get("issues", [])
+        if not isinstance(issues, list):
+            issues = [str(issues)]
+        try:
+            confidence = int(result.get("confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0
+
+        cap, cap_issues = self.completeness_cap(results)
+        if confidence > cap:
+            confidence = cap
+        known = " ".join(str(i).lower() for i in issues)
+        for issue in cap_issues:
+            if issue.lower().split(" returned")[0] not in known:
+                issues.append(issue)
+
         return {
             "approved": bool(
                 result.get(
@@ -728,12 +786,6 @@ class QwenManager:
                     False
                 )
             ),
-            "issues": result.get(
-                "issues",
-                []
-            ),
-            "confidence": result.get(
-                "confidence",
-                0
-            )
+            "issues": issues,
+            "confidence": confidence
         }

@@ -392,8 +392,7 @@ def compute_fundamentals(ticker, spec, av_client=None):
 
 # ---------- rendering ----------
 
-BG, FG, GRID = "#0f1115", "#e8e8e8", "#2a2d34"
-PALETTE = ["#4f8df5", "#f5a742", "#4fd18b", "#e0605e", "#b07cf0"]
+from data.providers.chart_theme import BG, FG, GRID, PALETTE  # noqa: E402
 
 
 def _fmt_money(value, _pos=None):

@@ -7,6 +7,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from data.providers.chart_theme import DARK_RC
+
 
 _PLOT_LOCK = threading.Lock()
 
@@ -14,9 +16,9 @@ _PLOT_LOCK = threading.Lock()
 class PortfolioAllocationChartProvider:
 
     COLORS = {
-        "stock": "#4472C4",
-        "etf": "#70AD47",
-        "unresolved": "#A5A5A5"
+        "stock": "#4f8df5",
+        "etf": "#4fd18b",
+        "unresolved": "#9aa0aa"
     }
 
     def generate(self, holdings):
@@ -53,7 +55,7 @@ class PortfolioAllocationChartProvider:
 
         total_weight = sum(weight for _, weight, _ in plotted)
         exact_total = math.isclose(total_weight, 100.0, abs_tol=0.01)
-        with _PLOT_LOCK:
+        with _PLOT_LOCK, plt.rc_context(DARK_RC):
             figure, axis = plt.subplots(
                 figsize=(9, max(4.5, min(12, len(plotted) * 0.35)))
             )
@@ -77,7 +79,8 @@ class PortfolioAllocationChartProvider:
                 else "Stated holding weight (%)"
             )
             axis.set_title("Portfolio Allocation by Holding")
-            axis.grid(axis="x", alpha=0.25)
+            axis.set_axisbelow(True)
+            axis.grid(axis="x", alpha=0.6)
             for bar, (_, weight, _) in zip(bars, plotted):
                 axis.annotate(
                     f"{weight:g}%",

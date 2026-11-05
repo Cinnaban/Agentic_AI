@@ -3283,10 +3283,15 @@ class Hermes:
         except Exception as exc:
             print("CONFIDENCE HEURISTIC FAILED:", repr(exc))
         best = max(scores) if scores else 0
+        try:
+            cap, _ = self.quality_manager.completeness_cap(quality_context)
+            best = min(best, cap)
+        except Exception as exc:
+            print("CONFIDENCE CAP FAILED:", repr(exc))
         print("QUALITY CONFIDENCE (llm, best):", llm_confidence, best)
         final = "As Per Review" if best < 70 else str(min(best, 100))
         if isinstance(llm_confidence, (int, float)):
-            final += f" (Reviewer score: {int(llm_confidence)})"
+            final += f" (Reviewer score: {min(int(llm_confidence), best)})"
         return final
 
     def _consensus_summary(self, message, sources):
