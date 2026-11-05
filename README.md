@@ -1028,6 +1028,12 @@ cd ~/Agentic_AI
 python -m integrations.messaging.discord_bot
 ```
 
+## Charts
+
+Ask for a chart in any phrasing ("Chart AMZN EBITDA vs P/E ratio 2021-2025", "Plot NVDA and AMD revenue since 2020", "Graph CPI since 2019") and the bot replies with a PNG plus a data table, sources and any gaps. Money metrics (revenue, net profit, EBITDA, gross/operating profit, free cash flow) draw as bars on the left axis; ratios and margins (P/E, net/gross margin, EPS) draw as lines on a second right axis. Price and return requests draw time series. Follow-ups such as "update the chart to add P/E as a second axis" reuse the previous tickers and period (state is kept for 6 hours per channel).
+
+Data comes from Yahoo Finance first, with Alpha Vantage filling older fiscal years and economic series (cached, quota-aware). P/E = fiscal year-end close / diluted EPS (omitted when EPS is not positive). Missing values are left as gaps and listed, never estimated. Code: `orchestrator/chart_engine.py`.
+
 ## Firecrawl Operations
 
 Firecrawl infrastructure lives outside the Agentic_AI repository, for example under a dedicated Firecrawl directory on the Mac Mini.

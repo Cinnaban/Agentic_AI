@@ -1,0 +1,42 @@
+{
+  "job_id": "b2407804-834b-45d4-9699-799e18c15515",
+  "status": "completed",
+  "created_at": "2026-11-05T04:22:42.817872",
+  "updated_at": "2026-11-05T04:32:56.494607",
+  "data": {
+    "message": "Analyze CAT",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "CAT",
+        "ticker": "CAT",
+        "entity_type": "stock",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Farm & Heavy Construction Machinery",
+          "sector": "Industrials"
+        },
+        "industry": "Farm & Heavy Construction Machinery",
+        "sector": "Industrials"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Research analysis is unavailable (empty response), resulting in incomplete fundamental analysis.",
+        "Social sentiment data is invalid, consisting solely of network security block pages rather than user discussion.",
+        "Challenger agent failed to execute, preventing the required independent adversarial review."
+      ],
+      "confidence": 95
+    },
+    "final_status": "completed"
+  }
+}

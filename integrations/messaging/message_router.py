@@ -173,7 +173,7 @@ class MessageRouter:
                     "Hermes returned an invalid result"
             }
 
-        if result.get("status") != "failed" and isinstance(result.get("response"), str):
+        if result.get("status") != "failed" and isinstance(result.get("response"), str) and not result.get("chart"):
             try:
                 from orchestrator.direct_answer import DirectAnswerAgent
                 result["response"] = DirectAnswerAgent().apply(text, result["response"])

@@ -11,6 +11,7 @@ if str(ROOT_DIR) not in sys.path:
 from configs.config import Config
 
 from agents.company_detection_agent import (CompanyDetectionAgent)
+from orchestrator.chart_engine import ChartEngine
 from agents.research_assignment_agent import (ResearchAssignmentAgent)
 from agents.qwen_manager import (QwenManager)
 from agents.general_response_agent import (GeneralResponseAgent)
@@ -760,6 +761,22 @@ class Hermes:
             )
         except Exception:
             price_text = None
+        chart_result = None
+        try:
+            chart_result = ChartEngine().handle(
+                message, conversation_key=conversation_key
+            )
+        except Exception as chart_error:
+            print(f"CHART ENGINE ERROR: {chart_error}")
+        if chart_result:
+            self.conversation_context.add_message(
+                conversation_key, "user", str(message)
+            )
+            self.conversation_context.add_message(
+                conversation_key, "assistant", chart_result["response"]
+            )
+            return chart_result
+
         if price_text:
             safe_price = self.outbound_gate.prepare(
                 {
@@ -1548,6 +1565,10 @@ class Hermes:
                         )
 
                     self._add_portfolio_performance_charts(
+                        portfolio_result,
+                        holdings
+                    )
+                    self._add_portfolio_fundamental_charts(
                         portfolio_result,
                         holdings
                     )
@@ -2406,6 +2427,10 @@ class Hermes:
                     execution_results,
                     work_package
                 )
+                self._add_fundamental_charts(
+                    final_response,
+                    self._quantified_entries(execution_results, work_package)
+                )
 
                 safe_response = (
                     self.outbound_gate
@@ -2597,6 +2622,10 @@ class Hermes:
                     final_response,
                     execution_results,
                     work_package
+                )
+                self._add_fundamental_charts(
+                    final_response,
+                    self._quantified_entries(execution_results, work_package)
                 )
 
             else:
@@ -3853,6 +3882,83 @@ class Hermes:
             f"- {ticker} returned {asset:+.1f}% versus {bench:+.1f}% for "
             f"{label} - {verdict}.{note}"
         )
+
+    FUNDAMENTAL_CHART_LIMIT = 3
+
+    def _etf_top_holding_tickers(self, ticker):
+        try:
+            context = self.etf_fund_provider.get_fund_context(ticker)
+        except Exception:
+            return []
+        rows = context.get("top_holdings") if isinstance(context, dict) else None
+        symbols = []
+        for row in rows or []:
+            symbol = str((row or {}).get("key") or "").strip().upper()
+            if re.fullmatch(r"[A-Z]{1,5}([.-][A-Z])?", symbol) and symbol not in symbols:
+                symbols.append(symbol)
+        return symbols[:self.FUNDAMENTAL_CHART_LIMIT]
+
+    def _add_fundamental_charts(self, response, entries):
+        """entries: [(ticker, entity_type)]. Stocks get one chart; ETFs chart their top 3 holdings."""
+        if not isinstance(response, dict):
+            return
+        targets = []
+        for ticker, entity_type in entries:
+            if entity_type == "etf":
+                targets += [(t, f"top holding of {ticker}") for t in self._etf_top_holding_tickers(ticker)]
+            elif entity_type == "stock":
+                targets.append((ticker, ""))
+        seen, unique = set(), []
+        for ticker, note in targets:
+            if ticker not in seen:
+                seen.add(ticker)
+                unique.append((ticker, note))
+        engine = ChartEngine()
+        attachments = list(response.get("attachments") or [])
+        lines = []
+        for ticker, note in unique[:max(self.FUNDAMENTAL_CHART_LIMIT, 3) * 2]:
+            try:
+                chart = engine.overview(ticker)
+            except Exception as exc:
+                print(f"FUNDAMENTAL CHART FAILED: {ticker} {exc}")
+                chart = None
+            label = f"{ticker} ({note})" if note else ticker
+            if not chart:
+                lines.append(f"- {label}: financial data unavailable.")
+                continue
+            attachments.append({"path": chart["path"], "filename": f"performance_{ticker}_fundamentals.png",
+                                "caption": chart["caption"]})
+            gap = f" (P/E unavailable for {', '.join(chart['gaps'])}: EPS not positive or missing)" if chart["gaps"] else ""
+            lines.append(f"- {label}: {chart['metric']} vs P/E chart attached{gap}.")
+        if not lines:
+            return
+        if len(attachments) > len(response.get("attachments") or []):
+            response["attachments"] = attachments
+        text = response.get("response")
+        if isinstance(text, str) and text.strip():
+            response["response"] = (text.rstrip() + "\n\n**Financial overview (EBITDA vs P/E):**\n"
+                                    + "\n".join(lines))
+
+    def _quantified_entries(self, execution_results, work_package):
+        quant = (execution_results or {}).get("quant") if isinstance(execution_results, dict) else None
+        results = quant.get("results", []) if isinstance(quant, dict) else []
+        quantified = {str((r.get("company") or {}).get("ticker") or "").upper()
+                      for r in results if isinstance(r, dict)}
+        entries = []
+        for company in getattr(work_package, "companies", []) or []:
+            if isinstance(company, dict):
+                ticker = str(company.get("ticker") or "").strip().upper()
+                if ticker in quantified:
+                    entries.append((ticker, str(company.get("entity_type") or "").lower()))
+        return entries
+
+    def _add_portfolio_fundamental_charts(self, response, holdings):
+        stocks = [h for h in holdings or [] if isinstance(h, dict)
+                  and str(h.get("entity_type") or "").lower() == "stock" and h.get("ticker")]
+        stocks.sort(key=lambda h: h.get("weight") if isinstance(h.get("weight"), (int, float)) else 0,
+                    reverse=True)
+        self._add_fundamental_charts(
+            response, [(str(h["ticker"]).upper(), "stock") for h in stocks[:self.FUNDAMENTAL_CHART_LIMIT]])
 
     def _add_portfolio_performance_charts(self, response, holdings):
         try:
