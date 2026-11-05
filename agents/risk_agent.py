@@ -6,6 +6,17 @@ from configs.config import Config
 
 class RiskAgent:
 
+    @staticmethod
+    def _parse_json(text):
+        """Parse a JSON object even when wrapped in fences or surrounding prose."""
+        text = str(text or "").strip()
+        for candidate in (text, text[text.find("{"):text.rfind("}") + 1]):
+            try:
+                return json.loads(candidate)
+            except ValueError:
+                continue
+        return None
+
     def __init__(self):
 
         self.ollama = OllamaClient()
@@ -335,13 +346,14 @@ STRICT DATA RULES:
                 )
             }
 
-        try:
+        result = self._parse_json(model_response)
 
-            result = json.loads(
-                model_response
+        if result is None:
+
+            print(
+                "RISK AGENT INVALID JSON:",
+                model_response[:300].replace("\n", " ")
             )
-
-        except json.JSONDecodeError:
 
             return {
                 "status": "failed",

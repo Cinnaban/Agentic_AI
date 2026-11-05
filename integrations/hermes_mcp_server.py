@@ -164,8 +164,8 @@ def main():
             PROTO_OUT.write(json.dumps({"text": text, "media": media}) + "\n")
         except Exception as exc:
             import traceback
-            with open(os.path.expanduser("~/.hermes/logs/front-door-errors.log"), "a") as handle:
-                handle.write(traceback.format_exc() + "\n---\n")
+            with open(os.path.expanduser("~/.hermes/logs/front-door-errors.log"), "a") as log_file:
+                log_file.write(traceback.format_exc() + "\n---\n")
             PROTO_OUT.write(json.dumps({"text": "Analysis failed: " + str(exc), "media": []}) + "\n")
         PROTO_OUT.flush()
         return

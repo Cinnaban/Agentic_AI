@@ -38,6 +38,10 @@ class OllamaClient:
                 False
         }
         
+        # Qwen3 reasoning tokens count against num_predict and can leave `response` empty
+        if think is None and str(model).startswith("qwen3"):
+            think = False
+
         if think is not None:
             payload["think"] = think
 
