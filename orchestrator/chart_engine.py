@@ -9,7 +9,7 @@ import re
 import tempfile
 import threading
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import matplotlib
 matplotlib.use("Agg")
@@ -390,6 +390,98 @@ def compute_fundamentals(ticker, spec, av_client=None):
     return values, list(dict.fromkeys(sources)), data
 
 
+def fetch_quarterly(ticker, av_client=None):
+    """Return reported quarterly fundamentals keyed by fiscal period end (YYYY-MM-DD)."""
+    import yfinance as yf
+
+    data, sources = {}, []
+
+    def put(period, key, value):
+        try:
+            period = period.strftime("%Y-%m-%d") if hasattr(period, "strftime") else str(period)[:10]
+            value = float(value)
+        except (TypeError, ValueError):
+            return
+        if value == value:
+            data.setdefault(period, {}).setdefault(key, value)
+
+    try:
+        stock = yf.Ticker(ticker)
+        income, cash = stock.quarterly_income_stmt, stock.quarterly_cashflow
+        if income is not None and not income.empty:
+            sources.append("Yahoo Finance")
+            for key, names in (("revenue", ("Total Revenue",)), ("net_income", ("Net Income",)),
+                               ("ebitda", ("EBITDA",)), ("gross_profit", ("Gross Profit",)),
+                               ("operating_income", ("Operating Income",)), ("eps", ("Diluted EPS",))):
+                series = _row(income, *names)
+                if series is not None:
+                    for period, value in series.items():
+                        put(period, key, value)
+        if cash is not None and not cash.empty:
+            series = _row(cash, "Free Cash Flow")
+            if series is not None:
+                for period, value in series.items():
+                    put(period, "fcf", value)
+    except Exception:
+        pass
+
+    av = av_client or _av_client()
+    need_reports = len(data) < 8 or any(
+        row.get("ebitda") is None and row.get("net_income") is None for row in list(data.values())[-8:])
+    need_eps = any(row.get("eps") is None for row in list(data.values())[-8:])
+    if av is not None and av.configured() and (need_reports or need_eps):
+        try:
+            report = av.call("INCOME_STATEMENT", ttl=7 * 86400, symbol=ticker) or {} if need_reports else {}
+            for item in report.get("quarterlyReports", []):
+                period = item.get("fiscalDateEnding")
+                for key, field in (("revenue", "totalRevenue"), ("net_income", "netIncome"),
+                                   ("ebitda", "ebitda"), ("gross_profit", "grossProfit"),
+                                   ("operating_income", "operatingIncome")):
+                    put(period, key, item.get(field))
+            earnings = av.call("EARNINGS", ttl=7 * 86400, symbol=ticker) or {} if need_eps else {}
+            for item in earnings.get("quarterlyEarnings", []):
+                put(item.get("fiscalDateEnding"), "eps", item.get("reportedEPS"))
+            if report.get("quarterlyReports") or earnings.get("quarterlyEarnings"):
+                sources.append("Alpha Vantage")
+        except Exception:
+            pass
+    return dict(sorted(data.items())), list(dict.fromkeys(sources))
+
+
+def compute_quarterly_fundamentals(ticker, av_client=None):
+    """Quarterly EBITDA/net income and P/E based on trailing-four-quarter diluted EPS."""
+    data, sources = fetch_quarterly(ticker, av_client)
+    periods = list(data)
+    if not periods:
+        return {}, sources
+
+    import yfinance as yf
+    prices = {}
+    try:
+        history = yf.Ticker(ticker).history(
+            start=(datetime.strptime(periods[0], "%Y-%m-%d") - timedelta(days=10)).strftime("%Y-%m-%d"),
+            end=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d"),
+            auto_adjust=False,
+        )
+        for stamp, close in history["Close"].dropna().items():
+            prices[stamp.strftime("%Y-%m-%d")] = float(close)
+    except Exception:
+        pass
+    # Use the last available close on or before each fiscal period end.
+    price_dates = sorted(prices)
+    out = {}
+    for i, period in enumerate(periods):
+        row = dict(data[period])
+        price = next((prices[d] for d in reversed(price_dates) if d <= period), None)
+        eps = [data[p].get("eps") for p in periods[max(0, i - 3):i + 1]]
+        if i >= 3 and all(v is not None for v in eps) and sum(eps) > 0 and price:
+            row["pe"] = price / sum(eps)
+        out[period] = row
+    if prices:
+        sources.append("Yahoo Finance prices")
+    return out, list(dict.fromkeys(sources))
+
+
 # ---------- rendering ----------
 
 from data.providers.chart_theme import BG, FG, GRID, PALETTE  # noqa: E402
@@ -537,6 +629,58 @@ def render_timeseries(title, subtitle, curves, ylabel, pct=False):
             plt.close(fig)
 
 
+def render_quarterly_fundamentals(ticker, data, sources):
+    """Quarterly bars with a trailing-12-month P/E line, limited to the latest eight reported quarters."""
+    periods = list(data)[-8:]
+    metric = "ebitda" if any(data[p].get("ebitda") is not None for p in periods) else "net_income"
+    values = [data[p].get(metric) for p in periods]
+    with _PLOT_LOCK:
+        fig, ax = plt.subplots(figsize=(11, 6.2), dpi=130)
+        try:
+            _style(ax, f"{ticker}: quarterly {METRICS[metric][0]} vs P/E Ratio",
+                   f"Last 8 reported quarters · P/E uses trailing 4-quarter diluted EPS · Source: {', '.join(sources) or 'n/a'}")
+            xs = list(range(len(periods)))
+            pts = [(x, v) for x, v in zip(xs, values) if v is not None]
+            if pts:
+                bars = ax.bar([x for x, _ in pts], [v for _, v in pts], color=PALETTE[0], width=0.65,
+                              label=METRICS[metric][0])
+                for bar, (_, value) in zip(bars, pts):
+                    ax.text(bar.get_x() + bar.get_width() / 2, value, _fmt_money(value),
+                            ha="center", va="bottom" if value >= 0 else "top", color=FG, fontsize=8)
+                ax.yaxis.set_major_formatter(FuncFormatter(_fmt_money))
+                ax.set_ylabel(f"{METRICS[metric][0]} ($)", color=FG)
+            pe = [(x, data[p].get("pe")) for x, p in enumerate(periods) if data[p].get("pe") is not None]
+            ax2 = ax.twinx()
+            ax2.set_facecolor(BG)
+            for spine in ax2.spines.values():
+                spine.set_color(GRID)
+            ax2.tick_params(colors=FG)
+            if pe:
+                line, = ax2.plot([x for x, _ in pe], [v for _, v in pe], color=PALETTE[1],
+                                 marker="o", linewidth=2.2, label="P/E Ratio")
+                for x, value in pe:
+                    ax2.annotate(f"{value:.1f}x", (x, value), textcoords="offset points", xytext=(0, 9),
+                                 ha="center", color=PALETTE[1], fontsize=8,
+                                 bbox={"boxstyle": "round,pad=0.2", "fc": BG, "ec": "none", "alpha": 0.85})
+                ax2.set_ylabel("P/E Ratio (x)", color=FG)
+                ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:.0f}x"))
+            ax.set_xticks(xs)
+            ax.set_xticklabels([datetime.strptime(p, "%Y-%m-%d").strftime("%b '%y") for p in periods])
+            ax.set_xlim(-0.5, len(periods) - 0.5)
+            if pts or pe:
+                handles, labels = ax.get_legend_handles_labels()
+                h2, l2 = ax2.get_legend_handles_labels()
+                leg = ax.legend(handles + h2, labels + l2, loc="upper center", bbox_to_anchor=(0.5, -0.07),
+                                ncol=2, facecolor=BG, edgecolor=GRID, labelcolor=FG, fontsize=9)
+                leg.set_zorder(10)
+            fig.tight_layout()
+            path = _new_path()
+            fig.savefig(path, facecolor=BG)
+            return path
+        finally:
+            plt.close(fig)
+
+
 # ---------- orchestration ----------
 
 def _fmt_cell(metric, value):
@@ -586,11 +730,11 @@ class ChartEngine:
             return self._prices(spec)
         return self._fundamentals(spec)
 
-    def overview(self, ticker, years=5):
+    def overview(self, ticker, years=4):
         """EBITDA (net profit when EBITDA is unavailable, e.g. banks) vs P/E chart for one ticker.
 
         Returns {"path", "caption", "metric", "gaps"} or None when no data exists."""
-        end = date.today().year - 1
+        end = date.today().year
         spec = {"tickers": [ticker], "metrics": ["ebitda", "pe"], "economic": [],
                 "start": end - years + 1, "end": end}
         values, sources, _ = compute_fundamentals(ticker, spec, self.av_client)
@@ -602,9 +746,16 @@ class ChartEngine:
         series = {ticker: values}
         path = render_fundamentals(spec, series, list(dict.fromkeys(sources)))
         gaps = [str(y) for y in range(spec["start"], spec["end"] + 1) if y not in values["pe"]]
+        quarterly, quarterly_sources = compute_quarterly_fundamentals(ticker, self.av_client)
+        quarterly = {p: row for p, row in quarterly.items() if row.get("ebitda") is not None
+                     or row.get("net_income") is not None}
+        quarterly_path = render_quarterly_fundamentals(ticker, quarterly, quarterly_sources) if quarterly else None
         return {"path": path, "metric": METRICS[spec["metrics"][0]][0], "gaps": gaps,
                 "caption": f"{ticker}: {METRICS[spec['metrics'][0]][0]} vs P/E ratio "
-                           f"({spec['start']}–{spec['end']})"}
+                           f"(last {years} years: {spec['start']}–{spec['end']})",
+                "quarterly_path": quarterly_path,
+                "quarterly_caption": f"{ticker}: quarterly EBITDA vs P/E ratio (last 8 reported quarters)",
+                "quarterly_periods": list(quarterly)[-8:]}
 
     def _fundamentals(self, spec):
         series, sources, notes, rows = {}, [], [], []

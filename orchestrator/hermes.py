@@ -3934,7 +3934,14 @@ class Hermes:
             attachments.append({"path": chart["path"], "filename": f"performance_{ticker}_fundamentals.png",
                                 "caption": chart["caption"]})
             gap = f" (P/E unavailable for {', '.join(chart['gaps'])}: EPS not positive or missing)" if chart["gaps"] else ""
-            lines.append(f"- {label}: {chart['metric']} vs P/E chart attached{gap}.")
+            lines.append(f"- {label}: {chart['metric']} vs P/E (last 4 reported fiscal years) chart attached{gap}.")
+            if chart.get("quarterly_path"):
+                attachments.append({"path": chart["quarterly_path"],
+                                    "filename": f"performance_{ticker}_quarterly_fundamentals.png",
+                                    "caption": chart["quarterly_caption"]})
+                lines.append(f"- {label}: last 8 reported quarters EBITDA vs trailing P/E chart attached.")
+            else:
+                lines.append(f"- {label}: quarterly chart unavailable (no quarterly financial data returned).")
         if not lines:
             return
         if len(attachments) > len(response.get("attachments") or []):

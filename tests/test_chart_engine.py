@@ -84,11 +84,33 @@ class OverviewTests(unittest.TestCase):
 
     def test_overview_falls_back_to_net_profit(self):
         annual = {2024: {"net_income": 5e10, "eps": 5.0}, 2025: {"net_income": 5.5e10, "eps": 5.5}}
+        quarterly = {f"2025-{month:02d}-30": {"net_income": 1e10, "eps": 1.0, "pe": 25.0}
+                     for month in (3, 6, 9, 12)}
         with mock.patch.object(ce, "fetch_annual", return_value=(annual, {}, ["Yahoo Finance"])), \
                 mock.patch.object(ce, "year_end_prices", return_value={2024: 200.0, 2025: 250.0}):
-            result = ce.ChartEngine().overview("JPM")
+            with mock.patch.object(ce, "compute_quarterly_fundamentals",
+                                   return_value=(quarterly, ["Yahoo Finance"])):
+                result = ce.ChartEngine().overview("JPM")
         try:
             self.assertEqual(result["metric"], "Net Profit")
             self.assertTrue(os.path.exists(result["path"]))
+            self.assertTrue(os.path.exists(result["quarterly_path"]))
+            self.assertIn("last 4 years", result["caption"])
+            self.assertEqual(len(result["quarterly_periods"]), 4)
         finally:
             os.remove(result["path"])
+            os.remove(result["quarterly_path"])
+
+    def test_quarterly_chart_limits_to_last_eight_periods(self):
+        data = {
+            f"{year}-{month:02d}-28": {"ebitda": float(year * month), "pe": 20.0 + month}
+            for year, month in [(2024, 3), (2024, 6), (2024, 9), (2024, 12),
+                                (2025, 3), (2025, 6), (2025, 9), (2025, 12),
+                                (2026, 3), (2026, 6)]
+        }
+        path = ce.render_quarterly_fundamentals("AMZN", data, ["Yahoo Finance"])
+        try:
+            self.assertTrue(os.path.exists(path))
+            self.assertGreater(os.path.getsize(path), 5000)
+        finally:
+            os.remove(path)
