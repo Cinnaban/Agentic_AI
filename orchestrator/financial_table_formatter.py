@@ -175,6 +175,11 @@ class FinancialTableFormatter:
                     section
                 )
 
+        if sections:
+            headline = QuantSummaryReviewer().headline(metrics, evidence)
+            if headline:
+                sections.insert(0, headline)
+
         return "\n\n".join(
             sections
         )

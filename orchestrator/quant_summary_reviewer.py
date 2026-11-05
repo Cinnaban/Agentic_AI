@@ -78,6 +78,39 @@ class QuantSummaryReviewer:
             return ""
         return "**Quant Summary Review**\n\n" + "\n".join(f"- {line}" for line in lines)
 
+    def headline(self, metrics, evidence=None):
+        """One-line Sell / Hold / Accumulate call that leads the analysis; '' without a model signal.
+
+        Rule: the model's direction must carry at least 5% confidence and the independent
+        cross-checks must not mostly disagree; otherwise the call stays Hold.
+        """
+        if not isinstance(metrics, dict):
+            return ""
+        self.build(metrics, evidence)
+        if self.model == 0 and _number(_value(metrics, "confidence")) is None:
+            return ""
+        confidence = _number(_value(metrics, "confidence"))
+        unique = list(dict.fromkeys(self.tally))
+        agree = sum(1 for _, v in unique if v == "agrees")
+        conflict = sum(1 for _, v in unique if v == "conflicts")
+        checks = f"{agree} of {len(unique)} independent checks agree" if unique else "no independent checks available"
+
+        if self.model == 0:
+            label, why = "HOLD", "the model gives no clear direction"
+        elif confidence is not None and confidence < 5:
+            label, why = "HOLD", f"the model's {WORD[self.model]} lean is near noise ({confidence:.1f}% confidence)"
+        elif conflict > agree:
+            label, why = "HOLD", f"the model is {WORD[self.model]} but independent evidence mostly disagrees ({checks})"
+        else:
+            label = "ACCUMULATE" if self.model > 0 else "SELL"
+            why = f"the model is {WORD[self.model]}; {checks}"
+
+        strength = ""
+        if label != "HOLD" and confidence is not None:
+            strength = " (low confidence)" if confidence < 30 else ""
+        icon = {"ACCUMULATE": "🟢", "HOLD": "🟡", "SELL": "🔴"}[label]
+        return f"{icon} **Recommendation: {label}**{strength} - {why}. Analysis summary only, not financial advice."
+
     # ---- helpers
     @staticmethod
     def _model_direction(metrics):

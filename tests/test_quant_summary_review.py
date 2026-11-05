@@ -47,6 +47,20 @@ class QuantSummaryReviewTests(unittest.TestCase):
         self.assertLess(out.index("Financial Strength"), review)
         self.assertNotIn("**Reported Financials**", out[quant:review])
 
+    def test_headline_leads_the_response(self):
+        out = FinancialTableFormatter().build_sectioned_tables(PM_METRICS)
+        self.assertTrue(out.startswith("🟡 **Recommendation: HOLD**"))
+        self.assertLess(out.index("Recommendation: HOLD"), out.index("**Market & Valuation**") if "**Market & Valuation**" in out else len(out))
+
+    def test_headline_accumulate_sell_and_missing(self):
+        bull = {"recommendation": metric("R", "Bullish"), "confidence": metric("C", 40.0, "percent"),
+                "momentum_rating": metric("M", "Good")}
+        self.assertIn("**Recommendation: ACCUMULATE**", QuantSummaryReviewer().headline(bull))
+        bear = {"recommendation": metric("R", "Bearish"), "confidence": metric("C", 12.0, "percent")}
+        text = QuantSummaryReviewer().headline(bear)
+        self.assertIn("**Recommendation: SELL** (low confidence)", text)
+        self.assertEqual(QuantSummaryReviewer().headline({}), "")
+
     def test_aligned_bullish_has_no_conflict_line(self):
         metrics = {
             "recommendation": metric("Model Recommendation", "Bullish"),

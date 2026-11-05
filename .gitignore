@@ -26,6 +26,7 @@ venv/
 # Runtime logs
 logs/
 *.log
+/runtime/google_search/
 /runtime/hermes/cache/
 /runtime/hermes/reference_archive/
 

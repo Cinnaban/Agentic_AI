@@ -445,6 +445,21 @@ def fetch_quarterly(ticker, av_client=None):
                 sources.append("Alpha Vantage")
         except Exception:
             pass
+
+    # Last resort: only fills EPS for quarters that already have reported statements.
+    if any(row.get("eps") is None for row in list(data.values())[-8:]):
+        try:
+            from orchestrator import google_search
+            if google_search.configured():
+                filled = False
+                for period, eps in google_search.quarterly_eps(ticker).items():
+                    if period in data and "eps" not in data[period]:
+                        data[period]["eps"] = eps
+                        filled = True
+                if filled:
+                    sources.append(google_search.LABEL)
+        except Exception:
+            pass
     return dict(sorted(data.items())), list(dict.fromkeys(sources))
 
 
