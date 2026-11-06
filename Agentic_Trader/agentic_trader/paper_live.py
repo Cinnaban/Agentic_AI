@@ -94,6 +94,11 @@ class Cfg:
         self.target = float(os.getenv("PAPER_TARGET_PCT", "0.02"))
         self.max_day_positions = int(os.getenv("PAPER_MAX_DAY_POSITIONS", "3"))
         self.min_trade = float(os.getenv("PAPER_MIN_TRADE_USD", "5"))
+        # historian briefing: recent closed-trade history handed to every team (PAPER_BRIEFING=0 disables)
+        self.brief_on = os.getenv("PAPER_BRIEFING", "1") not in ("0", "false", "off")
+        self.brief_days = int(os.getenv("PAPER_BRIEF_DAYS", "30"))
+        self.brief_min_trades = int(os.getenv("PAPER_BRIEF_MIN_TRADES", "3"))
+        self.brief_weight = float(os.getenv("PAPER_BRIEF_WEIGHT", "0.15"))
         # 2026 rule: margin accounts with >= $2,000 equity have no day-trade limit; otherwise the
         # legacy limit (max 3 day trades per 5 business days under $25,000) applies.
         self.account_type = os.getenv("PAPER_ACCOUNT_TYPE", "margin").lower()
@@ -723,6 +728,9 @@ class PaperTrader:
         if note and not self.income.opts:
             L.append(f"Last scan: {note}")
         L += self.desk_lines(quotes, equity, t)
+        if daily:
+            from .historian import briefing_lines
+            L += briefing_lines((s.get("desk") or {}).get("briefing"))
         L += ["", "Goals:", self.goal_line("Day", equity / s["day"]["open_equity"] - 1, cfg.daily_min, cfg.daily_max),
               self.goal_line("Week", equity / s["week"]["open_equity"] - 1, cfg.week_min, cfg.week_max)]
         limited = self.pdt_limited()

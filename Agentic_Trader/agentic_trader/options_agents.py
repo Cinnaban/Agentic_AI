@@ -36,6 +36,7 @@ def _earnings(tr, days, today):
 
 class _Agent:
     name, label, share = "", "", 0.0
+    brief = {}  # set by the options manager from the orchestrator's mandate
 
     def __init__(self, trader):
         self.tr = trader
@@ -62,6 +63,14 @@ class PutAgent(_Agent):
     OTM_FLOOR = MIN_OTM
     MAX_DROP = -0.03
     MIN_VRP = 0.0  # required implied/realized vol ratio; 0 means the ratio only tilts the ranking
+
+    def _weak(self, sym):
+        b = self.brief or {}
+        return b.get("avoid", {}).get(sym) or b.get("avoid_strat", {}).get(f"{self.name}|{sym}")
+
+    def _strong(self, sym):
+        b = self.brief or {}
+        return bool(b.get("favored", {}).get(sym) or b.get("favored_strat", {}).get(f"{self.name}|{sym}"))
 
     def _min_cost(self, px):
         """Smallest cash a position in this symbol could need, used to skip names the budget cannot fund."""
@@ -147,6 +156,8 @@ class PutAgent(_Agent):
                 stats["cooling down after stop-out"] += 1
             elif not px:
                 stats["no quote"] += 1
+            elif self._weak(sym):
+                stats["weak recent results (briefing)"] += 1
             elif self._min_cost(px) > room:
                 stats["too large for budget"] += 1
             elif (q.get("change_pct") or 0) < drop_limit:
@@ -168,7 +179,7 @@ class PutAgent(_Agent):
                 elif best:
                     tilt = min(1.5, max(0.7, vrp)) if vrp else 1.0
                     candidates.append((best[3] * (1 + 0.5 * tr.quant.verdict(sym, "options")[1]) * tilt
-                                       * (1 + c.rank_weight * self._rank(sym)), sym, best))
+                                       * (1 + c.rank_weight * self._rank(sym)) * (1 + c.brief_weight * self._strong(sym)), sym, best))
                 else:
                     stats["earnings or no liquid strike" if sym in earn else "no liquid strike"] += 1
         opened = 0
@@ -328,6 +339,7 @@ class OptionsManager:
                                       for sym, p in s["positions"].items() if p["sleeve"] == "income")
         notes = []
         for a in self.agents:
+            a.brief = mandate.brief or {}
             room_total = min(budget - used, tr.free_cash())
             try:
                 out = a.run(quotes, t, equity, budget * a.share, room_total, budget)

@@ -6,7 +6,7 @@
  ],
  "timezone": "browser",
  "schemaVersion": 39,
- "version": 7,
+ "version": 8,
  "refresh": "1m",
  "time": {
   "from": "now-30d",
@@ -2067,6 +2067,39 @@
      "queryText": "SELECT rank, name, tier, parts, train_n, train_excess_bp, train_t, hold_n, hold_excess_bp, hold_t, ROUND(hold_hit*100,1) AS hold_hit_pct, hold_pf, weight FROM ranking WHERE parts=2 AND rank<=25 OR parts=1 ORDER BY CASE WHEN parts=1 THEN 1 ELSE 0 END, rank",
      "queryType": "table",
      "rawQueryText": "SELECT rank, name, tier, parts, train_n, train_excess_bp, train_t, hold_n, hold_excess_bp, hold_t, ROUND(hold_hit*100,1) AS hold_hit_pct, hold_pf, weight FROM ranking WHERE parts=2 AND rank<=25 OR parts=1 ORDER BY CASE WHEN parts=1 THEN 1 ELSE 0 END, rank"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 46,
+   "title": "Desk briefing: previous day, week and history per team (what the historian hands each team)",
+   "description": "Built from closed trades. 'avoid' symbols are skipped and 'favored' symbols get a small ranking bonus when a team reviews candidates; both need enough recent closed trades.",
+   "type": "table",
+   "datasource": {
+    "type": "frser-sqlite-datasource",
+    "uid": "trader-history"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 48,
+    "w": 24,
+    "h": 9
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "frser-sqlite-datasource",
+      "uid": "trader-history"
+     },
+     "refId": "A",
+     "queryText": "SELECT team, period, closed, ROUND(net,2) AS net_pnl, ROUND(win_rate,0) AS win_rate_pct, ROUND(profit_factor,2) AS profit_factor, best, worst, avoid, favored FROM briefing ORDER BY CASE team WHEN 'growth' THEN 1 WHEN 'options' THEN 2 ELSE 3 END, CASE period WHEN 'yesterday' THEN 1 WHEN 'week' THEN 2 ELSE 3 END",
+     "queryType": "table",
+     "rawQueryText": "SELECT team, period, closed, ROUND(net,2) AS net_pnl, ROUND(win_rate,0) AS win_rate_pct, ROUND(profit_factor,2) AS profit_factor, best, worst, avoid, favored FROM briefing ORDER BY CASE team WHEN 'growth' THEN 1 WHEN 'options' THEN 2 ELSE 3 END, CASE period WHEN 'yesterday' THEN 1 WHEN 'week' THEN 2 ELSE 3 END"
     }
    ],
    "fieldConfig": {

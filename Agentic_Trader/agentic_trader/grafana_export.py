@@ -42,6 +42,8 @@ CREATE TABLE allocation (ts INTEGER, agent TEXT, mult REAL, budget_pct REAL, sco
 CREATE TABLE ranking (rank INTEGER, name TEXT, parts INTEGER, tier TEXT, train_n INTEGER, train_excess_bp REAL,
                       train_t REAL, hold_n INTEGER, hold_excess_bp REAL, hold_t REAL, hold_hit REAL, hold_pf REAL,
                       weight REAL);
+CREATE TABLE briefing (team TEXT, period TEXT, closed INTEGER, net REAL, win_rate REAL, profit_factor REAL,
+  best TEXT, worst TEXT, avoid TEXT, favored TEXT);
 CREATE TABLE benchmark (day TEXT, account_pct REAL, spy_pct REAL, excess_pct REAL);
 CREATE TABLE account (ts INTEGER, start_cash REAL, cash REAL, equity REAL, realized_total REAL,
                       fees_total REAL, total_return_pct REAL, regime TEXT);
@@ -124,6 +126,17 @@ def export(source=SOURCE, target=TARGET):
         db.execute("INSERT INTO options VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (
             o["sym"], o.get("strat") or "unassigned", o.get("kind"), o["strike"], o.get("long_strike"), o["exp"],
             o["qty"], o["credit"], short_mark, (o["credit"] - short_mark) * MULT * o["qty"], max_loss(o), _coll(o)))
+
+    for team, info in (((state.get("desk") or {}).get("briefing") or {}).get("teams") or {}).items():
+        for period in ("yesterday", "week", "history"):
+            st = info.get(period) or {}
+            fmt = lambda v: f"{v[0]} {v[1]:+.2f}" if v else None
+            db.execute("INSERT INTO briefing VALUES (?,?,?,?,?,?,?,?,?,?)", (
+                team, period, st.get("closed", 0), st.get("net", 0.0),
+                None if st.get("win_rate") is None else st["win_rate"] * 100, st.get("profit_factor"),
+                fmt(st.get("best")), fmt(st.get("worst")),
+                ", ".join(list(info.get("avoid", {})) + [k.replace("|", " ") for k in info.get("avoid_strat", {})]) or None,
+                ", ".join(list(info.get("favored", {})) + [k.replace("|", " ") for k in info.get("favored_strat", {})]) or None))
 
     alloc = state.get("alloc") or {}
     cur = alloc.get("mult") or {}

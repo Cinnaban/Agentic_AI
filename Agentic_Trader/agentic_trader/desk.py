@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 
 
 from .day_agents import DayDesk
+from .historian import Historian
 from .options_agents import OptionsManager
 
 AGENTS = ("growth", "options", "day")
@@ -29,6 +30,7 @@ class Mandate:
     scale: float = 1.0
     allow_new: bool = True
     note: str = ""
+    brief: dict = field(default_factory=dict)  # historian briefing for this team (recent results, symbols to avoid/favor)
 
 
 @dataclass
@@ -68,6 +70,7 @@ class Orchestrator:
     def __init__(self, trader):
         self.tr = trader
         c = trader.cfg
+        self.historian = Historian(c)
         self.base = {"growth": min(c.growth_pct, 1 - self.RESERVE - c.opt_pct), "options": c.opt_pct, "day": c.day_pct}
         trader.s.setdefault("alloc", {
             "mult": {a: 1.0 for a in AGENTS},
@@ -126,6 +129,12 @@ class Orchestrator:
         c.opt_pct = bud["options"]  # the options sub-manager reads its collateral cap from the config
         day_ret = equity / s["day"]["open_equity"] - 1
         week_ret = equity / s["week"]["open_equity"] - 1
+        brief = {}
+        if c.brief_on:
+            try:
+                brief = self.historian.build(s["trades"], t, agent_of, equity, s.get("bench_daily"))
+            except Exception as exc:
+                print("[paper] historian failed:", repr(exc))
         # growth + options hold capital overnight, so together they leave the cash reserve untouched
         growth = Mandate("growth", bud["growth"])
         options = Mandate("options", bud["options"])
@@ -173,7 +182,11 @@ class Orchestrator:
                   else "reduced" if min(day.scale, options.scale) < 1 else "normal")
         notes = head + notes
         plan = Plan({"growth": growth, "options": options, "day": day}, day_ret, week_ret, stance, notes)
+        for name, mandate in plan.mandates.items():
+            mandate.brief = (brief.get("teams") or {}).get(name, {})
         s["desk"] = {**s.get("desk", {}), **plan.as_state(t.isoformat())}
+        if brief:
+            s["desk"]["briefing"] = brief
         return plan
 
     @staticmethod
@@ -230,6 +243,7 @@ class GrowthAgent:
             one["growth"] = {"sym": None, "note": "no qualifying action in the entry window; no trade today"}
             return
         etf_budget = equity * max(0.0, mandate.budget_pct - (reg.get("hedge_target") or 0.0)) * mandate.scale
+        avoid = (mandate.brief or {}).get("avoid", {})
         weights = self.weights()
         bars = tr.data.bars(list(weights), "day", 380, ttl=1800)
         ev = st.evaluate(list(weights), tr.data, quotes, bars={k: v[-150:] for k, v in bars.items()})
@@ -261,7 +275,7 @@ class GrowthAgent:
                 tr.s["desk"].setdefault("quant_vetoes", {})[sym] = f"{qscore:+.2f}"
             if (px > ma50 * (1 + c.entry_buffer) and mandate.allow_new and e["score"] >= c.growth_min_score
                     and e["coverage"] >= c.single_min_coverage and not veto and not member.get("bearish")
-                    and not tr.signals.bearish(sym)):
+                    and not tr.signals.bearish(sym) and sym not in avoid):
                 cur = held["qty"] * px if held else 0.0
                 gap = min(target - cur, tr.free_cash())
                 if gap >= max(c.min_trade, 25 if held else 0) and (not held or cur < target * (1 - c.rebalance_band)):

@@ -53,7 +53,14 @@ class DayStrategyAgent:
             if cd and (t - datetime.fromisoformat(cd)).total_seconds() < c.reentry_min * 60:
                 skipped[sym] = "cooling down after last exit"
                 continue
+            brief = ctx.get("brief") or {}
+            pair = f"{self.name}|{sym}"
+            weak = brief.get("avoid", {}).get(sym) or brief.get("avoid_strat", {}).get(pair)
+            strong = brief.get("favored", {}).get(sym) or brief.get("favored_strat", {}).get(pair)
             got, why = self.fn(m, c)
+            if got and weak:
+                skipped[sym] = f"{got[0]} setup skipped by briefing: {weak}"
+                continue
             if got:
                 kind, strength = got
                 veto, qscore, size, note = tr.quant.verdict(sym, "day")
@@ -68,8 +75,8 @@ class DayStrategyAgent:
                     skipped[sym] = f"{kind} setup skipped: below the dollar-volume floor"
                     continue
                 quality = (ctx["daily"].get(sym) or {}).get("score", 0.0)
-                m = dict(m, quant_size=size, quant_note=note)
-                found.append((strength + 0.3 * ds.daily_bias(m) + 0.2 * quality + 0.3 * qscore + c.day_tilt_weight * ft.get("tilt", 0.0) + c.rank_weight * ctx.get("rank", {}).get(sym, 0.0), sym, kind, why, m))
+                m = dict(m, quant_size=size, quant_note=note, brief_note=strong or "")
+                found.append((c.brief_weight * (1 if strong else 0) + strength + 0.3 * ds.daily_bias(m) + 0.2 * quality + 0.3 * qscore + c.day_tilt_weight * ft.get("tilt", 0.0) + c.rank_weight * ctx.get("rank", {}).get(sym, 0.0), sym, kind, why, m))
             else:
                 skipped[sym] = why
         return sorted(found, key=lambda x: -x[0]), skipped
@@ -127,7 +134,8 @@ class DayStrategyAgent:
                      "opened_hm": ctx["hm"][0] * 60 + ctx["hm"][1], "setup": kind, "strat": self.name,
                      "trend_exit": kind not in ("REVERSION", "SWEEP")}
             if tr.buy(sym, notional, "day", f"{self.label}: {why}; stop {plan['stop']:.2f} (-{plan['stop_pct']:.1%}), "
-                      f"target {target:.2f}" + (f"; {m['quant_note']}" if m.get("quant_note") else ""), q, t, extra=extra):
+                      f"target {target:.2f}" + (f"; {m['quant_note']}" if m.get("quant_note") else "")
+                      + (f"; briefing favors {sym} ({m['brief_note']})" if m.get("brief_note") else ""), q, t, extra=extra):
                 ctx["team_room"] -= notional
                 rep["entries"] += 1
                 rep["open"].append(sym)
@@ -228,7 +236,8 @@ class DayDesk:
                "slice": budget / min(n, 4), "team_room": budget - deployed, "report": report,
                "agent_max_entries": max(2, math.ceil(c.day_max_trades / n)),
                "daily": self._daily_scores(quotes, t), "tilt": getattr(self, "tilt", {}),
-               "earnings": self._earnings_today(t), "rank": self._rank_scores(snap)}
+               "earnings": self._earnings_today(t), "rank": self._rank_scores(snap),
+               "brief": (mandate.brief if mandate else None) or {}}
         tr.signals.refresh(c.day_symbols, "day")
         # agents with the better day so far get first call on shared cash and team budget
         for agent in sorted(self.agents, key=lambda a: -a.pl_today(tr, t)):
