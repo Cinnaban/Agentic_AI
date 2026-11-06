@@ -89,17 +89,29 @@ def test_weekly_review_shifts_budget_within_bounds(tmp_path, monkeypatch):
     ]
     base = dict(orch.base)
     plan = orch.plan({}, T, 5000, REG)
-    assert tr.s["alloc"]["mult"]["day"] == pytest.approx(1.1) and tr.s["alloc"]["mult"]["growth"] == pytest.approx(0.9)
-    assert plan.mandates["day"].budget_pct == pytest.approx(min(0.40, base["day"] * 1.1))
-    assert plan.mandates["growth"].budget_pct == pytest.approx(base["growth"] * 0.9)
+    mult = tr.s["alloc"]["mult"]
+    assert mult["day"] > 1.0 and mult["growth"] < 1.0 and mult["options"] == 1.0  # options had no activity
+    assert plan.mandates["day"].budget_pct == pytest.approx(min(0.40, base["day"] * mult["day"]))
     assert any("weekly review" in n for n in plan.notes)
     orch.plan({}, T + timedelta(days=1), 5000, REG)  # reviewed once a week, not every cycle
-    assert tr.s["alloc"]["mult"]["day"] == pytest.approx(1.1)
+    assert tr.s["alloc"]["mult"]["day"] == mult["day"]
     for _ in range(30):  # repeated weeks can never leave the floor/ceiling band
         tr.s["alloc"]["ts"] = (T - timedelta(days=8)).isoformat()
         orch.plan({}, T, 5000, REG)
-    assert 0.5 <= tr.s["alloc"]["mult"]["growth"] and tr.s["alloc"]["mult"]["day"] <= 1.3
+    assert 0.1 <= tr.s["alloc"]["mult"]["growth"] and tr.s["alloc"]["mult"]["day"] <= 1.5
     assert orch.budgets()["day"] <= 0.40
+
+
+def test_team_that_loses_its_budget_gets_a_smaller_allocation(tmp_path, monkeypatch):
+    tr = trader(tmp_path, Data(), monkeypatch)
+    orch = tr.desk.orchestrator
+    tr.s["day"]["open_equity"] = tr.s["week"]["open_equity"] = 5000
+    budget = 5000 * orch.base["options"]
+    tr.s["trades"].append({"ts": (T - timedelta(days=1)).isoformat(), "side": "option", "sym": "F", "sleeve": "income",
+                           "strat": "yield_puts", "realized": -budget, "fee": 0, "qty": 1, "px": 1, "value": 1,
+                           "reason": "x"})
+    orch.plan({}, T, 5000, REG)
+    assert tr.s["alloc"]["mult"]["options"] == pytest.approx(0.5)  # lost 100% of budget: cut by MAX_CUT
 
 
 def test_structure_strategies_fire_only_on_their_setup():

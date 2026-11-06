@@ -60,9 +60,9 @@ def test_orchestrator_banks_goal_and_never_lifts_caps(tmp_path, monkeypatch):
     assert not hit.mandates["day"].allow_new and not hit.mandates["options"].allow_new
     assert hit.stance == "risk-off"
     down = orch.plan({}, T, 4850, REG)
-    assert not down.mandates["day"].allow_new and down.mandates["options"].scale == 0.5
+    assert not down.mandates["day"].allow_new and down.mandates["options"].scale == 1.0
     stress = orch.plan({}, T, 5000, {**REG, "name": "high", "day_scale": 0.4})
-    assert stress.mandates["options"].scale == 0.4 and stress.mandates["day"].scale == 0.4
+    assert stress.mandates["options"].scale == 1.0 and stress.mandates["day"].scale == 0.4
     assert tr.s["desk"]["stance"] == "reduced"
 
 

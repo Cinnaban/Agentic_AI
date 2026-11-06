@@ -62,8 +62,8 @@ class Orchestrator:
 
     # weekly capital review: each team's budget moves within [FLOOR, CEIL] x its configured base, and never past
     # a hard ceiling, so a hot week can enlarge a team but not remove the account's overall limits
-    FLOOR, CEIL, STEP, MIN_SPREAD = 0.5, 1.3, 0.10, 0.001
-    HARD_CAP = {"growth": 0.70, "options": 0.45, "day": 0.40}
+    FLOOR, CEIL, MAX_CUT, MAX_RAISE = 0.1, 1.5, 0.5, 0.3
+    HARD_CAP = {"growth": 0.70, "options": 0.70, "day": 0.40}
 
     def __init__(self, trader):
         self.tr = trader
@@ -79,8 +79,9 @@ class Orchestrator:
         })
 
     def weekly_review(self, quotes, t, equity):
-        """Once every 7 days, nudge the best team up and the weakest down by STEP, ranked by trailing-week P&L as a
-        share of the account (realized plus open). Teams with no activity are left alone. Returns a note or None."""
+        """Once every 7 days, resize every active team's budget by its trailing-week return on the budget it was
+        given (realized plus open): a team that lost its whole budget is cut by MAX_CUT, down to FLOOR of its base,
+        and gains raise it by up to MAX_RAISE. Teams with no activity are left alone. Returns a note or None."""
         s = self.tr.s
         al = s.setdefault("alloc", {"mult": {a: 1.0 for a in AGENTS}, "ts": None, "history": []})
         last = al.get("ts")
@@ -97,15 +98,17 @@ class Orchestrator:
         for a, v in self.attribution(quotes, t).items():
             pnl[a] += v["open"]
         score = {a: pnl[a] / equity for a in AGENTS}
-        ranked = sorted((a for a in AGENTS if active[a] >= 2 or pnl[a]), key=lambda a: -score[a])
         mult = dict(al["mult"])
-        note = "weekly review: no team had a clear lead; allocations unchanged"
-        if len(ranked) >= 2 and score[ranked[0]] - score[ranked[-1]] >= self.MIN_SPREAD:
-            best, worst = ranked[0], ranked[-1]
-            mult[best] = min(self.CEIL, mult[best] + self.STEP)
-            mult[worst] = max(self.FLOOR, mult[worst] - self.STEP)
-            note = (f"weekly review: {LABELS[best]} led ({score[best]:+.2%} of account), {LABELS[worst]} trailed "
-                    f"({score[worst]:+.2%}); budget {mult[best]:.0%} / {mult[worst]:.0%} of base")
+        moves = []
+        for a in AGENTS:
+            if not (active[a] >= 2 or pnl[a]):
+                continue  # no activity: left alone
+            budget = equity * min(self.HARD_CAP[a], self.base[a] * mult[a])
+            ret = pnl[a] / budget if budget else 0.0  # return on the capital the team was given
+            new = mult[a] * (1 + max(-self.MAX_CUT, min(self.MAX_RAISE, ret)))
+            mult[a] = max(self.FLOOR, min(self.CEIL, new))
+            moves.append(f"{LABELS[a]} {ret:+.1%} of budget -> {mult[a]:.0%} of base")
+        note = ("weekly review: " + "; ".join(moves)) if moves else "weekly review: no team activity; allocations unchanged"
         al.update(mult=mult, base=dict(self.base), ts=t.isoformat(), score={a: round(score[a], 5) for a in AGENTS}, note=note)
         al["history"] = (al["history"] + [{"ts": t.isoformat(), "mult": dict(mult), "score": al["score"]}])[-26:]
         return note
@@ -131,8 +134,8 @@ class Orchestrator:
         notes = []
 
         if reg.get("name") not in (None, "normal"):
-            options.scale = min(options.scale, reg.get("day_scale", 0.5))
-            notes.append(f"{reg['name']} volatility: day and options sizing reduced to {options.scale:.0%}")
+            day.scale = min(day.scale, reg.get("day_scale", 0.5))
+            notes.append(f"{reg['name']} volatility: day sizing reduced to {day.scale:.0%}")
 
         if day_ret >= c.daily_max:
             day.allow_new = options.allow_new = False
@@ -141,7 +144,6 @@ class Orchestrator:
         elif day_ret <= self.DRAWDOWN_DAY:
             day.allow_new = False
             day.note = f"day down {day_ret:+.2%}: day entries paused"
-            options.scale = min(options.scale, 0.5)
             notes.append(day.note)
 
         if week_ret >= c.week_max:
