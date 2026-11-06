@@ -32,8 +32,16 @@ Validated or implemented capabilities include:
 - Discord Questions/Updates channel separation
 - Daily ETF spreadsheet update and Discord Updates publishing
 - macOS `launchd` automation
+- Analysis replies lead with a Sell / Hold / Accumulate recommendation derived from the quant model, its confidence and independent cross-checks (`QuantSummaryReviewer.headline`)
+- EBITDA / P/E charts for the last 4 years plus the last 8 quarters
+- Optional Google Programmable Search fallback for missing quarterly financial records (`orchestrator/google_search.py`; off until `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` are set; cached and quota-capped)
+- `Agentic_Trader/`: a paper-trading desk with growth, day and options teams, a pre-trade quant gate and a Grafana dashboard (see below)
 
 Single-company financial routing has been validated with approved responses and quality confidence of 95 in integration testing. Multi-company Quant, Research, and Risk coverage has also been exercised for comparison workflows.
+
+## Agentic_Trader (paper trading)
+
+[`Agentic_Trader/`](Agentic_Trader/README.md) is a paper-only trading desk that runs alongside the analysis bot. An orchestrator allocates a simulated $5,000 account across a growth team (ETFs, factor tilt, hedge), a day-trading team (ORB, pullback, momentum, reversion) and an options team (defined-risk puts, credit spreads, covered calls; never naked). Allocations are reviewed weekly by each team's return on its budget. A quant gate scores trades before entry, summaries go to Discord, and a local Grafana dashboard tracks results against the S&P 500. It reads live Robinhood market data through a read-only MCP allow-list and never places real orders.
 
 ## High-Level Architecture
 

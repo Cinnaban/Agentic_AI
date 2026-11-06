@@ -1,24 +1,37 @@
 # Agentic_Trader
 
-Paper-trading agentic stock bot with two sleeves:
+A paper-trading agentic stock desk. An **orchestrator** sets goals, budgets and risk dials for three teams, which trade a simulated $5,000 account on live Robinhood market data (read-only). No real orders are ever placed (`ROBINHOOD_LIVE_ORDERS=false`, enforced by tests).
 
-| Sleeve | Goal | Logic |
+| Team | Goal | Logic |
 |---|---|---|
-| **ETF core** (`strategies/etf_core.py`) | long-term growth | strategic weights (VTI/VXUS/QQQ/BND/VNQ), 200-day SMA trend filter rotates weak risk assets into BND, monthly rebalance with a 2% drift band |
-| **Day trader** (`strategies/day_trader.py`) | daily profit / hedge | EMA 9/21 cross + VWAP + RSI filter, ATR stop, flatten at 15:55 ET, 2% daily loss halt, SPY-down → inverse ETF (`SH`) hedge |
+| **Growth** (`desk.py`, `growth_members.py`, `factor_tilt.py`) | long-term growth, beat the S&P 500 | ETF core (VOO/QQQ/SCHD/VXUS) with trend filter, dual-momentum members, S43-style factor tilt, one action per day, volatility hedge in `SH` |
+| **Day team** (`day_agents.py`, `day_strategy.py`) | daily profit | one agent per strategy: ORB, PULLBACK, MOMENTUM, REVERSION (RETEST, SWEEP, FVG, GAPGO exist but are OFF after losing in replay); ATR stops, risk-based size, auto-pause on weak profit factor, flat by 15:50 ET |
+| **Options team** (`options_agents.py`, `paper_options.py`) | premium income | yield, defensive and vol-premium puts, put credit spreads, covered calls. May lose its whole budget, but every structure is defined-risk: no naked contracts |
+
+**Orchestrator** (`desk.py`): regime and drawdown rules, daily/weekly goal tracking, and a **weekly capital review** that resizes each team's share of the account by its return on the budget it was given (10%-150% of base, hard ceilings growth 70% / options 70% / day 40%).
+
+**Quant gate** (`quant_suite.py`, `quant_gate.py`): before trades, RSI/MACD, Z-score, RVOL, realized vol, GARCH, RMSE, hit rate, IC, log loss/AUC (purged walk-forward splits) and Sharpe/Sortino/max drawdown/profit factor score and can veto candidates. It runs on the Gaming PC when online and falls back to local compute. **Signal research** (`signal_research.py`) ranks 21 indicators and their pairs on a time-split holdout to weight candidates.
+
+**Reporting:** half-hour summaries to `DISCORD_REALTIMETRADER_CHANNEL_ID`, daily summary at the close to `DISCORD_UPDATES_CHANNEL_ID` (P/L net of fees, trades, holdings, per-team and per-strategy results, options scan, goals). A local **Grafana** dashboard (`grafana/`) charts equity vs the S&P, holdings, team budgets, per-team results, options, ranking and quant metrics.
+
+**Data sources:** Robinhood MCP (market data only), Yahoo Finance, Alpha Vantage (quota-guarded), SEC, FRED, Kaggle/World Bank and news/earnings signals. The root analysis bot also uses an optional Google Programmable Search fallback for quarterly financial records (`GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`).
+
+> Paper results are simulated: fills use bid/ask and modelled fees, not real liquidity, and the new strategies have little closed-trade history. Nothing here is financial advice. The sections below are the detailed reference.
 
 ## Layout
 ```
 agentic_trader/
-  config.py        settings (.env: project, then repo root)
-  data/            mock (default), yfinance, alpaca providers
-  brokers/         paper (local ledger), alpaca_paper (mirrors to Alpaca paper), robinhood_mcp (disabled stub)
-  indicators.py    SMA/EMA/RSI/MACD/Bollinger/ATR/VWAP
-  compute.py       NumPy/CuPy backend: MA-crossover grid sweep + ridge regression (GPU on the gaming PC)
-  features.py      regression features
-  improve.py       improvement loop
-  engine.py        tick loop, risk, scheduling, Discord reporting
-  notify/discord.py, reporting.py
+  paper_live.py       live paper trader loop, account, summaries (service entry point)
+  desk.py             orchestrator, growth team, mandates, weekly capital review
+  day_agents.py / day_strategy.py   day team agents and strategy triggers
+  options_agents.py / paper_options.py   options sub-manager, agents, ledger and risk guard
+  quant_suite.py / quant_gate.py / quant_worker.py   pre-trade quant metrics and veto (Gaming PC or local)
+  signal_research.py  indicator and pair ranking
+  market_apis/        Alpha Vantage, Kaggle, World Bank clients
+  robinhood/          read-only MCP client (allow-listed tools)
+  grafana_export.py   state -> SQLite for the Grafana dashboard
+  config.py, engine.py, strategies/, data/, brokers/, improve.py   original mock/simulate framework
+grafana/              dashboard and provisioning
 ```
 
 ## Quick start
@@ -63,9 +76,8 @@ Set in `.env`: `TRADER_DATA_PROVIDER=yfinance` (free, delayed) or `alpaca` (+ `A
 
 GPU: `pip install cupy-cuda12x` on the gaming PC; `TRADER_USE_GPU=0` forces CPU. The Mac can run the loop while the PC runs `improve` on a shared state dir.
 
-## Safety / Robinhood MCP
-`TRADING_MODE` must be `paper` (anything else raises). `robinhood_mcp` is a disabled stub: Robinhood has no official retail API, so
-wire a community MCP server only after paper results are proven, with an explicit human-approval step. Mock results are random walks and say nothing about edge.
+## Safety
+`TRADING_MODE` must be `paper` (anything else raises). The paper trader reads market data only; account, order and portfolio tools are refused by an allow-list. Only Telegram can reach Robinhood account tools, and orders there need an explicit confirm code and `ROBINHOOD_LIVE_ORDERS=true`. Options are limited to defined-risk structures (`UnlimitedRiskRefused`). Mock results are random walks and say nothing about edge.
 
 ## Live quant, gaming PC push, shared cache
 
@@ -109,7 +121,7 @@ Telegram sends tables as `<pre>` blocks; long replies split between tables, neve
   and a strike at or above cost. The paper account does not short stock, so "covered puts" are implemented as cash-secured puts.
   Skips names with earnings inside the window, illiquid contracts, and falling stocks; takes profit at 75%, stops puts at 3x credit,
   settles/assigns at expiry. Fee estimate `PAPER_OPTION_FEE_PER_CONTRACT`. Live option orders remain impossible (data tools only).
-- **Limited-loss only (hard rule):** `paper_options.py` accepts only cash-secured puts and covered calls (`ALLOWED_KINDS`); anything else raises
+- **Limited-loss only (hard rule):** `paper_options.py` accepts only cash-secured puts, covered calls and put credit spreads (`ALLOWED_KINDS`); anything else raises
   `UnlimitedRiskRefused`. Each position's worst case is computed and shown in summaries, and a per-cycle risk guard force-closes any short
   option that is not fully covered/secured. Option placement tools (`place_option_order`, exercise) are not callable by the data client.
 
@@ -143,7 +155,7 @@ financial evaluation (P/E, size, dividend) and market trend (MA20/MA50, slope) -
 Uses 5-minute bars: VWAP, EMA9/21, RSI, ATR, opening range and relative volume. Setups: opening-range breakout and VWAP/EMA pullback, only when SPY is not weak. Every entry has an ATR-based stop, a ~2R target, break-even at 1R and a trailing stop; it also exits on trend failure or stall, and flattens at 15:50. Size is risk-based (0.5% of equity per trade). Limits: 8 entries/day, 2 open, 1.5% daily loss halt, 30 min re-entry cooldown. Tunables: `PAPER_DAY_*` (see `.env.example`). Growth stays at 1 trade/day; goals are measured, not chased.
 
 ## Agent teams
-The orchestrator sets goals, budgets and risk dials; it never trades. Two teams report to it:
+The orchestrator sets goals, budgets and risk dials; it never trades. Three teams report to it (growth, day and options); the day team and options sub-manager are described here:
 - **Day team** (`day_agents.py`): one independent agent per strategy — ORB (opening-range breakout), PULLBACK (VWAP/EMA pullback), MOMENTUM (day-high breakout), REVERSION (oversold bounce, VWAP target). Same day budget (split into equal slices), same rules (ATR stop on every entry, risk-based size, break-even/trail, flat at 15:50). Each agent has its own entry cap, loss limit and one open position; the desk adds team caps, the SPY filter and shared exits. Choose agents with `PAPER_DAY_STRATEGIES`. Four more structure strategies exist but are OFF by default because they lost money in a 30-day 5-minute replay: RETEST (break-and-retest), SWEEP (liquidity sweep reclaim), FVG (fair-value-gap fill), GAPGO (gap-and-go; `PAPER_DAY_GAP_MIN`). A day agent with a profit factor below `PAPER_DAY_AUTOPAUSE_PF` (0.6) over at least `PAPER_DAY_AUTOPAUSE_MIN_TRADES` (8) closed trades in 10 days stands down (`PAPER_DAY_AUTOPAUSE=0` disables).
 - **Options sub-manager** (`options_agents.py`): owns the risk guard, marks/exits and the capital split, and runs yield puts, defensive puts, vol-premium puts (VRP: only when implied vol is at least 1.15x realized, 10-25 delta), put credit spreads (short put plus a bought lower-strike put; secured by the full width, cash-settled, loss capped at width minus credit) and covered calls. Only cash-secured puts, covered calls and put credit spreads can be opened, so nothing can have unlimited loss; `naked_violations()` and `enforce()` close anything that is not capped. Long calls, straddles and 0DTE are not built.
 - **Weekly capital review** (`Orchestrator.weekly_review`): every 7 days each active team's budget is resized by its trailing-week return on the budget it was given (realized plus open): a team that lost its whole budget is cut by 50%, gains raise it by up to 30%. Budgets stay within 10%-150% of the configured base and under a hard ceiling (growth 70%, options 70%, day 40%). History is in `state["alloc"]` and the Grafana "Team budget" panels.
