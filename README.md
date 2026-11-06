@@ -2,10 +2,14 @@
 
 A local-first agentic assistant centered on a Mac Mini, with a separate Gaming PC providing quantitative stock analysis. The project combines grounded financial research, generic public-web research, current web/news retrieval, conversational context, Telegram and Discord messaging, custom comparison analysis, and scheduled ETF reporting.
 
-## Current Project Status
+## Overview
 
-Phase 1 established the core orchestration, grounding, financial-analysis, messaging, and automation layers. The current build also includes a substantial Phase 2 conversational and multi-company research layer.
+The system has two cooperating parts, both running locally on the Mac Mini:
 
+- **Stock Agent** answers questions in Telegram and Discord. Hermes routes each request to general knowledge, current news, generic research, public-company analysis (Quant, SEC, FRED, Research, Risk), ETF and portfolio evaluation, or multi-company comparison.
+- **Agentic_Trader** is a paper-trading desk (growth, day and options teams under one orchestrator) that reads live Robinhood market data and never places real orders. See [`Agentic_Trader/README.md`](Agentic_Trader/README.md).
+
+Capabilities:
 Validated or implemented capabilities include:
 
 - Company/entity detection and request routing through Hermes
@@ -36,8 +40,6 @@ Validated or implemented capabilities include:
 - EBITDA / P/E charts for the last 4 years plus the last 8 quarters
 - Optional Google Programmable Search fallback for missing quarterly financial records (`orchestrator/google_search.py`; off until `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` are set; cached and quota-capped)
 - `Agentic_Trader/`: a paper-trading desk with growth, day and options teams, a pre-trade quant gate and a Grafana dashboard (see below)
-
-Single-company financial routing has been validated with approved responses and quality confidence of 95 in integration testing. Multi-company Quant, Research, and Risk coverage has also been exercised for comparison workflows.
 
 ## Agentic_Trader (paper trading)
 
@@ -632,40 +634,40 @@ Lower numbers indicate higher routing priority.
 
 No financial, formula, generic-research, or comparison logic should live in either transport. Both transports delegate those decisions to Hermes.
 
-## Automated Bot Runtime
+## Production Runtime
 
-The Mac Mini can run Telegram and Discord through `launchd` LaunchAgents. Production bot launchers should:
+Everything runs under macOS `launchd`:
 
-- use the project root as the working directory,
-- use the intended virtual-environment Python,
-- expose the project through `PYTHONPATH`,
-- use unbuffered Python output for readable runtime logs,
-- run only one Telegram polling instance.
+| Service | Label | Role |
+|---|---|---|
+| Hermes gateway | `ai.hermes.gateway` | Owns the Telegram and Discord connections and routes messages into the pipeline |
+| Paper trader | `com.bunnyhouse.stockagent.papertrader` | Live paper-trading loop (`run_paper_trader.sh`) |
+| Grafana export | `com.bunnyhouse.trader-grafana-export` | Rebuilds the dashboard database every 60 seconds |
+| Grafana | `sh.brew.grafana` | Dashboard at http://localhost:3000/d/paper-trader |
+| Ollama | `com.bunnyhouse.stockagent.ollama` | Local LLM generation |
+| Crawl4AI | `com.bunnyhouse.crawl4ai` | Local page extraction |
+| ETF update | `com.bunnyhouse.stockagent.etfupdate` | Scheduled ETF spreadsheet update |
 
-Useful production checks include:
+Launchers use the project root as the working directory, the project virtual environment, `PYTHONPATH` set to the project, and unbuffered output. Only one process may poll Telegram.
+
+Checks and restarts:
 
 ```bash
-launchctl list | grep bunnyhouse
+launchctl list | grep -E 'bunnyhouse|hermes'
+launchctl kickstart -k gui/$(id -u)/com.bunnyhouse.stockagent.papertrader
 ```
 
-and:
-
-```bash
-ps aux \
-| grep -E 'telegram_bot|discord_bot' \
-| grep -v grep
-```
+Logs are in `logs/`.
 
 ## Hermes Front Door
 
-The Hermes Agent gateway (`ai.hermes.gateway`, installed under `~/.hermes`) is the single process that owns the Telegram and Discord tokens. The old `com.bunnyhouse.stockagent.discord` and `.telegram` agents are stopped, so Telegram never has two polling instances.
+The Hermes Agent gateway (`ai.hermes.gateway`, installed under `~/.hermes`) is the single process that owns the Telegram and Discord tokens.
 
 - A gateway plugin (`~/.hermes/plugins/agentic-front-door`) sends Discord questions-channel messages (and threads under it) and authorized Telegram messages straight to the pipeline through `integrations/hermes_mcp_server.py --ask`, with no LLM relay, so tables and numbers stay exact. At most two questions run at once, and a timed-out run is killed.
-- Telegram `/portfolio`, `/positions`, `/review`, `/paper`, `/buy`, `/sell`, `/confirm`, `/myid` and `/help_rh` run deterministically through `--cmd` using the same authorization as before (`TELEGRAM_ROBINHOOD_USER_IDS`, `TELEGRAM_ROBINHOOD_CHAT_IDS`). They never reach the model, and the trader stays paper-only.
-- Other chats fall through to the Hermes agent (local Ollama `qwen3-8b-64k`), which also exposes the `research_question` and `paper_trader_status` MCP tools.
-- Rollback: restore `~/.hermes/config.yaml.bak-pre-project` and `.env.bak-pre-project`, run `hermes gateway stop`, then `launchctl bootstrap gui/$(id -u)` the two old plists.
+- Telegram `/portfolio`, `/positions`, `/review`, `/paper`, `/buy`, `/sell`, `/confirm`, `/myid` and `/help_rh` run deterministically through `--cmd`, restricted to `TELEGRAM_ROBINHOOD_USER_IDS` and `TELEGRAM_ROBINHOOD_CHAT_IDS`. They never reach the model, and the trader stays paper-only.
+- Other chats go to the Hermes agent (local Ollama `qwen3-8b-64k`), which also exposes the `research_question` and `paper_trader_status` MCP tools.
 
-Paper desk settings: `PAPER_GROWTH_PCT`, `PAPER_GROWTH_WEIGHTS`, `PAPER_REBALANCE_BAND`, `PAPER_OPTION_MAX_POSITIONS`, `PAPER_OPTION_WEEKLY_PREMIUM_GOAL`, `PAPER_OPTION_SYMBOLS`.
+Paper desk settings (full list in `Agentic_Trader/.env.example`): `PAPER_GROWTH_PCT`, `PAPER_GROWTH_WEIGHTS`, `PAPER_REBALANCE_BAND`, `PAPER_OPTION_PCT`, `PAPER_OPTION_MAX_POSITIONS`, `PAPER_OPTION_WEEKLY_PREMIUM_GOAL`, `PAPER_OPTION_SYMBOLS`, `PAPER_DAY_STRATEGIES`.
 
 ## Runtime Storage
 
@@ -927,7 +929,11 @@ Mac Mini
 |    +-- Discord
 |    +-- SEC / FRED
 |    +-- DDGS / Public web discovery
-|    `-- ETF scheduler
+|    +-- ETF scheduler
+|    `-- Agentic_Trader (paper desk, quant gate, Grafana export)
+|
++-- Grafana
+|    `-- paper-trading dashboard
 |
 `-- LAN connection to Gaming PC
      `-- Quant / compute API
@@ -1022,7 +1028,7 @@ python tests/test_discord_bot.py
 
 ## Running Telegram
 
-For manual debugging only, make sure the managed Telegram LaunchAgent is stopped first, then run from the project root:
+For manual debugging only, stop the Hermes gateway first (`hermes gateway stop`) so Telegram has a single polling instance, then run from the project root:
 
 ```bash
 cd ~/Agentic_AI
@@ -1076,21 +1082,17 @@ Agentic_AI validates the service through its Firecrawl health/scrape tests.
 - Custom financial formulas must be transparent, restricted to supplied metrics, and deterministically evaluated.
 - Transport integrations should contain no finance/search/research logic; Telegram and Discord should route messages into Hermes.
 
-## Current Engineering Focus
+## Roadmap
 
-The project has moved beyond the original Phase 1 routing architecture. Current engineering priorities are:
+1. Persist conversation context across restarts.
+2. Add provider/service health monitoring and request-duration metrics.
+3. Continue source-quality weighting and duplicate-result suppression.
+4. Upgrade the Python runtime to remove the Python 3.9 / LibreSSL compatibility warning.
+5. Harden comparison and formula quality scoring.
+6. Collect enough closed paper trades to judge each trading strategy before changing its allocation.
 
-1. Stabilize dynamic generic-research depth and pending conversational actions.
-2. Reuse deep generic evidence when the user asks only for a summarized version.
-3. Persist conversation context if cross-restart continuity becomes necessary.
-4. Add provider/service health monitoring and request-duration metrics.
-5. Continue source-quality weighting and duplicate-result suppression.
-6. Maintain always-on Telegram/Discord runtime reliability.
-7. Upgrade the Python runtime to remove the current Python 3.9 / LibreSSL compatibility warning.
-8. Incrementally harden comparison/formula quality scoring without weakening the proven single-company path.
+## Design Summary
 
-## Project State
+Stock Agent is a local-first, multi-route assistant with distinct handling for general knowledge, strict current-information requests, generic/private-company public research, public-company financial analysis, and multi-company comparisons.
 
-Stock Agent is now a local-first, multi-route assistant with distinct handling for general knowledge, strict current-information requests, generic/private-company public research, public-company financial analysis, and multi-company comparisons.
-
-Hermes remains the central orchestration boundary. The Mac Mini decides what the user is asking, what evidence is required, whether a request belongs in the financial pipeline, how much generic public research is appropriate, and how the final answer should be synthesized. The Gaming PC remains a quantitative compute provider rather than a conversational or final-response engine.
+Hermes is the central orchestration boundary. The Mac Mini decides what the user is asking, what evidence is required, whether a request belongs in the financial pipeline, how much generic public research is appropriate, and how the final answer should be synthesized. The Gaming PC is a quantitative compute provider rather than a conversational or final-response engine.
