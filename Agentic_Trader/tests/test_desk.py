@@ -221,3 +221,19 @@ def test_puts_skip_tiny_credits_and_recent_stopouts(tmp_path, monkeypatch):
     tr.s["opt_stopouts"] = {"F": "2026-10-15"}
     tr.s.pop("opt_scan_yield_puts", None)
     assert YieldPuts(tr).run(quotes, T, 5000, 2000, 2000)["opened"] == 1
+
+
+def test_puts_judge_drops_relative_to_the_market_and_share_idle_budget(tmp_path, monkeypatch):
+    from agentic_trader.options_agents import YieldPuts
+    chains = {"F": {"strikes": [9.0, 9.5], "bid": lambda k: 0.30}}
+
+    def scan(spy_chg, stock_chg, slice_, team=0.0):
+        tr = trader(tmp_path, Data(chains=chains), monkeypatch, PAPER_OPTION_SYMBOLS="F", PAPER_QUANT_GATE="0")
+        quotes = {"F": dict(_q(10), change_pct=stock_chg), "SPY": dict(_q(500), change_pct=spy_chg)}
+        return YieldPuts(tr).run(quotes, T, 5000, slice_, 2000, team)
+
+    assert scan(0.0, -0.035, 2000)["opened"] == 0            # idiosyncratic drop: still skipped
+    assert scan(-0.03, -0.035, 2000)["opened"] == 1          # market-wide drop: not a falling knife
+    assert scan(-0.03, -0.08, 2000)["opened"] == 0           # far worse than the market: skipped
+    assert scan(0.0, 0.0, 500)["opened"] == 0                # $900 collateral does not fit a $500 slice
+    assert scan(0.0, 0.0, 500, team=2000)["opened"] == 1     # but fits half of the team budget

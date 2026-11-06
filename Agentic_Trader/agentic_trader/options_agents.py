@@ -118,7 +118,7 @@ class PutAgent(_Agent):
                     best = (x, oq, dte, score, oq.get("iv"))
         return best
 
-    def run(self, quotes, t, equity, budget, room_total):
+    def run(self, quotes, t, equity, budget, room_total, team_budget=0.0):
         """`budget` is this agent's slice in dollars; `room_total` is what the whole team can still commit."""
         tr, c, s, inc = self.tr, self.tr.cfg, self.tr.s, self.tr.income
         if self.throttled(t):
@@ -126,7 +126,11 @@ class PutAgent(_Agent):
         stats = Counter()
         earn = _earnings(tr, c.opt_max_dte, t.date())
         taken = set(c.etfs) | set(c.day_symbols) | {c.hedge}
-        room = min(budget - self.collateral(), room_total, tr.free_cash())
+        # An agent may use its slice or up to half the team budget, so an idle agent's slice is not stranded.
+        cap = max(budget, 0.5 * team_budget) if team_budget else budget
+        room = min(cap - self.collateral(), room_total, tr.free_cash())
+        market = max(min((quotes.get("SPY") or {}).get("change_pct") or 0, 0), -0.04)
+        drop_limit = self.MAX_DROP + market  # only weakness beyond the market's own move counts as a falling knife
         held = {o["sym"] for o in inc.opts} | set(s["positions"])
         total_puts = sum(1 for o in inc.opts if o["type"] == "put")
         candidates = []
@@ -145,8 +149,8 @@ class PutAgent(_Agent):
                 stats["no quote"] += 1
             elif self._min_cost(px) > room:
                 stats["too large for budget"] += 1
-            elif (q.get("change_pct") or 0) < self.MAX_DROP:
-                stats[f"falling >{abs(self.MAX_DROP):.0%}"] += 1
+            elif (q.get("change_pct") or 0) < drop_limit:
+                stats[f"falling >{abs(self.MAX_DROP):.0%} beyond the market"] += 1
             elif tr.quant.verdict(sym, "options")[0]:
                 stats["quant veto"] += 1
             elif tr.signals.bearish(sym):
@@ -261,7 +265,7 @@ class PutSpreads(PutAgent):
 class CoveredCalls(_Agent):
     name, label, share = "covered_calls", "Covered calls", 0.0
 
-    def run(self, quotes, t, equity, budget, room_total):
+    def run(self, quotes, t, equity, budget, room_total, team_budget=0.0):
         s, inc = self.tr.s, self.tr.income
         if self.throttled(t):
             return {"note": "waiting for next scan window", "opened": 0}
@@ -326,7 +330,7 @@ class OptionsManager:
         for a in self.agents:
             room_total = min(budget - used, tr.free_cash())
             try:
-                out = a.run(quotes, t, equity, budget * a.share, room_total)
+                out = a.run(quotes, t, equity, budget * a.share, room_total, budget)
             except Exception as exc:
                 print(f"[paper] options agent {a.name} failed:", repr(exc))
                 out = {"note": "error; see log", "opened": 0}
