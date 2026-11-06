@@ -63,7 +63,7 @@ class Orchestrator:
     # weekly capital review: each team's budget moves within [FLOOR, CEIL] x its configured base, and never past
     # a hard ceiling, so a hot week can enlarge a team but not remove the account's overall limits
     FLOOR, CEIL, STEP, MIN_SPREAD = 0.5, 1.3, 0.10, 0.001
-    HARD_CAP = {"growth": 0.70, "options": 0.40, "day": 0.40}
+    HARD_CAP = {"growth": 0.70, "options": 0.45, "day": 0.40}
 
     def __init__(self, trader):
         self.tr = trader

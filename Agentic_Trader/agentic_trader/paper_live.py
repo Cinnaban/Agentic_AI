@@ -108,7 +108,7 @@ class Cfg:
         # options income sleeve: cash-secured puts + covered calls only, never naked
         self.opt_enabled = os.getenv("PAPER_OPTIONS", "1") not in ("0", "false", "off")
         self.opt_symbols = _csv("PAPER_OPTION_SYMBOLS", "F,SOFI,RIVN,SNAP,NIO,AAL,HBAN,NU,VALE,BB,RIG,LCID,T,CMCSA,PFE")
-        self.opt_pct = float(os.getenv("PAPER_OPTION_PCT", "0.35"))
+        self.opt_pct = float(os.getenv("PAPER_OPTION_PCT", "0.40"))
         self.opt_min_dte = int(os.getenv("PAPER_OPTION_MIN_DTE", "5"))
         self.opt_max_dte = int(os.getenv("PAPER_OPTION_MAX_DTE", "14"))
         self.opt_otm = float(os.getenv("PAPER_OPTION_OTM", "0.04"))
@@ -121,7 +121,7 @@ class Cfg:
         self.opt_fee = float(os.getenv("PAPER_OPTION_FEE_PER_CONTRACT", "0.04"))
         self.opt_scan_min = int(os.getenv("PAPER_OPTION_SCAN_MIN", "30"))
         self.cooldown_min = int(os.getenv("PAPER_COOLDOWN_MIN", "30"))
-        self.opt_max_positions = int(os.getenv("PAPER_OPTION_MAX_POSITIONS", "3"))
+        self.opt_max_positions = int(os.getenv("PAPER_OPTION_MAX_POSITIONS", "5"))
         self.opt_weekly_premium_goal = float(os.getenv("PAPER_OPTION_WEEKLY_PREMIUM_GOAL", "0.01"))
         # growth agent: share of equity for core ETFs + hedge, optional "VOO:0.35,QQQ:0.25" weights, rebalance band
         self.growth_pct = float(os.getenv("PAPER_GROWTH_PCT", str(self.core_pct)))
