@@ -14,6 +14,7 @@ from datetime import datetime
 
 from .config import STATE_DIR
 from .desk import AGENTS, Orchestrator, agent_of
+from .paper_longopts import max_loss as lo_max_loss
 from .paper_options import MULT, _coll, max_loss
 from .quant_suite import account_performance
 
@@ -126,6 +127,12 @@ def export(source=SOURCE, target=TARGET):
         db.execute("INSERT INTO options VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (
             o["sym"], o.get("strat") or "unassigned", o.get("kind"), o["strike"], o.get("long_strike"), o["exp"],
             o["qty"], o["credit"], short_mark, (o["credit"] - short_mark) * MULT * o["qty"], max_loss(o), _coll(o)))
+
+    for o in state.get("long_opts") or []:  # bought options: shown as a negative credit (the debit paid)
+        mark = o.get("mark") if o.get("mark") is not None else o["debit"]
+        db.execute("INSERT INTO options VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (
+            o["sym"], o.get("strat") or "unassigned", o.get("kind"), o["strike"], o.get("short_strike"), o["exp"],
+            o["qty"], -o["debit"], -mark, (mark - o["debit"]) * MULT * o["qty"], lo_max_loss(o), 0.0))
 
     for team, info in (((state.get("desk") or {}).get("briefing") or {}).get("teams") or {}).items():
         for period in ("yesterday", "week", "history"):

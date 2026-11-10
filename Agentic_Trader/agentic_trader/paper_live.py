@@ -21,6 +21,7 @@ import numpy as np
 
 from .config import STATE_DIR, Settings, load_env_files
 from .desk import AGENTS, LABELS, Desk
+from .paper_longopts import LongOptions
 from .paper_options import Income
 
 ET = ZoneInfo("America/New_York")
@@ -95,6 +96,19 @@ class Cfg:
         self.max_day_positions = int(os.getenv("PAPER_MAX_DAY_POSITIONS", "3"))
         self.min_trade = float(os.getenv("PAPER_MIN_TRADE_USD", "5"))
         # historian briefing: recent closed-trade history handed to every team (PAPER_BRIEFING=0 disables)
+        # long calls/puts and debit spreads: the loss is capped at the premium paid
+        self.lo_on = os.getenv("PAPER_LONG_OPTIONS", "1") not in ("0", "false", "off")
+        self.lo_symbols = _csv("PAPER_LONG_OPTION_SYMBOLS", "SPY,QQQ," + ",".join(self.day_symbols))
+        self.lo_trade_pct = float(os.getenv("PAPER_LONG_OPTION_TRADE_PCT", "0.10"))  # premium per trade, share of the options budget
+        self.lo_budget_pct = float(os.getenv("PAPER_LONG_OPTION_BUDGET_PCT", "0.30"))  # premium at risk overall, share of the options budget
+        self.lo_max_open = int(os.getenv("PAPER_LONG_OPTION_MAX_OPEN", "4"))
+        self.lo_max_entries = int(os.getenv("PAPER_LONG_OPTION_MAX_ENTRIES", "4"))
+        self.lo_min_dte = int(os.getenv("PAPER_LONG_OPTION_MIN_DTE", "0"))
+        self.lo_max_dte = int(os.getenv("PAPER_LONG_OPTION_MAX_DTE", "2"))
+        self.lo_stop = float(os.getenv("PAPER_LONG_OPTION_STOP", "0.5"))
+        self.lo_take_profit = float(os.getenv("PAPER_LONG_OPTION_TAKE_PROFIT", "2.0"))
+        self.lo_trail_after = float(os.getenv("PAPER_LONG_OPTION_TRAIL_AFTER", "0.5"))
+        self.lo_trail = float(os.getenv("PAPER_LONG_OPTION_TRAIL", "0.35"))
         self.brief_on = os.getenv("PAPER_BRIEFING", "1") not in ("0", "false", "off")
         self.brief_days = int(os.getenv("PAPER_BRIEF_DAYS", "30"))
         self.brief_min_trades = int(os.getenv("PAPER_BRIEF_MIN_TRADES", "3"))
@@ -250,7 +264,9 @@ class PaperTrader:
         self.s = self.s or new_state(self.cfg, clock())
         self.pdt_blocked = 0
         self.s.setdefault("options", [])
+        self.s.setdefault("long_opts", [])
         self.income = Income(self)
+        self.longopts = LongOptions(self)
         from .quant_gate import QuantGate
         from .market_signals import MarketSignals
         from .signal_research import SignalRank
@@ -295,11 +311,12 @@ class PaperTrader:
     def universe(self):
         c = self.cfg
         return sorted(set(c.etfs) | set(c.day_symbols) | {c.hedge, "SPY"} | set(self.s["positions"])
-                      | (set(c.opt_symbols) if c.opt_enabled else set()))
+                      | (set(c.opt_symbols) if c.opt_enabled else set()) | (set(c.lo_symbols) if c.lo_on else set()))
 
     def equity(self, quotes):
         return (self.s["cash"] + sum(p["qty"] * (quotes.get(sym, {}).get("price") or p["avg"])
-                                     for sym, p in self.s["positions"].items()) - self.income.liability())
+                                     for sym, p in self.s["positions"].items()) - self.income.liability()
+                + self.longopts.value())
 
     def free_cash(self):
         return self.s["cash"] - self.income.collateral()
@@ -486,9 +503,10 @@ class PaperTrader:
             prior = [e for ts, e in self.s["equity_log"] if ts[:10] < monday]
             self.s["week"] = {"id": wid, "open_equity": prior[-1] if prior else self.s["start_cash"]}
         hm = (t.hour, t.minute)
-        if self.cfg.opt_enabled or self.s["options"]:
+        if self.cfg.opt_enabled or self.s["options"] or self.s["long_opts"]:
             try:
                 self.income.settle_expired(quotes, t)
+                self.longopts.settle_expired(quotes, t)
             except Exception as exc:
                 print("[paper] option settle failed:", repr(exc))
         if phase == "open":
@@ -720,10 +738,10 @@ class PaperTrader:
                   f"(today {day_pl / s['day']['open_equity']:+.2%})"]
         if daily:
             L += self.day_perf_lines(t)
-        L += ["", "Options income (covered calls / cash-secured puts only, never naked):",
+        L += ["", "Options (defined risk only: secured/covered shorts, bought options lose at most their premium; never naked):",
               f"Premium sold {'today' if daily else 'this period'}: {_money(premium)} | "
               f"Collateral reserved: {_money(self.income.collateral())}"]
-        L += self.income.lines(quotes) or ["- no open options"]
+        L += self.income.lines(quotes) + self.longopts.lines(quotes) or ["- no open options"]
         note = (s.get("desk") or {}).get("options_note")
         if note and not self.income.opts:
             L.append(f"Last scan: {note}")

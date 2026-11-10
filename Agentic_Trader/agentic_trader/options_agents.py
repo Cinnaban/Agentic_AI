@@ -8,12 +8,14 @@ open goes through `Income.sell_to_open`, which refuses anything else. The `Optio
 - defensive puts  low-delta, further-out-of-the-money cash-secured puts on the same universe
 - put spreads     put credit spreads: a short put paired with a bought lower-strike put, so loss is capped
 - covered calls   calls against shares assigned from puts, never below cost basis
+- long options    bought calls/puts and debit spreads on a directional setup; the loss is capped at the premium paid
 """
 from __future__ import annotations
 
 from collections import Counter
 from datetime import date, datetime
 
+from . import day_strategy as ds
 from .paper_options import MULT, _coll
 
 MIN_OTM = 0.02
@@ -298,12 +300,158 @@ class CoveredCalls(_Agent):
         return {"opened": opened, "note": f"{held} assigned position(s) checked: opened {opened} call(s)"}
 
 
+class LongOptionAgent(_Agent):
+    """Directional short-dated options bought for a debit (long calls/puts, or a debit spread when a single leg costs
+    more than the per-trade cap). Worst case is the premium paid, so it is defined-risk like the rest of the team.
+    Entry needs the opening range broken with price on the right side of VWAP and the EMAs; calls also face the quant veto."""
+    name, label, share = "long_options", "Long calls/puts", 0.0
+    TARGET_DELTA = 0.40
+    WINDOW = ((9, 45), (14, 30))
+    SCAN_MIN = 5
+
+    def _snapshots(self, syms, quotes, t):
+        d = self.tr.data
+        bars5 = d.bars(syms, "5minute", 6, ttl=60)
+        daily = d.bars(syms, "day", 120, ttl=1800)
+        snap = {}
+        for sym in syms:
+            try:
+                snap[sym] = ds.analyze(bars5.get(sym, []), daily.get(sym, []), (quotes.get(sym) or {}).get("price"), t.date())
+            except Exception as exc:
+                print(f"[paper] long option analyze {sym} failed:", repr(exc))
+                snap[sym] = None
+        return snap
+
+    @staticmethod
+    def direction(m):
+        """('call'|'put', strength) when price is breaking the opening range with trend and VWAP agreeing, else None."""
+        if not m or not m.get("or_done"):
+            return None
+        a = m.get("atr5") or 0.0
+        if not a:
+            return None
+        if m["price"] > m["vwap"] and m["ema9"] > m["ema21"] and m["price"] > m["or_high"] and (m.get("rsi") or 50) < 78:
+            return "call", (m["price"] - m["or_high"]) / a
+        if m["price"] < m["vwap"] and m["ema9"] < m["ema21"] and m["price"] < m["or_low"] and (m.get("rsi") or 50) > 22:
+            return "put", (m["or_low"] - m["price"]) / a
+        return None
+
+    def _pick(self, sym, kind, px, t, per_trade):
+        """(long, long_q, short, short_q, cost per contract) or (None, reason)."""
+        d, c, inc = self.tr.data, self.tr.cfg, self.tr.income
+        exps = [e for e in d.option_expirations(sym)
+                if c.lo_min_dte <= (date.fromisoformat(e) - t.date()).days <= c.lo_max_dte]
+        if not exps:
+            return None, "no expiry in range"
+        contracts = d.option_contracts(sym, exps[0], kind)
+        near = sorted((x for x in contracts if abs(x["strike"] / px - 1) <= 0.03), key=lambda x: abs(x["strike"] - px))[:8]
+        far_dir = 1 if kind == "call" else -1
+        far = sorted((x for x in contracts if 0 < far_dir * (x["strike"] - px) <= px * 0.06), key=lambda x: abs(x["strike"] - px))[:10]
+        if not near:
+            return None, "no strike near the money"
+        qs = d.option_quotes(list({x["id"] for x in near + far}))
+        liquid = [(x, qs[x["id"]]) for x in near if inc._liquid(qs.get(x["id"]), c)]
+        if not liquid:
+            return None, "no liquid strike"
+
+        def fit(xq):
+            delta = abs(xq[1].get("delta") or 0)
+            return abs(delta - self.TARGET_DELTA) if delta else abs(xq[0]["strike"] / px - 1)
+
+        long, lq = min(liquid, key=fit)
+        if lq["ask"] * MULT <= per_trade:
+            return (long, lq, None, None, lq["ask"] * MULT), ""
+        best = None
+        for sh in far:
+            sq = qs.get(sh["id"])
+            if far_dir * (sh["strike"] - long["strike"]) <= 0 or not sq or not sq.get("bid") or sq.get("oi", 0) < c.opt_min_oi:
+                continue
+            debit, width = round(lq["ask"] - sq["bid"], 2), abs(sh["strike"] - long["strike"])
+            if debit < 0.05 or debit >= width or debit * MULT > per_trade:
+                continue
+            ratio = debit / width
+            if best is None or ratio < best[0]:
+                best = (ratio, sh, sq, debit)
+        if not best:
+            return None, "premium above the per-trade cap"
+        return (long, lq, best[1], best[2], best[3] * MULT), ""
+
+    def run(self, quotes, t, equity, budget, room_total, team_budget=0.0):
+        tr, c, s, lo = self.tr, self.tr.cfg, self.tr.s, self.tr.longopts
+        hm = (t.hour, t.minute)
+        if not c.lo_on:
+            return {"note": "disabled", "opened": 0}
+        if not (self.WINDOW[0] <= hm < self.WINDOW[1]):
+            return {"note": "waiting for next scan window", "opened": 0}
+        last = s.get("opt_scan_long_options")
+        if last and (t - datetime.fromisoformat(last)).total_seconds() < self.SCAN_MIN * 60:
+            return {"note": "waiting for next scan window", "opened": 0}
+        s["opt_scan_long_options"] = t.isoformat()
+        today = t.date().isoformat()
+        entries = sum(1 for x in s["trades"] if x.get("strat") == self.name and x["ts"][:10] == today
+                      and x.get("desc", "").startswith("BUY TO OPEN"))
+        room = min(team_budget * c.lo_budget_pct - lo.at_risk(), room_total, tr.free_cash())
+        per_trade = min(team_budget * c.lo_trade_pct, room)
+        if len(lo.opts) >= c.lo_max_open or entries >= c.lo_max_entries or per_trade < 5:
+            return {"note": f"at limits ({len(lo.opts)} open, {entries} entries today, ${max(room, 0):,.0f} premium room)",
+                    "opened": 0}
+        stats = Counter()
+        syms = [x for x in c.lo_symbols if x in quotes]
+        snap = self._snapshots(syms, quotes, t)
+        earn = _earnings(tr, c.lo_max_dte, t.date())
+        held = {o["sym"] for o in lo.opts}
+        found = []
+        tr.quant.ensure([x for x in syms if snap.get(x)], "options")
+        for sym in syms:
+            m = snap.get(sym)
+            dirn = self.direction(m)
+            weak = (self.brief or {}).get("avoid", {}).get(sym)
+            if sym in held:
+                stats["already held"] += 1
+            elif not dirn:
+                stats["no breakout setup"] += 1
+            elif sym in earn:
+                stats["earnings in the window"] += 1
+            elif weak:
+                stats["weak recent results (briefing)"] += 1
+            elif dirn[0] == "call" and (tr.quant.verdict(sym, "options")[0] or tr.signals.bearish(sym)):
+                stats["call vetoed (quant or news)"] += 1
+            else:
+                strong = (self.brief or {}).get("favored", {}).get(sym)
+                found.append((dirn[1] * (1 + (c.brief_weight if strong else 0)), sym, dirn[0]))
+        opened = 0
+        for _, sym, kind in sorted(found, reverse=True):
+            if len(lo.opts) >= c.lo_max_open or entries + opened >= c.lo_max_entries or per_trade < 5:
+                break
+            try:
+                pick, why = self._pick(sym, kind, quotes[sym]["price"], t, per_trade)
+            except Exception as exc:
+                print(f"[paper] long option scan {sym} failed:", repr(exc))
+                stats["data error"] += 1
+                continue
+            if not pick:
+                stats[why] += 1
+                continue
+            long, lq, short, sq, cost = pick
+            qty = max(1, min(10, int(per_trade // cost))) if cost <= per_trade else 0
+            if qty and lo.buy_to_open(sym, kind, long, lq, qty, t, strat=self.name, short=short, short_q=sq):
+                opened += 1
+                room -= cost * qty
+                per_trade = min(per_trade, room)
+            else:
+                stats["not enough free cash"] += 1
+        parts = [f"{n} {why}" for why, n in stats.most_common()]
+        return {"opened": opened, "note": f"scanned {len(syms)} names: opened {opened} long option(s)"
+                + (f"; skipped {', '.join(parts[:4])}" if parts else "")}
+
+
 class OptionsManager:
     """Sub-manager: takes the orchestrator's options mandate, splits it across its agents, and reports back."""
 
     def __init__(self, trader):
         self.tr = trader
-        self.agents = [VRPPuts(trader), PutSpreads(trader), YieldPuts(trader), DefensivePuts(trader), CoveredCalls(trader)]  # selective agent first
+        self.agents = [VRPPuts(trader), PutSpreads(trader), YieldPuts(trader), DefensivePuts(trader), CoveredCalls(trader),
+                       LongOptionAgent(trader)]  # selective agent first
 
     def report_lines(self, t):
         rep = self.tr.s.get("desk", {}).get("options_agents") or {}
@@ -320,12 +468,13 @@ class OptionsManager:
         tr, s, inc = self.tr, self.tr.s, self.tr.income
         inc.enforce(quotes, t)  # the risk guard belongs to the manager, not to any one strategy
         inc.manage(t)
+        tr.longopts.manage(t)
         desk = s.setdefault("desk", {})
         today = t.date().isoformat()
         report = {}
         for a in self.agents:
             prem, pl = self._stats(a.name, today)
-            n_open = sum(1 for o in inc.opts if o.get("strat") == a.name)
+            n_open = sum(1 for o in inc.opts + tr.longopts.opts if o.get("strat") == a.name)
             report[a.name] = {"label": a.label, "open": n_open, "premium_today": prem, "pl_today": pl, "note": ""}
         desk["options_agents"] = report
         if not mandate.allow_new:
@@ -335,7 +484,7 @@ class OptionsManager:
             desk["options_note"] = text
             return
         budget = equity * mandate.budget_pct * mandate.scale
-        used = inc.collateral() + sum(p["qty"] * ((quotes.get(sym) or {}).get("price") or p["avg"])
+        used = inc.collateral() + tr.longopts.at_risk() + sum(p["qty"] * ((quotes.get(sym) or {}).get("price") or p["avg"])
                                       for sym, p in s["positions"].items() if p["sleeve"] == "income")
         notes = []
         for a in self.agents:
@@ -347,10 +496,10 @@ class OptionsManager:
                 print(f"[paper] options agent {a.name} failed:", repr(exc))
                 out = {"note": "error; see log", "opened": 0}
             report[a.name]["note"] = out["note"]
-            report[a.name]["open"] = sum(1 for o in inc.opts if o.get("strat") == a.name)
+            report[a.name]["open"] = sum(1 for o in inc.opts + tr.longopts.opts if o.get("strat") == a.name)
             if out["opened"] or out["note"] != "waiting for next scan window":
                 notes.append(f"{a.label}: {out['note']}")
-            used = inc.collateral() + sum(p["qty"] * ((quotes.get(sym) or {}).get("price") or p["avg"])
+            used = inc.collateral() + tr.longopts.at_risk() + sum(p["qty"] * ((quotes.get(sym) or {}).get("price") or p["avg"])
                                           for sym, p in s["positions"].items() if p["sleeve"] == "income")
         if notes:
             desk["options_note"] = " | ".join(notes)
