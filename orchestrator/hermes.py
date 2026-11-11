@@ -2404,6 +2404,18 @@ class Hermes:
                         "no response"
                     )
 
+                if (
+                    work_package.required_agents.get("research", False)
+                    and comparison_plan.get("needs_research", True)
+                ):
+                    limitations = self._comparison_research_limitations(
+                        company_results
+                    )
+                    if limitations:
+                        comparison_response += (
+                            "\n\nResearch limitations:\n"
+                            + "\n".join(f"- {item}" for item in limitations)
+                        )
 
                 final_response = {
                     "approved":
@@ -3293,6 +3305,19 @@ class Hermes:
         if isinstance(llm_confidence, (int, float)):
             final += f" (Reviewer score: {min(int(llm_confidence), best)})"
         return final
+
+    @staticmethod
+    def _comparison_research_limitations(company_results):
+        limitations = []
+        for ticker, result in company_results.items():
+            research = result.get("research") if isinstance(result, dict) else None
+            if not isinstance(research, str) or not research.strip():
+                limitations.append(f"{ticker}: research was unavailable.")
+            elif research.startswith("Research analysis unavailable:"):
+                limitations.append(f"{ticker}: {research}")
+            elif "Research output was truncated by the model's generation limit." in research:
+                limitations.append(f"{ticker}: research output was truncated.")
+        return limitations
 
     def _consensus_summary(self, message, sources):
         try:

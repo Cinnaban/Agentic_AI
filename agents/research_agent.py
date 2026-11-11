@@ -19,7 +19,8 @@ class ResearchAgent:
     def analyze(
         self,
         company,
-        market_context=None
+        market_context=None,
+        comparison=False
     ):
         if market_context is None:
 
@@ -557,6 +558,39 @@ GROUNDING RULES:
   only to those individual observations and must not be
   presented as the overall analysis date.
 """
+
+        if comparison:
+            prompt = f"""
+You are a market research analyst preparing one part of a company comparison.
+{analysis_instructions}
+Use at most 300 words total and at most two sentences per section.
+Prioritize supplied evidence and material limitations.
+
+Instrument: {json.dumps(company, default=str)}
+Market context: {json.dumps(research_context, separators=(",", ":"), default=str)}
+Social summary: {json.dumps(social_summary, separators=(",", ":"), default=str)}
+
+Grounding requirements:
+- Use supplied timestamped evidence for current claims. Attribute public reporting
+  to its publisher and date; Firecrawl is a retrieval tool, not the publisher.
+  Distinguish single-source reporting from independently corroborated reporting.
+  If current verification is unavailable, say so. Do not invent dates or events.
+- SEC facts are reported financial evidence, but filing metadata does not prove
+  filing contents. FRED is authoritative for supplied macro observations.
+  Quantitative ratings, forecasts and recommendations are model outputs, not
+  SEC facts, analyst opinions or verified sentiment.
+- CPI index levels are not inflation rates, GDP levels are not growth rates,
+  and interest-rate and unemployment changes are percentage points. Do not
+  infer company-specific causes or effects from macro data without evidence.
+- Social discussion is unverified and is not investor sentiment or consensus.
+  Do not claim unavailable news, sentiment or social sources were retrieved.
+- Do not infer balance-sheet conditions, investor sentiment, competitive
+  dominance or operational stability from a quantitative score alone.
+- General knowledge is background, not current or independently verified fact.
+  Do not invent financial values or portfolio values.
+{sec_fact_guidance}
+{financial_interpretation_guidance}
+"""
         
         model_response = ""
         last_error = ""
@@ -568,7 +602,8 @@ GROUNDING RULES:
 
                 options={
                     "num_predict":
-                        Config.RESEARCH_NUM_PREDICT,
+                        min(Config.RESEARCH_NUM_PREDICT, 768)
+                        if comparison else Config.RESEARCH_NUM_PREDICT,
 
                     "num_ctx":
                         Config.RESEARCH_NUM_CTX
@@ -582,10 +617,18 @@ GROUNDING RULES:
                 (response or {}).get("response", "") or ""
             )
             if model_response.strip():
+                if response.get("done_reason") == "length":
+                    model_response += (
+                        "\n\nResearch output was truncated by the model's "
+                        "generation limit."
+                    )
                 break
             last_error = str(
                 (response or {}).get("error", "") or "empty response"
             )
+            if isinstance(response, dict) and response.get("status") == "failed":
+                print("RESEARCH AGENT FAILED:", last_error)
+                break
             print(
                 "RESEARCH AGENT RETRY:",
                 attempt + 1,

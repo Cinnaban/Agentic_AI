@@ -667,6 +667,13 @@ The Hermes Agent gateway (`ai.hermes.gateway`, installed under `~/.hermes`) is t
 - Telegram `/portfolio`, `/positions`, `/review`, `/paper`, `/buy`, `/sell`, `/confirm`, `/myid` and `/help_rh` run deterministically through `--cmd`, restricted to `TELEGRAM_ROBINHOOD_USER_IDS` and `TELEGRAM_ROBINHOOD_CHAT_IDS`. They never reach the model, and the trader stays paper-only.
 - Other chats go to the Hermes agent (local Ollama `qwen3-8b-64k`), which also exposes the `research_question` and `paper_trader_status` MCP tools.
 
+For multi-company comparisons, research responses are limited to 768 generated
+tokens per company and requested in a concise format. Research, risk and
+sentiment still run when requested, but model calls are grouped by agent to
+reduce model reloads. A failed research request is not retried after a timeout;
+unavailable or truncated research is identified in the comparison. The normal
+single-company research token limit is unchanged.
+
 Paper desk settings (full list in `Agentic_Trader/.env.example`): `PAPER_GROWTH_PCT`, `PAPER_GROWTH_WEIGHTS`, `PAPER_REBALANCE_BAND`, `PAPER_OPTION_PCT`, `PAPER_OPTION_MAX_POSITIONS`, `PAPER_OPTION_WEEKLY_PREMIUM_GOAL`, `PAPER_OPTION_SYMBOLS`, `PAPER_DAY_STRATEGIES`.
 
 ## Runtime Storage
