@@ -762,7 +762,13 @@ exposures, and top holdings; issuer-style EPS, EBITDA, operating cash flow,
 and current ratio are not applicable to a fund.
 
 Ticker-specific news is included only when it has a parseable publication
-time within the prior 48 hours; undated stories are omitted. Same-industry
+time within the prior 48 hours; undated stories are omitted. The market context
+and short-term watch sections select up to three stories each, retrieve the
+linked public pages when available, and show up to two substantive article
+sentences with publisher, timestamp, and link. If article text is unavailable,
+the report labels a useful search snippet or explicitly notes that details
+are unavailable. Generic titles that only repeat a holding's name are omitted
+from the watch list. Same-industry
 stocks in the sheet can be compared as a partial portfolio peer cohort, but
 that cohort is not represented as an industry-wide benchmark. Portfolio
 weights are not read from the sheet, so any aggregate metrics remain

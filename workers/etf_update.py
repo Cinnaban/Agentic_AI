@@ -42,6 +42,10 @@ from workers.etf_portfolio_insights import (
     format_holding_insights,
     is_complete_portfolio_update,
     parse_asset_rows,
+    select_daily_news,
+    enrich_daily_news,
+    format_daily_news_sections,
+    replace_daily_news_sections,
     retrieve_holding_insights
 )
 
@@ -920,6 +924,17 @@ if unapproved_tickers or not is_complete_portfolio_update(ai_summary):
         market_headlines=live_news,
         news_by_ticker=news_by_ticker
     )
+
+market_articles, watch_articles = select_daily_news(
+    holding_insights, live_news, news_by_ticker
+)
+enrich_daily_news(market_articles, watch_articles)
+market_section, watch_section = format_daily_news_sections(
+    market_articles, watch_articles, holding_insights
+)
+ai_summary = replace_daily_news_sections(
+    ai_summary, market_section, watch_section
+)
 
 ai_summary = (
     ai_summary.rstrip()

@@ -1,8 +1,10 @@
 import math
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from urllib.parse import urlsplit
 
 
 STOCK_METRIC_LABELS = (
@@ -421,6 +423,196 @@ def filter_recent_news(items, now=None, window_hours=48):
         key=lambda item: item["published_at"],
         reverse=True
     )
+
+
+def select_daily_news(holdings, market_headlines, news_by_ticker, now=None):
+    allowed = {str(h["ticker"]).upper() for h in holdings if h.get("ticker")}
+    names = [h.get("name") for h in holdings if h.get("name")]
+    market = [
+        item for item in filter_recent_news(market_headlines, now=now)
+        if item.get("title") and not find_unapproved_ticker_mentions(
+            item["title"], allowed, names
+        )
+    ][:3]
+    watch = []
+    seen = set()
+    for holding in holdings:
+        ticker = str(holding.get("ticker") or "").upper()
+        if not ticker:
+            continue
+        name = str(holding.get("name") or "").strip().casefold()
+        for item in filter_recent_news((news_by_ticker or {}).get(ticker, []), now=now):
+            title = str(item.get("title") or "").strip()
+            normalized_title = title.casefold().strip(" .")
+            if (
+                title
+                and normalized_title not in {name.strip(" ."), ticker.casefold()}
+                and not find_unapproved_ticker_mentions(title, allowed, names)
+            ):
+                watch.append((ticker, item))
+    watch.sort(key=lambda pair: pair[1]["published_at"], reverse=True)
+    unique_watch = []
+    for ticker, item in watch:
+        if item["url"] not in seen:
+            seen.add(item["url"])
+            unique_watch.append((ticker, item))
+        if len(unique_watch) == 3:
+            break
+    return market, unique_watch
+
+
+def _article_excerpt(text, title):
+    """Return up to two substantive verbatim sentences, not a generated claim."""
+    if not isinstance(text, str):
+        return ""
+    paragraphs = re.split(r"\n+", text)
+    sentences = []
+    for paragraph in paragraphs:
+        paragraph = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", paragraph)
+        paragraph = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", paragraph)
+        paragraph = re.sub(r"\s+", " ", paragraph).strip()
+        if (
+            not paragraph or paragraph.startswith(("#", "-", "*", "|", ">"))
+            or re.search(
+                r"subscribe|sign (?:in|up)|cookies|all rights reserved|"
+                r"javascript|access denied|enable javascript|advertisement",
+                paragraph, re.I
+            )
+        ):
+            continue
+        for sentence in re.split(r"(?<=[.!?])\s+(?=[A-Z\"'])", paragraph):
+            sentence = sentence.strip()
+            if (
+                40 <= len(sentence) <= 400
+                and re.search(r"[.!?][\"']?$", sentence)
+                and "|" not in sentence
+                and not re.search(r"\b(?:market|stock market) (?:today )?highlights:", sentence, re.I)
+                and sentence.casefold().rstrip(".") != str(title or "").casefold().rstrip(".")
+            ):
+                sentences.append(sentence)
+                if len(sentences) == 2:
+                    return " ".join(sentences)
+    return " ".join(sentences)
+
+
+def _article_title_matches(item, page):
+    metadata = page.get("metadata")
+    page_title = page.get("title") or (
+        metadata.get("title") if isinstance(metadata, dict) else ""
+    )
+    if not page_title:
+        return True
+    ignored = {
+        "about", "after", "amid", "before", "could", "from", "market",
+        "news", "says", "stock", "stocks", "their", "these", "this",
+        "what", "when", "where", "which", "with", "would",
+    }
+
+    def terms(value):
+        return {
+            word for word in re.findall(r"[a-z0-9]{4,}", str(value).casefold())
+            if word not in ignored
+        }
+
+    original = terms(item.get("title") or "")
+    scraped = terms(page_title)
+    return not original or not scraped or bool(original & scraped)
+
+
+def enrich_daily_news(market, watch, backend=None):
+    """Fetch only selected public article URLs, once each, with bounded concurrency."""
+    from data.providers.live.firecrawl_backend import FirecrawlBackend
+
+    backend = backend or FirecrawlBackend()
+    items = list(market) + [item for _, item in watch]
+    urls = list(dict.fromkeys(item["url"] for item in items))
+
+    def retrieve(url):
+        try:
+            if not backend._is_public_http_url(url):
+                logging.warning("Daily news URL is not a public HTTP URL: %s", url)
+                return None
+            return backend.retrieve_page(url)
+        except Exception as error:
+            logging.warning("Daily news article retrieval failed for %s: %s", url, error)
+            return None
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        pages = dict(zip(urls, executor.map(retrieve, urls)))
+    for item in items:
+        page = pages.get(item["url"])
+        text = (
+            page.get("markdown")
+            if isinstance(page, dict) and _article_title_matches(item, page)
+            else None
+        )
+        excerpt = _article_excerpt(text, item.get("title"))
+        if excerpt:
+            item["brief"] = excerpt
+            item["brief_source"] = "article excerpt"
+        else:
+            snippet = _article_excerpt(item.get("summary"), item.get("title"))
+            if snippet:
+                item["brief"] = snippet
+                item["brief_source"] = "search snippet; article text unavailable"
+            else:
+                item["brief"] = ""
+                item["brief_source"] = "article details unavailable"
+                logging.warning(
+                    "Daily news article and search snippet unavailable for %s",
+                    item["url"]
+                )
+
+
+def format_daily_news_sections(market, watch, holdings):
+    allowed = {str(h["ticker"]).upper() for h in holdings if h.get("ticker")}
+    names = [h.get("name") for h in holdings if h.get("name")]
+
+    def format_item(item, ticker=None):
+        prefix = f"{ticker}: " if ticker else ""
+        source = item.get("source") or "source unavailable"
+        published = item.get("published_at") or "date unavailable"
+        url = item.get("url") or ""
+        try:
+            parts = urlsplit(url)
+            link = url if parts.scheme in {"http", "https"} and parts.netloc else ""
+        except ValueError:
+            link = ""
+        title = str(item.get("title") or "").strip()
+        attribution = f"{source}; {published}" + (f"; {link}" if link else "")
+        brief = item.get("brief") or ""
+        if brief and find_unapproved_ticker_mentions(brief, allowed, names):
+            brief = ""
+        detail = (
+            f"{item.get('brief_source', 'article excerpt')}: {brief}"
+            if brief else "Article details unavailable."
+        )
+        return f"- {prefix}{title} ({attribution}).\n  {detail}"
+
+    market_lines = ["## Current Market Context"]
+    market_lines.extend(
+        [format_item(item) for item in market]
+        if market else ["No timestamp-verified market headlines were retrieved."]
+    )
+    market_lines.append("Market sentiment was not independently measured.")
+    watch_lines = ["## Short-Term Watch"]
+    watch_lines.extend(
+        [format_item(item, ticker) for ticker, item in watch]
+        if watch else ["No timestamp-verified holding-specific news was retrieved within the last 48 hours."]
+    )
+    return "\n".join(market_lines), "\n".join(watch_lines)
+
+
+def replace_daily_news_sections(summary, market_section, watch_section):
+    for heading, replacement in (
+        ("Current Market Context", market_section),
+        ("Short-Term Watch", watch_section),
+    ):
+        pattern = r"(?ms)^## " + re.escape(heading) + r"[ \t]*\r?\n.*?(?=^## |\Z)"
+        summary, count = re.subn(pattern, lambda _: replacement + "\n\n", summary, count=1)
+        if count != 1:
+            raise ValueError(f"Daily portfolio update missing section: {heading}")
+    return summary.rstrip()
 
 
 def _format_metric(key, value):
