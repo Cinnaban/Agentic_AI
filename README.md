@@ -663,6 +663,18 @@ Logs are in `logs/`.
 
 The Hermes Agent gateway (`ai.hermes.gateway`, installed under `~/.hermes`) is the single process that owns the Telegram and Discord tokens.
 
+- When using the Hermes front door for Discord, disable the legacy
+  `com.bunnyhouse.stockagent.discord` LaunchAgent as well as stopping it;
+  otherwise `RunAtLoad` starts a second listener after login and every question
+  can run twice:
+
+  ```sh
+  launchctl disable gui/$(id -u)/com.bunnyhouse.stockagent.discord
+  launchctl bootout gui/$(id -u)/com.bunnyhouse.stockagent.discord
+  ```
+
+  To restore the standalone Discord bot instead, first stop the Hermes gateway,
+  then enable and bootstrap its LaunchAgent.
 - A gateway plugin (`~/.hermes/plugins/agentic-front-door`) sends Discord questions-channel messages (and threads under it) and authorized Telegram messages straight to the pipeline through `integrations/hermes_mcp_server.py --ask`, with no LLM relay, so tables and numbers stay exact. At most two questions run at once, and a timed-out run is killed.
 - Telegram `/portfolio`, `/positions`, `/review`, `/paper`, `/buy`, `/sell`, `/confirm`, `/myid` and `/help_rh` run deterministically through `--cmd`, restricted to `TELEGRAM_ROBINHOOD_USER_IDS` and `TELEGRAM_ROBINHOOD_CHAT_IDS`. They never reach the model, and the trader stays paper-only.
 - Other chats go to the Hermes agent (local Ollama `qwen3-8b-64k`), which also exposes the `research_question` and `paper_trader_status` MCP tools.
