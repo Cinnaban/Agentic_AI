@@ -27,6 +27,7 @@ agentic_trader/
   desk.py             orchestrator, growth team, mandates, weekly capital review
   historian.py        daily/weekly/historical team briefings
   day_agents.py / day_strategy.py   day team agents and strategy triggers
+  day_comparison.py   isolated parallel day-strategy paper accounts
   options_agents.py / paper_options.py / paper_longopts.py   options sub-manager, agents, short and long option ledgers, risk guard
   quant_suite.py / quant_gate.py / quant_worker.py   pre-trade quant metrics and veto (Gaming PC or local)
   signal_research.py  indicator and pair ranking
@@ -91,6 +92,14 @@ The orchestrator sets goals, budgets and risk dials; it never trades. Trades are
 - **Long options** (`LongOptionAgent`, `paper_longopts.py`, `PAPER_LONG_OPTIONS=0` disables): directional short-dated (0-2 DTE) bought calls and puts on SPY, QQQ and the day-team symbols (`PAPER_LONG_OPTION_SYMBOLS`). A call needs price above VWAP, EMA9 above EMA21 and a break of the opening-range high (a put is the mirror image); calls also face the quant veto and bearish news, and earnings or briefing-avoided names are skipped. Entry window 9:45-14:30 ET, at most 4 open and 4 entries a day. Premium is capped at 10% of the options budget per trade (`PAPER_LONG_OPTION_TRADE_PCT`) and 30% in total (`PAPER_LONG_OPTION_BUDGET_PCT`); if a single leg is dearer than the cap, a call/put debit spread is used instead. Exits: stop at -50% of the premium, trailing stop (35% off the peak once up 50%), take profit at +200%, and a close before the expiry-day bell; leftovers are cash-settled at intrinsic value. The worst case is the premium paid, so this is not naked risk. Most short-dated buyers lose their premium: the agent is judged on its own paper results and the weekly review resizes its team's budget accordingly.
 - **Weekly capital review** (`Orchestrator.weekly_review`): every 7 days each active team's budget is resized by its trailing-week return on the budget it was given (realized plus open). A team that lost its whole budget is cut by 50%; gains raise it by up to 30%. Budgets stay within 10%-150% of the configured base and under the hard ceilings. History is in `state["alloc"]` and the Grafana "Team budget" panels.
 - **Goals:** day +2-5%, week +8-12% (`PAPER_DAILY_TARGET_*`, `PAPER_WEEKLY_TARGET_*`). They are measured and shown in every summary, but the desk never adds risk to chase them.
+
+## Parallel day-strategy experiment
+
+The trader maintains two independent test accounts alongside the existing paper account: **multi** uses the configured day strategies and entry caps; **single** uses only PULLBACK and allows at most one entry per trading day. They start with `PAPER_START_CASH` and the same configured day-budget percentage, fixed when the experiment starts. Each account compounds its own results, so dollar balances and budgets may diverge. Neither account trades in, spends from, or changes the existing paper account.
+
+Both use the same quotes, intraday snapshots, volatility regime, quant gate, cached news signals, fills, fees and risk settings. Each has its own positions, trade history, historian and daily/weekly guardrails; the experiment uses the initial day-budget percentage rather than the live orchestrator's changing allocation. The multi team splits its budget among its agents; the single team has one slice. Therefore the experiment compares complete approaches, including sizing and setup selection, not just entry counts. It does not include premarket screening.
+
+After a single-team entry, no more entries are allowed that day, including after an exit or restart; stops, targets, trailing exits and the 15:50 ET flatten continue. Stops are simulated and may be exceeded. The Grafana experiment panels show both accounts, returns and trades separately. The experiment begins collecting trades during market hours; it does not backfill history. Compare returns, trade counts and drawdowns over a meaningful sample rather than treating early results as proof of profitability. Spread and modeled fees are included; additional slippage and real liquidity are not.
 
 ## Historian briefing
 `historian.py` is deterministic (no LLM). Every planning cycle the orchestrator asks it for a briefing built from the closed trades in the paper ledger:

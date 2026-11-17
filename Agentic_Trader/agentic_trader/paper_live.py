@@ -274,6 +274,8 @@ class PaperTrader:
         self.rank = SignalRank(path=Path(store.mirror).with_name("signal_ranking.json"), enabled=self.cfg.rank_enabled)
         self.quant = QuantGate(data, enabled=self.cfg.quant_gate, path=Path(store.mirror).with_name("quant_suite.json"))
         self.desk = Desk(self)
+        from .day_comparison import DayComparison
+        self.day_comparison = DayComparison(self)
         self.plan = None
 
     # ---- helpers
@@ -489,6 +491,9 @@ class PaperTrader:
         quotes = self.data.quotes(self.universe())
         phase = self.phase(t, quotes)
         if phase == "idle":
+            if "day_comparison" not in self.s:
+                self.day_comparison.initialize(t)
+                self.store.save(self.s)
             return "idle"
         day = self.s["day"]
         if day["date"] != t.date().isoformat():
@@ -533,6 +538,12 @@ class PaperTrader:
                     fn()
                 except Exception as exc:
                     print(f"[paper] {name} agent failed:", repr(exc))
+            try:
+                self.day_comparison.run(quotes, t, reg)
+            except Exception as exc:
+                print(f"[paper] day comparison failed: {exc!r}", flush=True)
+                if self.s.get("day_comparison"):
+                    self.s["day_comparison"]["last_error"] = repr(exc)
         equity = self.equity(quotes)
         self.s["equity_log"].append([t.isoformat(), equity])
         self.s["equity_log"] = self.s["equity_log"][-4000:]

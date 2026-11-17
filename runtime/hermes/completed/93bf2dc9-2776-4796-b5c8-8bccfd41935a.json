@@ -1,0 +1,43 @@
+{
+  "job_id": "93bf2dc9-2776-4796-b5c8-8bccfd41935a",
+  "status": "completed",
+  "created_at": "2026-11-15T20:06:45.670779",
+  "updated_at": "2026-11-15T20:17:11.480967",
+  "data": {
+    "message": "Analyze INTC",
+    "source": "discord",
+    "companies": [
+      {
+        "name": "INTC",
+        "ticker": "INTC",
+        "entity_type": "stock",
+        "ticker_source": null,
+        "instrument_classification": {
+          "classification_status": "resolved",
+          "classification_source": "Yahoo Finance quote type",
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      }
+    ],
+    "required_agents": {
+      "research": true,
+      "sentiment": true,
+      "quant": true,
+      "risk": true
+    },
+    "quality_review": {
+      "approved": false,
+      "issues": [
+        "Missing required information: Research agent failed to return usable output, creating an incomplete analysis.",
+        "Incomplete analysis: Sentiment/social data is invalid due to network blocks, leaving no usable qualitative or sentiment context.",
+        "Critical data conflict: Quantitative forecast_90d is 164.3% while forecast_180d is 140.42%, an impossible regression for a 'Strong Bullish' rating that is not resolved or flagged by Signal Reconciliation (which reports no conflicts).",
+        "Failed agents: challenger"
+      ],
+      "confidence": 65
+    },
+    "final_status": "completed"
+  }
+}

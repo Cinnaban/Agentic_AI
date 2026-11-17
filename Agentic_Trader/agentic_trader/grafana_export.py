@@ -48,6 +48,11 @@ CREATE TABLE briefing (team TEXT, period TEXT, closed INTEGER, net REAL, win_rat
 CREATE TABLE benchmark (day TEXT, account_pct REAL, spy_pct REAL, excess_pct REAL);
 CREATE TABLE account (ts INTEGER, start_cash REAL, cash REAL, equity REAL, realized_total REAL,
                       fees_total REAL, total_return_pct REAL, regime TEXT);
+CREATE TABLE comparison_equity (ts INTEGER, day TEXT, team TEXT, equity REAL, return_pct REAL);
+CREATE TABLE comparison_trades (ts INTEGER, team TEXT, side TEXT, symbol TEXT, strat TEXT, realized REAL, fee REAL, reason TEXT);
+CREATE TABLE comparison_accounts (team TEXT, started TEXT, budget_pct REAL, start_cash REAL, equity REAL,
+                                  realized REAL, fees REAL, closes INTEGER, wins INTEGER, profit_factor REAL,
+                                  max_drawdown_pct REAL, open_positions INTEGER, note TEXT, error TEXT);
 """
 
 
@@ -89,6 +94,35 @@ def export(source=SOURCE, target=TARGET):
             for t in trades
         ],
     )
+
+    comparison = state.get("day_comparison") or {}
+    for team, account in (comparison.get("teams") or {}).items():
+        points = account.get("equity_log") or []
+        initial = float(account["start_cash"])
+        account_trades = account.get("trades") or []
+        closed = [t for t in account_trades if t.get("side") == "sell" and "realized" in t]
+        gains = sum(t["realized"] for t in closed if t["realized"] > 0)
+        losses = -sum(t["realized"] for t in closed if t["realized"] < 0)
+        peak, drawdown = initial, 0.0
+        for _, eq in points:
+            peak = max(peak, float(eq))
+            drawdown = min(drawdown, (float(eq) / peak - 1) * 100)
+        db.executemany("INSERT INTO comparison_equity VALUES (?,?,?,?,?)", [
+            (_epoch(ts), _day(ts), team, float(eq), (float(eq) / initial - 1) * 100)
+            for ts, eq in points
+        ])
+        db.executemany("INSERT INTO comparison_trades VALUES (?,?,?,?,?,?,?,?)", [
+            (_epoch(t["ts"]), team, t.get("side"), t.get("sym"), t.get("strat"),
+             t.get("realized"), t.get("fee"), t.get("reason"))
+            for t in account_trades
+        ])
+        db.execute("INSERT INTO comparison_accounts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            team, comparison.get("started"), comparison.get("budget_pct"), initial,
+            float(points[-1][1]) if points else initial, account.get("realized_total", 0.0),
+            account.get("fees_total", 0.0), len(closed), sum(t["realized"] > 0 for t in closed),
+            gains / losses if losses else None, drawdown, len(account.get("positions") or {}),
+            (account.get("desk") or {}).get("day_note"), account.get("last_error") or comparison.get("last_error")))
+
     db.executemany(
         "INSERT INTO positions VALUES (?,?,?,?,?)",
         [

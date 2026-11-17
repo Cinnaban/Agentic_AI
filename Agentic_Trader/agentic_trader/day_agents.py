@@ -208,11 +208,11 @@ class DayDesk:
             return f"team cap of {c.day_max_trades} entries reached"
         return None
 
-    def run(self, quotes, t, equity, mandate, reg, hm):
+    def run(self, quotes, t, equity, mandate, reg, hm, snapshots=None):
         from .paper_live import FLATTEN_AT
         tr, c = self.tr, self.tr.cfg
         desk = tr.s.setdefault("desk", {})
-        snap = self._snapshots(quotes, t)
+        snap = self._snapshots(quotes, t) if snapshots is None else snapshots
         self._manage(quotes, t, snap, hm, hm >= FLATTEN_AT)
         report = {a.name: {"label": a.label, "entries": a.entries_today(tr, t), "pl": a.pl_today(tr, t),
                            "open": a.positions(tr), "note": ""} for a in self.agents}
