@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.agentic.local-improvement-agent</string>
+	
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/python3</string>
+		<string>$HOME/Agentic_AI/run_local_improvement_agent.py</string>
+		<string>--monitor</string>
+		<string>--interval</string>
+		<string>60</string>
+		<string>--log-file</string>
+		<string>$HOME/Agentic_AI/logs/local_improvement_agent.log</string>
+	</array>
+	
+	<key>RunAtLoad</key>
+	<true/>
+	
+	<key>KeepAlive</key>
+	<true/>
+	
+	<key>StandardOutPath</key>
+	<string>$HOME/Agentic_AI/logs/local_improvement_agent_stdout.log</string>
+	
+	<key>StandardErrorPath</key>
+	<string>$HOME/Agentic_AI/logs/local_improvement_agent_stderr.log</string>
+	
+	<key>WorkingDirectory</key>
+	<string>$HOME/Agentic_AI</string>
+	
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+		<key>HOME</key>
+		<string>$(HOME)</string>
+	</dict>
+	
+	<key>StartInterval</key>
+	<integer>3600</integer>
+	
+	<key>ThrottleInterval</key>
+	<integer>60</integer>
+</dict>
+</plist>

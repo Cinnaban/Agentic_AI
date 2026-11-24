@@ -941,7 +941,9 @@
    },
    "options": {
     "xField": "day",
-    "showValue": "auto"
+    "showValue": "never",
+    "xTickLabelRotation": 45,
+    "xTickLabelSpacing": 100
    }
   },
   {
@@ -982,6 +984,8 @@
    "options": {
     "xField": "day",
     "showValue": "never",
+    "xTickLabelRotation": 45,
+    "xTickLabelSpacing": 100,
     "legend": {
      "showLegend": true
     },
@@ -1108,6 +1112,8 @@
    "options": {
     "xField": "strat",
     "showValue": "never",
+    "xTickLabelRotation": 45,
+    "xTickLabelSpacing": 100,
     "legend": {
      "showLegend": true
     },
@@ -1152,6 +1158,8 @@
    "options": {
     "xField": "symbol",
     "showValue": "never",
+    "xTickLabelRotation": 45,
+    "xTickLabelSpacing": 100,
     "legend": {
      "showLegend": true
     },
@@ -1264,8 +1272,13 @@
    "options": {
     "xField": "day",
     "showValue": "never",
+    "xTickLabelRotation": 45,
+    "xTickLabelSpacing": 100,
     "legend": {
-     "showLegend": true
+     "showLegend": true,
+     "displayMode": "list",
+     "placement": "right",
+     "width": 150
     },
     "stacking": "normal"
    },
@@ -1309,8 +1322,13 @@
    "options": {
     "xField": "day",
     "showValue": "never",
+    "xTickLabelRotation": 45,
+    "xTickLabelSpacing": 100,
     "legend": {
-     "showLegend": true
+     "showLegend": true,
+     "displayMode": "list",
+     "placement": "right",
+     "width": 150
     },
     "stacking": "normal"
    }
@@ -1756,8 +1774,13 @@
    "options": {
     "xField": "day",
     "showValue": "never",
+    "xTickLabelRotation": 45,
+    "xTickLabelSpacing": 100,
     "legend": {
-     "showLegend": true
+     "showLegend": true,
+     "displayMode": "list",
+     "placement": "right",
+     "width": 150
     },
     "stacking": "normal"
    }
